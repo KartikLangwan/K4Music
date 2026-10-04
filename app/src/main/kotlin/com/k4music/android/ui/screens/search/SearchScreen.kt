@@ -4,7 +4,19 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableIntStateOf
@@ -54,22 +66,33 @@ fun SearchScreen(
         GlobalRoutes()
 
         Content {
+            val palette = LocalAppearance.current.colorPalette
+            // A pill search bar shared by the online and library tabs.
             val decorationBox: @Composable (@Composable () -> Unit) -> Unit = { innerTextField ->
-                Box {
-                    AnimatedVisibility(
-                        visible = textFieldValue.text.isEmpty(),
-                        enter = fadeIn(tween(300)),
-                        exit = fadeOut(tween(300)),
-                        modifier = Modifier.align(Alignment.CenterEnd)
-                    ) {
-                        BasicText(
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(CircleShape)
+                        .background(palette.background1)
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.search),
+                        contentDescription = null,
+                        tint = palette.textSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Box(Modifier.weight(1f)) {
+                        if (textFieldValue.text.isEmpty()) BasicText(
                             text = stringResource(R.string.search_placeholder),
                             maxLines = 1,
-                            style = LocalAppearance.current.typography.xxl.secondary
+                            style = LocalAppearance.current.typography.s.secondary
                         )
-                    }
 
-                    innerTextField()
+                        innerTextField()
+                    }
                 }
             }
 

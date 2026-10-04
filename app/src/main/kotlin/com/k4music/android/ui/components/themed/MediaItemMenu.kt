@@ -429,7 +429,7 @@ fun MediaItemMenu(
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     IconButton(
                         icon = if (likedAt == null) R.drawable.heart_outline else R.drawable.heart,
-                        color = if (likedAt != null) com.k4music.android.ui.theme.K4Favorite else colorPalette.favoritesIcon,
+                        color = if (likedAt != null) colorPalette.favoritesIcon else colorPalette.textSecondary,
                         onClick = {
                             query {
                                 val newLikedAt = if (likedAt == null) System.currentTimeMillis() else null

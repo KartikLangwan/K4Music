@@ -82,6 +82,7 @@ import com.k4music.android.ui.screens.audioRoute
 import com.k4music.android.utils.DisposableListener
 import com.k4music.android.utils.Pip
 import com.k4music.android.utils.forceSeekToNext
+import com.k4music.android.utils.forceSeekToPrevious
 import com.k4music.android.utils.playbackFraction
 import com.k4music.android.utils.playingSong
 import com.k4music.android.utils.positionAndDurationState
@@ -192,7 +193,7 @@ fun Player(
                 onLike = { updateLike(if (likedAt == null) System.currentTimeMillis() else null) },
                 progress = progress,
                 bottomPadding = LocalBottomNavigationHeight.current + bottomPadding,
-                innerModifier = innerModifier,
+                modifier = innerModifier,
                 onSwipeOut = if (horizontalSwipeToClose) { animationJob ->
                     binder?.let { onDismiss(it) }
                     animationJob.join()
@@ -528,8 +529,8 @@ private fun MiniPlayer(
     onLike: () -> Unit,
     progress: State<Pair<Long, Long>>,
     bottomPadding: Dp,
-    innerModifier: Modifier,
-    onSwipeOut: (suspend (Job) -> Unit)?
+    onSwipeOut: (suspend (Job) -> Unit)?,
+    modifier: Modifier = Modifier
 ) {
     val palette = LocalAppearance.current.colorPalette
     val metadata = mediaItem.mediaMetadata
@@ -548,14 +549,13 @@ private fun MiniPlayer(
                 .height(MiniPlayerHeight)
                 .clip(shape)
                 .background(palette.background2)
-                .then(innerModifier)
+                .then(modifier)
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(start = 8.dp, end = 4.dp)
+                    .padding(start = 8.dp, end = 2.dp)
                     .let {
                         if (onSwipeOut != null) it.onSwipe(animateOffset = true, onSwipeOut = onSwipeOut)
                         else it
@@ -576,7 +576,9 @@ private fun MiniPlayer(
                     targetState = metadata.title?.toString().orEmpty() to metadata.artist?.toString().orEmpty(),
                     transitionSpec = { fadeIn() togetherWith fadeOut() },
                     label = "mini player text",
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 10.dp)
                 ) { (title, artist) ->
                     Column(verticalArrangement = Arrangement.Center) {
                         Text(
@@ -597,11 +599,22 @@ private fun MiniPlayer(
                     }
                 }
 
-                PressFeedbackIconButton(onClick = onLike, modifier = Modifier.size(44.dp)) {
+                if (PlayerPreferences.showLike) PressFeedbackIconButton(onClick = onLike, modifier = Modifier.size(48.dp)) {
                     Icon(
                         painter = painterResource(if (likedAt == null) R.drawable.heart_outline else R.drawable.heart),
                         contentDescription = stringResource(if (likedAt == null) R.string.like else R.string.unlike),
                         tint = if (likedAt != null) palette.favoritesIcon else palette.textSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                if (PlayerPreferences.isShowingPrevButtonCollapsed) PressFeedbackIconButton(
+                    onClick = { binder?.player?.forceSeekToPrevious() },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.play_skip_back),
+                        contentDescription = stringResource(R.string.previous_track),
+                        tint = palette.text,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -613,7 +626,7 @@ private fun MiniPlayer(
                             player.play()
                         }
                     },
-                    modifier = Modifier.size(44.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         painter = painterResource(if (shouldBePlaying) R.drawable.pause else R.drawable.play),
@@ -624,7 +637,7 @@ private fun MiniPlayer(
                 }
                 PressFeedbackIconButton(
                     onClick = { binder?.player?.forceSeekToNext() },
-                    modifier = Modifier.size(44.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.play_skip_forward),

@@ -7,7 +7,6 @@
     <string name="repeat_one">Repeat one</string>
     <string name="shuffle_on">Shuffle on</string>
     <string name="shuffle_off">Shuffle off</string>
-    <string name="queue">Queue</string>
 
     <!-- Home -->
     <string name="recently_played">Recently played</string>
@@ -15,8 +14,17 @@
     <string name="home_for_you_subtitle">Picked from your listening</string>
     <string name="home_popular_subtitle">Popular right now</string>
 
+    <!-- Library -->
+    <string name="no_matches_title">No matches</string>
+    <string name="no_matches_description">Try a different word or clear the filter.</string>
+    <string name="library_artists_empty_title">No artists yet</string>
+    <string name="library_artists_empty_description">Follow an artist or play their music and they will show up here.</string>
+    <string name="library_albums_empty_title">No albums yet</string>
+    <string name="library_albums_empty_description">Save an album to keep it close.</string>
+
     <!-- Audio effects -->
     <string name="audio_effects">Audio effects</string>
+    <string name="audio_effects_settings_description">Equalizer, bass boost, 3D &amp; surround, ATD wide stage and reverb</string>
     <string name="audio_effects_intro">Shape how K4 Music sounds. Changes apply instantly to whatever is playing.</string>
     <string name="audio_effects_device_note">Equalizer, bass boost, 3D/surround and reverb use your device\'s audio framework, so availability and strength vary by phone. ATD wide stage runs inside K4 Music on every device.</string>
     <string name="open_system_equalizer">Open system equalizer</string>

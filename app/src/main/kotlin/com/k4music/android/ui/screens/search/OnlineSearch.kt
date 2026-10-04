@@ -150,7 +150,7 @@ fun OnlineSearch(
                     BasicTextField(
                         value = textFieldValue,
                         onValueChange = onTextFieldValueChange,
-                        textStyle = typography.xxl.medium.align(TextAlign.Start),
+                        textStyle = typography.s.medium.align(TextAlign.Start),
                         singleLine = true,
                         maxLines = 1,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -257,8 +257,10 @@ fun OnlineSearch(
             }
         }
 
-        suggestionsResult?.getOrNull()?.let { suggestions ->
-            items(items = suggestions) { suggestion ->
+        suggestionsResult?.getOrNull()?.let { all ->
+            // A query already listed in history is not repeated as a suggestion.
+            val suggestions = all.distinct().filter { suggestion -> history.none { it.query.equals(suggestion, ignoreCase = true) } }
+            items(items = suggestions, key = { "suggestion/$it" }) { suggestion ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier

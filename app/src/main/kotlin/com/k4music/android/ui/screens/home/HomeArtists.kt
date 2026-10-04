@@ -40,6 +40,10 @@ import com.k4music.compose.persist.persistList
 import com.k4music.core.data.enums.ArtistSortBy
 import com.k4music.core.data.enums.SortOrder
 import com.k4music.core.ui.Dimensions
+import com.k4music.android.ui.components.MusicEmptyState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.k4music.core.ui.LocalAppearance
 import kotlinx.collections.immutable.toImmutableList
 
@@ -52,11 +56,15 @@ fun HomeArtistList(
     val (colorPalette) = LocalAppearance.current
 
     var items by persistList<Artist>("home/artists")
+    var loaded by remember { mutableStateOf(false) }
 
     LaunchedEffect(artistSortBy, artistSortOrder) {
         Database
             .artists(artistSortBy, artistSortOrder)
-            .collect { items = it.toImmutableList() }
+            .collect {
+                items = it.toImmutableList()
+                loaded = true
+            }
     }
 
     val sortOrderIconRotation by animateFloatAsState(
@@ -109,6 +117,16 @@ fun HomeArtistList(
                         modifier = Modifier.graphicsLayer { rotationZ = sortOrderIconRotation }
                     )
                 }
+            }
+
+            if (loaded && items.isEmpty()) item(key = "empty", span = { GridItemSpan(maxLineSpan) }) {
+                MusicEmptyState(
+                    title = stringResource(R.string.library_artists_empty_title),
+                    message = stringResource(R.string.library_artists_empty_description),
+                    icon = R.drawable.person,
+                    action = stringResource(R.string.search),
+                    onAction = onSearchClick
+                )
             }
 
             items(items = items, key = Artist::id) { artist ->

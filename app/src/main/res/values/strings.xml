@@ -110,7 +110,6 @@
     <string name="error_unknown_playback">An unknown playback error has occurred</string>
     <string name="error_piped_link">There was an unknown error linking your Piped account. Please try again.</string>
     <string name="error_piped_instances_unavailable">Piped instance list currently unavailable</string>
-    <string name="error_bassboost_init">There was an error initializing Bass Boost. Probably your device doesn\'t support it. Try changing the bass boost level or try again.</string>
     <string name="error_pre_cache">An unknown error occurred during pre-caching. Please try again.</string>
     <string name="error_url">Can\'t open url %1$s</string>
     <string name="media_permission_declined">Permission declined, please grant media permissions in the settings of your device.</string>
@@ -145,7 +144,6 @@
     <string name="playback_settings">Speed &amp; pitch</string>
     <string name="minimum_speed_value">Why would you do this?!</string>
     <string name="volume_boost">Volume boost</string>
-    <string name="queue_loop">Queue loop</string>
     <string name="add_queue_to_playlist">Add queue to playlist</string>
     <string name="id">Id</string>
     <string name="itag">Itag</string>
@@ -290,15 +288,11 @@
     <string name="loudness_base_gain_description">The \'target\' gain for the loudness normalization</string>
     <string name="loudness_normalization_extreme">Extreme loudness value detected (%s), turning off normalization for this song</string>
     <string name="bass_boost">Bass boost</string>
-    <string name="bass_boost_description">Boost low frequencies to improve listening experience</string>
-    <string name="bass_boost_level">Bass boost level</string>
-    <string name="bass_boost_level_description">Level (0–1000) of boosting low frequencies; use at own risk!</string>
     <string name="sponsor_block">Sponsorblock</string>
     <string name="sponsor_block_description">Blocks sponsored/offtopic content using data from the Sponsorblock API</string>
     <string name="reverb">Reverb</string>
     <string name="audio_focus">Audio focus</string>
     <string name="audio_focus_description">Whether the player should request system-wide audio (media) focus</string>
-    <string name="equalizer_description">Interact with the system equalizer</string>
     <string name="filter_placeholder">Filter…</string>
     <string name="last_interaction">Last Played</string>
     <string name="for_you">For You</string>
@@ -306,9 +300,6 @@
     <string name="quick_picks_source">Quick Picks Source</string>
     <string name="quick_picks_cache">Cache quick picks data</string>
     <string name="quick_picks_cache_description">Saves the quick picks data to disk for offline access</string>
-    <string name="player_layout">Player layout</string>
-    <string name="classic_player_layout_name">Classic</string>
-    <string name="new_player_layout_name">Modern (new)</string>
     <string name="piped">Piped</string>
     <string name="instance">Instance</string>
     <string name="click_to_select">Click to select</string>

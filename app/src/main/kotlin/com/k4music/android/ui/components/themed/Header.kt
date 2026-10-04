@@ -21,6 +21,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.k4music.android.ui.components.FadingRow
 import com.k4music.android.utils.medium
+import com.k4music.android.utils.semiBold
+import androidx.compose.ui.unit.sp
 import com.k4music.core.ui.Dimensions
 import com.k4music.core.ui.LocalAppearance
 import com.k4music.core.ui.shimmer
@@ -37,7 +39,7 @@ fun Header(
         FadingRow {
             BasicText(
                 text = title,
-                style = LocalAppearance.current.typography.xxl.medium,
+                style = LocalAppearance.current.typography.xxl.semiBold.copy(fontSize = 26.sp),
                 maxLines = 1
             )
         }

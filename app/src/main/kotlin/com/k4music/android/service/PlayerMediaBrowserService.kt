@@ -33,7 +33,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.withContext
 import java.util.stream.IntStream
 import android.media.MediaDescription as BrowserMediaDescription
@@ -54,6 +54,7 @@ class PlayerMediaBrowserService : MediaBrowserService(), ServiceConnection {
 
     override fun onDestroy() {
         if (bound) unbindService(this)
+        coroutineScope.cancel()
         super.onDestroy()
     }
 
@@ -78,11 +79,21 @@ class PlayerMediaBrowserService : MediaBrowserService(), ServiceConnection {
         )
     } else null
 
+    // Database reads never run on the main thread: detach and answer when they finish.
     override fun onLoadChildren(
         parentId: String,
         result: Result<MutableList<BrowserMediaItem>>
-    ) = runBlocking(Dispatchers.IO) {
-        result.sendResult(
+    ) {
+        result.detach()
+        coroutineScope.launch {
+            val children = runCatching { children(parentId) }
+                .onFailure { Log.w("MediaBrowser", "Unable to load $parentId", it) }
+                .getOrElse { mutableListOf() }
+            withContext(Dispatchers.Main) { result.sendResult(children) }
+        }
+    }
+
+    private suspend fun children(parentId: String): MutableList<BrowserMediaItem> =
             when (MediaId(parentId)) {
                 MediaId.ROOT -> mutableListOf(
                     songsBrowserMediaItem,
@@ -123,8 +134,6 @@ class PlayerMediaBrowserService : MediaBrowserService(), ServiceConnection {
 
                 else -> mutableListOf()
             }
-        )
-    }
 
     private fun uriFor(@DrawableRes id: Int) = Uri.Builder()
         .scheme(ContentResolver.SCHEME_ANDROID_RESOURCE)
@@ -265,7 +274,13 @@ class PlayerMediaBrowserService : MediaBrowserService(), ServiceConnection {
         override fun onSkipToPrevious() = binder.player.forceSeekToPrevious()
         override fun onSkipToNext() = binder.player.forceSeekToNext()
         override fun onSeekTo(pos: Long) = binder.player.seekTo(pos)
-        override fun onSkipToQueueItem(id: Long) = binder.player.seekToDefaultPosition(id.toInt())
+        override fun onSkipToQueueItem(id: Long) {
+            if (id in 0 until binder.player.mediaItemCount) binder.player.seekToDefaultPosition(id.toInt())
+        }
+
+        // This callback replaces the player's own, so it must keep the like/repeat actions working.
+        override fun onStop() = binder.player.pause()
+        override fun onCustomAction(action: String, extras: Bundle?) = binder.handleCustomAction(action)
         override fun onPlayFromSearch(query: String?, extras: Bundle?) {
             if (query.isNullOrBlank()) return
             binder.playFromSearch(query)

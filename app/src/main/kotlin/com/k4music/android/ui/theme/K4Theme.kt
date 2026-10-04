@@ -1,6 +1,5 @@
 package com.k4music.android.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
@@ -9,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.core.graphics.toColorInt
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -17,17 +17,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.k4music.app.R
-import com.k4music.android.preferences.AppearancePreferences
-import com.k4music.core.ui.ColorMode
-import com.k4music.core.ui.ColorSource
 import com.k4music.core.ui.Appearance
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 
 // ponytail: accent color is user-configurable; K4Accent is the default.
 val K4Accent = Color(0xFF7B5CFF)
-val K4AccentPressed = Color(0xFF6A4BE6)
-val K4Favorite = Color(0xFFFF4D6D)
 val K4Error = Color(0xFFFF5A5F)
 
 val LocalAccentColor = staticCompositionLocalOf { K4Accent }
@@ -63,17 +56,6 @@ private fun darkScheme(accent: Color) = darkColorScheme(
     onError = Color.White
 )
 
-// ponytail: AMOLED = dark with pure-black surfaces; same accent derivation.
-private fun amoledScheme(accent: Color) = darkScheme(accent).copy(
-    background = Color.Black,
-    surface = Color.Black,
-    surfaceVariant = Color(0xFF101014),
-    surfaceContainer = Color(0xFF16161A),
-    surfaceContainerHigh = Color(0xFF1D1D22),
-    outline = Color(0xFF26262C),
-    outlineVariant = Color(0xFF141418)
-)
-
 private fun lightScheme(accent: Color) = lightColorScheme(
     primary = accent,
     onPrimary = if (isLightColor(accent)) Color.Black else Color.White,
@@ -103,7 +85,7 @@ fun parseHexColor(hex: String, fallback: Color = K4Accent): Color {
     val clean = hex.trim().removePrefix("#")
     return try {
         when (clean.length) {
-            6, 8 -> Color(android.graphics.Color.parseColor("#$clean"))
+            6, 8 -> Color("#$clean".toColorInt())
             else -> fallback
         }
     } catch (_: Exception) {
@@ -163,46 +145,6 @@ fun K4Theme(appearance: Appearance, content: @Composable () -> Unit) {
             androidx.compose.material3.Surface(
                 color = palette.background0,
                 contentColor = colorScheme.onBackground,
-                content = content
-            )
-        }
-    }
-}
-
-// ponytail: K4Theme is the public API. accent comes from AppearancePreferences;
-// fall back to K4Accent if nothing is configured.
-@Composable
-fun K4Theme(
-    themeMode: String = "system",
-    accentColorHex: String = "#7B5CFF",
-    content: @Composable () -> Unit
-) {
-    val accent = parseHexColor(accentColorHex, K4Accent)
-    val systemDark = isSystemInDarkTheme()
-
-    val scheme = when (themeMode.lowercase()) {
-        "dark" -> darkScheme(accent)
-        "amoled" -> amoledScheme(accent)
-        "light" -> lightScheme(accent)
-        else -> if (systemDark) darkScheme(accent) else lightScheme(accent)
-    }
-
-    CompositionLocalProvider(
-        LocalAccentColor provides accent,
-        androidx.compose.material3.LocalContentColor provides scheme.onBackground
-    ) {
-        MaterialTheme(
-            colorScheme = scheme,
-            typography = K4Typography,
-            shapes = Shapes(
-                small = RoundedCornerShape(K4Radius.sm),
-                medium = RoundedCornerShape(K4Radius.md),
-                large = RoundedCornerShape(K4Radius.lg)
-            )
-        ) {
-            androidx.compose.material3.Surface(
-                color = scheme.background,
-                contentColor = scheme.onBackground,
                 content = content
             )
         }
