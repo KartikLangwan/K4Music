@@ -4,6 +4,80 @@ Creator: **Kartik Langwan**
 Instagram: **K4RTIK.nvm** — https://www.instagram.com/K4RTIK.nvm/  
 Website: https://kartiklangwan.vercel.app
 
+## v2.1.0 — audit, stabilisation and redesign (5 October 2026)
+
+A full pass over playback, navigation, audio, menus and the main screens, with the bugs fixed before the redesign. The source is now under local git (`dc89fa5` is the untouched v2.0.0.14 baseline), so every change can be reviewed with `git diff dc89fa5`.
+
+### Defects found and fixed
+
+| Area | Defect | Fix |
+| --- | --- | --- |
+| Navigation | The bottom bar's spacer was padded by the *player-aware* inset (mini player + 72 dp + system bar), pushing the bar up and leaving a blank band under it; the shell also assumed a 72 dp bar for a 64 dp bar. | The bar is now one root-level component sized from real constants and the system inset only. |
+| Navigation | The player sheet's touch area covered the bar region, and the sheet state was recreated whenever the bar appeared or disappeared. | The bar is drawn above the player sheet and slides away as the player opens; sheet state no longer depends on navigation. |
+| Navigation | Sub-screens added the status-bar inset twice (Scaffold top bar *and* list padding). | Scaffold passes only the bottom inset to content. |
+| Repeat | The player button toggled only "repeat one"; "queue loop" (default **on**) was a separate hidden setting, so queues always wrapped; three controls disagreed. | One repeat mode (Off → All → One) shared by player, queue, notification and lock screen. |
+| Next/previous | Next wrapped to the first song regardless of repeat; previous jumped to the last song. | Navigation follows the play order and wraps only with Repeat all; at the end the queue rewinds and pauses. |
+| Shuffle | Shuffle was a one-off reorder with no state. | Persistent shuffle mode (ExoPlayer shuffle order, current song first). New queues start from the chosen song; "Play next" stays next while shuffled; the queue shows the real play order. |
+| Queue | "Play next" / "Add to queue" replaced the whole queue whenever the player was idle — including after any playback error or sleep-timer stop. | Inserts never replace a non-empty queue; a finished queue plays the new song. |
+| Queue | Tapping a song after an error did nothing (player idle, not re-prepared). | The player is prepared again. |
+| Menus | Song-menu state (like, blacklist, album/artist links) was remembered without a song key, so a reused menu could show or act on the previous song. Queue "Remove" used an index captured when the menu opened. | State is keyed per song; removal re-verifies the target song. The player menu closes when the song changes. |
+| Audio | `K4AudioEffects` (EQ presets, virtualizer) was dead code never attached to the player; "Equalizer" only opened an external app. | Real in-app audio effects (below). |
+| Audio | Bass boost and reverb were leaked on service destroy; default bass strength was 5/1000 (inaudible); reverb was also sent as an aux effect it cannot be. | Effects live in one owner, are released on destroy and on disable, default strength 50 %, reverb is an insert effect. |
+| Audio | Media3 1.11 assigns the audio session id asynchronously; `LoudnessEnhancer` could attach to session 0 (the global output mix) and was never re-created. | Effects attach on `onAudioSessionIdChanged`; session 0 is never used. |
+| Performance | The whole player (mini + full) recomposed every 500 ms from a position read at the top, and kept polling while paused. | Position is a `State` read only by the seek bar and the mini progress line (draw phase); polling stops while paused. |
+| Performance | Home's "Last interaction"/"For you" sources loaded the **entire** play history joined with songs on every play; the For You recommender ran on the main thread. | Bounded query (`events(limit)`), scoring on `Dispatchers.Default`. |
+| Network/DB | The album page fetched and rewrote the album *inside* the album's own database flow; each write re-triggered the fetch — an endless request/write loop while an album was open. | Fetched once per visit, outside the flow. |
+| Error states | Album and artist pages showed a permanent shimmer when the first load failed. | Error state with Retry. |
+| Android Auto | The browser service read the database with `runBlocking` on the main thread and replaced the player's session callback (breaking like/repeat actions); an out-of-range queue id could crash. | Async `detach()`/`sendResult`, custom actions forwarded, bounds checked, scope cancelled on destroy. |
+| Search | Clearing the field kept stale suggestions; suggestions duplicated history. | Cleared and de-duplicated; debounce shortened to 350 ms (one request per pause, not per keystroke). |
+| Library | Songs showed "Your collection starts here" before the first query returned; Artists/Albums had no empty state; no "no matches" for the filter. | Loading skeleton, empty states with a Search action, no-matches state. |
+| Settings | "Player layout" and "Show like button" did nothing; bass boost, reverb and equalizer were duplicated with the new audio screen. | Dead selector removed, like/previous-button settings honoured, one "Audio effects" entry. |
+| Dead code | `k4/K4Theme.kt` (a second copy of the theme, which also crashed Android Lint's analyzer), unused tokens, glass helpers and strings. | Removed. |
+
+### Audio effects
+
+`Settings → Audio effects`, the equalizer button in the full player and the player menu open one screen. Each control maps to a real processing change; anything the device lacks is shown as "Not supported on this device" rather than a fake control.
+
+- **Equalizer** — Android `Equalizer` on the player's session with the device's own bands and range (typically 5 bands, ±15 dB). Manual sliders (0.5 dB steps) with a response curve, Reset, Save preset and deletable user presets.
+- **Presets** — Flat, Vocal, Bass, Bass Boost, Treble, Rock, Pop, Classical, Electronic. Curves are defined at 60 Hz–14 kHz and interpolated on a log-frequency axis onto whatever bands the device reports, so a preset means the same on 5- and 10-band equalizers.
+- **Bass boost** — Android `BassBoost` with strength.
+- **3D & Surround** — Android `Virtualizer`, forcing binaural (3D, headphones) or transaural (Surround, speakers) mode where the device supports it, with depth. Modes the device reports as unsupported are disabled.
+- **ATD wide stage** — the requested "ATD" has no Android API, so it is implemented as K4 Music's own mid/side stereo widener inside the Media3 audio pipeline (`StereoWidener`): side signal raised, mid trimmed to hold loudness, soft knee instead of hard clipping, bypassed for mono. It works on every device and output.
+- **Reverb** — Android `PresetReverb` presets.
+
+Effects exist only while enabled (a disabled effect costs nothing and does not fight a system-wide equalizer), are released on disable and service destroy, and reattach when the session changes. Every platform call is guarded so unsupported devices degrade instead of crashing. The system equalizer remains available from the screen.
+
+### Redesign
+
+- **Shell**: persistent bottom bar (Home, Discover, Search, Library) anchored at the bottom with the system inset; the mini player docks directly above it; tapping a destination always returns to its root; wide windows keep the navigation rail.
+- **Mini player**: artwork, title, artist, like, play/pause, next (previous optional), progress line, tap to open, swipe-to-close setting kept; 48 dp touch targets.
+- **Full player**: collapse / now playing + album / more; large artwork; title, artists, like; seek bar with elapsed and total/remaining; shuffle, previous, play/pause (buffering indicator), next, repeat with state labels; Lyrics, Up next and Audio effects in the queue bar.
+- **Design system**: near-black purple-tinted dark palette, brighter violet accent with a contrast-checked `onAccent`, flat tonal surfaces (no shadowed glass), new menu sheet with handle and larger rows, new cards, tiles, shortcuts, skeletons and empty/error states. Fresh installs default to dark mode and the brand purple; saved appearance choices are untouched.
+- **Home**: greeting, quick-access grid (Favourites, History, Offline, Playlists), Recently played, Quick picks with an honest origin line ("Based on …", "Picked from your listening", "Popular right now"), a shelf of more picks, genres and related albums/artists/playlists.
+- **Discover**: featured trending song, trending list, new releases, moods, Indian and global genres; skeleton and retry states.
+- **Search**: pill search bar; history and suggestions.
+- **Library**: chips for Songs, Playlists, Artists, Albums, Local and Offline, with empty and loading states.
+
+### Validation for v2.1.0
+
+Run on 5 October 2026 from a clean tree (`gradlew clean`, then `assembleDebug`, then `scripts/verify-release.ps1 -Offline`):
+
+- Clean debug build: passed.
+- Python updater tests: 4/4 passed.
+- Android unit tests: **72/72 passed** (64 existing + new tests for queue navigation in shuffle/repeat order, preset-to-band mapping, the soft clipper and the stereo widener).
+- Android Lint: **0 errors**, 214 warnings (185 missing translations for new English strings, 23 unused resources, the same count as before, and 6 existing suggestions).
+- Release build (R8, resource shrinking) and lint-vital: passed.
+- APK: `K4Music-v2.1.0-RELEASE.apk`, version code 2010000, 36,377,234 bytes, APK Signature Scheme v2 verified (existing Android debug certificate). arm64-v8a and x86_64 QuickJS and Python runtimes are packaged.
+- SHA256: `B85BAFE2278758F832C7EAF05D5F8786C2EFB20E0E5B7D96E5DBF8D5D5A4DF07`.
+
+### Remaining limitations
+
+- No emulator or device run was performed (at the owner's request). Playback, background/lock-screen behaviour, audio-effect audibility, headset/focus handling and the new layouts are verified by compilation, unit tests, lint and code review only, not on hardware.
+- Equalizer, bass boost, virtualizer and reverb strength and availability depend on each phone's audio-effect implementation; some OEM builds ignore forced virtualizer modes. ATD wide stage is in-app and device-independent, but only affects stereo tracks.
+- Reordering the queue by drag is disabled while shuffle is on, because the shown order is the shuffle order.
+- New strings ship in English; other locales fall back to English for them.
+
+
 ## Scope and visual changes
 
 The merged workspace is the working app. The original projects remain in sibling folders.
@@ -96,7 +170,7 @@ Technical package names, application IDs, theme identifiers and persistent stora
 ViTune appears in the explicit upstream attribution. Original licences and contributor credits are retained.
 Old upstream screenshots were removed from the README because they do not represent the redesigned interface.
 
-## Current validation � v2.0.0.14
+## Previous validation — v2.0.0.14
 
 The final source passed `:app:testDebugUnitTest`, `:app:lintDebug` and `:app:assembleRelease` in **revamp-2.0.0.14-final.log**. All **64 Android unit tests** and **4 Python tests** passed. Lint found **0 errors and 168 warnings**: 137 missing translations, 23 unused resources and 8 existing API/dependency/metadata suggestions. New UI labels use the English fallback where translations are missing. Release lint also passed.
 
@@ -108,7 +182,7 @@ Evidence: `revamp-2.0.0.14-final.log`, `revamp-2.0.0.14-python.log`, `revamp-2.0
 
 No LDPlayer/emulator/device playback or visual runtime validation was performed. The unit tests cover extraction parsing/headers, bounded retry decisions, cyclic error causes, read-error callbacks and existing regression paths; they do not reproduce every live-provider failure. Public distribution still requires a private release signing key and device acceptance checks. Earlier releases and their checksums remain in the workspace.
 
-## Previous validation
+## Earlier validation (v1.5.6)
 
 Previous release validation for v1.5.6 succeeded: **54 Android unit tests passed**, **3 Python updater tests passed**, and Android lint reported **0 errors and 138 warnings**. Warnings comprise 108 missing-translation reports, 22 unused-resource reports and 8 existing API/dependency/metadata suggestions. Release lint checks also passed.
 
