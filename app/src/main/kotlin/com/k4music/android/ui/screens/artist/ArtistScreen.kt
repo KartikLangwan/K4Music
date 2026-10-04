@@ -52,6 +52,11 @@ import com.k4music.providers.innertube.utils.from
 import com.valentinilk.shimmer.shimmer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.MutableStateFlow
+import com.k4music.android.utils.networkResult
+import com.k4music.android.ui.components.MusicEmptyState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -70,6 +75,9 @@ fun ArtistScreen(browseId: String) {
 
     var artistPage by persist<Innertube.ArtistPage?>("artist/$browseId/artistPage")
 
+    var loadFailed by remember { mutableStateOf(false) }
+    val reload = remember { MutableStateFlow(0) }
+
     LaunchedEffect(Unit) {
         Database
             .artist(browseId)
@@ -77,27 +85,30 @@ fun ArtistScreen(browseId: String) {
                 flow = artistScreenTabIndexProperty.stateFlow.map { it != 4 },
                 transform = ::Pair
             )
-            .distinctUntilChanged()
+            .combine(reload) { pair, _ -> pair }
             .collect { [currentArtist, mustFetch] ->
                 artist = currentArtist
 
-                if (artistPage == null && (currentArtist?.timestamp == null || mustFetch))
-                    withContext(Dispatchers.IO) {
-                        Innertube.artistPage(BrowseBody(browseId = browseId))
-                            ?.onSuccess { currentArtistPage ->
+                if (artistPage == null && (currentArtist?.timestamp == null || mustFetch)) {
+                    loadFailed = false
+                    networkResult { Innertube.artistPage(BrowseBody(browseId = browseId)) }
+                            .onFailure { loadFailed = true }
+                            .onSuccess { currentArtistPage ->
                                 artistPage = currentArtistPage
 
-                                Database.upsert(
-                                    Artist(
-                                        id = browseId,
-                                        name = currentArtistPage.name,
-                                        thumbnailUrl = currentArtistPage.thumbnail?.url,
-                                        timestamp = System.currentTimeMillis(),
-                                        bookmarkedAt = currentArtist?.bookmarkedAt
+                                query {
+                                    Database.upsert(
+                                        Artist(
+                                            id = browseId,
+                                            name = currentArtistPage.name,
+                                            thumbnailUrl = currentArtistPage.thumbnail?.url,
+                                            timestamp = System.currentTimeMillis(),
+                                            bookmarkedAt = currentArtist?.bookmarkedAt
+                                        )
                                     )
-                                )
+                                }
                             }
-                    }
+                }
             }
     }
 
@@ -115,9 +126,15 @@ fun ArtistScreen(browseId: String) {
 
             val headerContent: @Composable (textButton: (@Composable () -> Unit)?) -> Unit =
                 { textButton ->
-                    if (artist?.timestamp == null) HeaderPlaceholder(
-                        modifier = Modifier.shimmer()
-                    ) else {
+                    if (artist?.timestamp == null) {
+                        if (loadFailed) MusicEmptyState(
+                            title = stringResource(R.string.music_unavailable),
+                            message = stringResource(R.string.connection_retry_message),
+                            icon = R.drawable.person,
+                            action = stringResource(R.string.retry),
+                            onAction = { reload.value++ }
+                        ) else HeaderPlaceholder(modifier = Modifier.shimmer())
+                    } else {
                         val (colorPalette) = LocalAppearance.current
                         val context = LocalContext.current
 

@@ -7,6 +7,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
@@ -34,6 +37,8 @@ import com.k4music.android.ui.screens.albumRoute
 import com.k4music.android.ui.screens.searchresult.ItemsPage
 import com.k4music.android.utils.asMediaItem
 import com.k4music.android.utils.completed
+import com.k4music.android.utils.networkResult
+import com.k4music.android.ui.components.MusicEmptyState
 import com.k4music.compose.persist.PersistMapCleanup
 import com.k4music.compose.persist.persist
 import com.k4music.compose.persist.persistList
@@ -52,6 +57,7 @@ import kotlinx.coroutines.flow.cancellable
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 
@@ -69,6 +75,9 @@ fun AlbumScreen(browseId: String) {
 
     PersistMapCleanup(prefix = "album/$browseId/")
 
+    var loadFailed by remember { mutableStateOf(false) }
+    var reload by remember { mutableIntStateOf(0) }
+
     LaunchedEffect(Unit) {
         Database
             .albumSongs(browseId)
@@ -81,12 +90,19 @@ fun AlbumScreen(browseId: String) {
             ) { currentSongs, currentAlbum ->
                 album = currentAlbum
                 songs = currentSongs.toImmutableList()
+            }.collect()
+    }
 
-                withContext(Dispatchers.IO) {
-                    Innertube.albumPage(BrowseBody(browseId = browseId))
-                        ?.completed()
-                        ?.onSuccess { newAlbumPage ->
-                            albumPage = newAlbumPage
+    // Refresh once per visit. This must stay outside the database flow above: the write
+    // below changes the album row, which would re-trigger the fetch in an endless loop.
+    LaunchedEffect(reload) {
+        if (albumPage != null) return@LaunchedEffect
+        loadFailed = false
+        networkResult { Innertube.albumPage(BrowseBody(browseId = browseId))?.completed() }
+            .onFailure { loadFailed = true }
+            .onSuccess { newAlbumPage ->
+                albumPage = newAlbumPage
+                val bookmarkedAt = Database.album(browseId).first()?.bookmarkedAt
 
                             transaction {
                                 Database.clearAlbum(browseId)
@@ -102,7 +118,7 @@ fun AlbumScreen(browseId: String) {
                                             ?.joinToString("") { it.name.orEmpty() },
                                         shareUrl = newAlbumPage.url,
                                         timestamp = System.currentTimeMillis(),
-                                        bookmarkedAt = album?.bookmarkedAt,
+                                        bookmarkedAt = bookmarkedAt,
                                         otherInfo = newAlbumPage.otherInfo
                                     ),
                                     songAlbumMaps = newAlbumPage
@@ -119,9 +135,7 @@ fun AlbumScreen(browseId: String) {
                                         } ?: emptyList()
                                 )
                             }
-                        }?.exceptionOrNull()?.printStackTrace()
-                }
-            }.collect()
+            }
     }
 
     RouteHandler {
@@ -132,8 +146,15 @@ fun AlbumScreen(browseId: String) {
                 beforeContent: (@Composable () -> Unit)?,
                 afterContent: (@Composable () -> Unit)?
             ) -> Unit = { beforeContent, afterContent ->
-                if (album?.timestamp == null) HeaderPlaceholder(modifier = Modifier.shimmer())
-                else {
+                if (album?.timestamp == null) {
+                    if (loadFailed) MusicEmptyState(
+                        title = stringResource(R.string.music_unavailable),
+                        message = stringResource(R.string.connection_retry_message),
+                        icon = R.drawable.disc,
+                        action = stringResource(R.string.retry),
+                        onAction = { reload++ }
+                    ) else HeaderPlaceholder(modifier = Modifier.shimmer())
+                } else {
                     val (colorPalette) = LocalAppearance.current
                     val context = LocalContext.current
 

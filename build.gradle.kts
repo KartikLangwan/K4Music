@@ -23,7 +23,7 @@ val topLevelLibs = libs
 
 allprojects {
     group = "com.k4music"
-    version = "2.0.0.14"
+    version = "2.1.0"
 
     apply(plugin = "dev.detekt")
 
