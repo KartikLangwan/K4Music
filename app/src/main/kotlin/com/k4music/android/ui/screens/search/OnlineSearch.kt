@@ -93,9 +93,13 @@ fun OnlineSearch(
     }
 
     LaunchedEffect(textFieldValue.text) {
-        if (textFieldValue.text.isEmpty()) return@LaunchedEffect
+        // Never show suggestions for text that is no longer in the field.
+        if (textFieldValue.text.isBlank()) {
+            suggestionsResult = null
+            return@LaunchedEffect
+        }
 
-        delay(500.milliseconds)
+        delay(350.milliseconds)
         suggestionsResult = Innertube.searchSuggestions(
             body = SearchSuggestionsBody(input = textFieldValue.text)
         )

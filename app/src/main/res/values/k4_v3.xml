@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Player -->
+    <string name="repeat">Repeat</string>
+    <string name="repeat_off">Repeat off</string>
+    <string name="repeat_all">Repeat all</string>
+    <string name="repeat_one">Repeat one</string>
+    <string name="shuffle_on">Shuffle on</string>
+    <string name="shuffle_off">Shuffle off</string>
+    <string name="queue">Queue</string>
+
+    <!-- Home -->
+    <string name="recently_played">Recently played</string>
+    <string name="home_based_on">Based on %1$s</string>
+    <string name="home_for_you_subtitle">Picked from your listening</string>
+    <string name="home_popular_subtitle">Popular right now</string>
+
+    <!-- Audio effects -->
+    <string name="audio_effects">Audio effects</string>
+    <string name="audio_effects_intro">Shape how K4 Music sounds. Changes apply instantly to whatever is playing.</string>
+    <string name="audio_effects_device_note">Equalizer, bass boost, 3D/surround and reverb use your device\'s audio framework, so availability and strength vary by phone. ATD wide stage runs inside K4 Music on every device.</string>
+    <string name="open_system_equalizer">Open system equalizer</string>
+    <string name="effect_unavailable">Not supported on this device</string>
+    <string name="off">Off</string>
+    <string name="effect_strength">Strength</string>
+    <string name="effect_depth">Depth</string>
+    <string name="effect_intensity">Intensity</string>
+    <string name="format_db_signed">%1$+.1f dB</string>
+
+    <string name="equalizer_effect_description">Adjust each frequency band or pick a preset</string>
+    <string name="equalizer_custom">Custom</string>
+    <string name="equalizer_save_preset">Save preset</string>
+    <string name="equalizer_preset_name">Preset name</string>
+    <string name="equalizer_delete_preset">Delete preset %1$s</string>
+    <string name="eq_flat">Flat</string>
+    <string name="eq_vocal">Vocal</string>
+    <string name="eq_bass">Bass</string>
+    <string name="eq_bass_boost">Bass Boost</string>
+    <string name="eq_treble">Treble</string>
+    <string name="eq_rock">Rock</string>
+    <string name="eq_pop">Pop</string>
+    <string name="eq_classical">Classical</string>
+    <string name="eq_electronic">Electronic</string>
+
+    <string name="bass_boost_effect_description">Adds weight to the low end</string>
+    <string name="spatial_audio">3D &amp; Surround</string>
+    <string name="spatial_audio_description">Virtualizes the stereo mix into a wider space</string>
+    <string name="spatial_3d">3D</string>
+    <string name="spatial_surround">Surround</string>
+    <string name="spatial_off_hint">Choose 3D for headphones or Surround for speakers.</string>
+    <string name="spatial_3d_hint">Binaural virtualization, tuned for headphones.</string>
+    <string name="spatial_surround_hint">Transaural virtualization, tuned for phone and external speakers.</string>
+    <string name="atd_wide_stage">ATD wide stage</string>
+    <string name="atd_wide_stage_description">Mid/side stereo widening for a more immersive stage. Stereo tracks only.</string>
+    <string name="reverb_effect_description">Room ambience added to the music</string>
+</resources>

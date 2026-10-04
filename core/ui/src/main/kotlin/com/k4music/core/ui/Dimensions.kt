@@ -26,7 +26,9 @@ object Dimensions {
     object Items {
         val moodHeight = 64.dp
         val headerHeight = 88.dp
-        val collapsedPlayerHeight = 64.dp
+        /** Slot reserved for the mini player, including its outer margin. */
+        val collapsedPlayerHeight = 68.dp
+        val navigationBarHeight = 64.dp
 
         val verticalPadding = 8.dp
         val horizontalPadding = 8.dp

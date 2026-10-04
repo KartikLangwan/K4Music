@@ -34,12 +34,16 @@ private val moreAlbumsRoute = Route0("moreAlbumsRoute")
 
 @Route
 @Composable
-fun HomeScreen() {
+fun HomeScreen(
+    rootRoute: com.k4music.compose.routing.Route?,
+    setRootRoute: (com.k4music.compose.routing.Route?) -> Unit,
+    rootArgs: Array<Any?>
+) {
     val saveableStateHolder = rememberSaveableStateHolder()
 
     PersistMapCleanup("home/")
 
-    RouteHandler {
+    RouteHandler(child = rootRoute, setChild = setRootRoute, parameters = rootArgs) {
         GlobalRoutes()
 
         localPlaylistRoute { playlistId ->

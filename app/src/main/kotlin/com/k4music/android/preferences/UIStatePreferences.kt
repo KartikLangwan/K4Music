@@ -11,7 +11,16 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 
 object UIStatePreferences : GlobalPreferencesHolder() {
-    var homeScreenTabIndex by int(0)
+    private var storedHomeScreenTabIndex by int(0, name = "homeScreenTabIndex")
+    var homeScreenTabIndex: Int
+        get() = storedHomeScreenTabIndex
+        set(value) {
+            storedHomeScreenTabIndex = value
+            if (value >= 2) libraryTabIndex = value
+        }
+
+    /** The Library tab the bottom bar returns to. */
+    var libraryTabIndex by int(2)
     var searchResultScreenTabIndex by int(0)
 
     var artistScreenTabIndexProperty = int(0)

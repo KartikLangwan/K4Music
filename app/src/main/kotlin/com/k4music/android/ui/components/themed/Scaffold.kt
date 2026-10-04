@@ -2,20 +2,17 @@ package com.k4music.android.ui.components.themed
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
-import com.k4music.android.utils.windowState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,27 +23,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
-import androidx.compose.material3.Surface
+import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -54,15 +47,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.k4music.android.Brand
 import com.k4music.android.LocalPlayerAwareWindowInsets
-import com.k4music.android.LocalPlayerServiceBinder
-import com.k4music.android.LocalSetBottomNavigation
+import com.k4music.android.WideLayoutBreakpoint
 import com.k4music.android.ui.screens.searchRoute
 import com.k4music.app.R
-import com.k4music.core.ui.Dimensions
 import com.k4music.core.ui.LocalAppearance
 import kotlinx.coroutines.launch
 
-/** One adaptive shell for all destinations, with clean navigation docking and proper insets. */
+/** Home tabs at or after this index belong to the Library destination. */
+const val LIBRARY_FIRST_TAB = 2
+
+/**
+ * One adaptive shell for every screen: a flat top bar, optional tab chips and the content.
+ * Phones navigate with the app-wide bottom bar; wide windows get a navigation rail here.
+ */
 @Composable
 fun Scaffold(
     key: String,
@@ -72,7 +69,7 @@ fun Scaffold(
     onTabChange: (Int) -> Unit,
     tabColumnContent: TabsBuilder.() -> Unit,
     modifier: Modifier = Modifier,
-    tabsEditingTitle: String = stringResource(R.string.tabs),
+    @Suppress("unused") tabsEditingTitle: String = stringResource(R.string.tabs),
     content: @Composable AnimatedVisibilityScope.(Int) -> Unit
 ) {
     val tabs = TabsBuilder.rememberTabs(tabColumnContent)
@@ -84,24 +81,10 @@ fun Scaffold(
     }
     val palette = LocalAppearance.current.colorPalette
     val insets = LocalPlayerAwareWindowInsets.current
-    val binder = LocalPlayerServiceBinder.current
-    val (currentWindow, _) = windowState(binder)
     val isHome = key == "home"
-    val homeDestinations = listOf(0, 1, 2, 7)
-    val homeTitles = listOf(R.string.home, R.string.discover, R.string.library, R.string.offline)
-    val homeIcons = listOf(R.drawable.sparkles, R.drawable.globe, R.drawable.library, R.drawable.download)
-    val selectedDestination = when (selected) { 0 -> 0; 1 -> 1; 6, 7 -> 3; else -> 2 }
-
-    val setBottomNav = LocalSetBottomNavigation.current
 
     BoxWithConstraints(modifier.background(palette.background0).fillMaxSize()) {
-        val wide = maxWidth >= 700.dp
-        val showBottomNav = !wide && isHome
-
-        DisposableEffect(showBottomNav) {
-            setBottomNav(showBottomNav)
-            onDispose { setBottomNav(false) }
-        }
+        val wide = maxWidth >= WideLayoutBreakpoint
 
         Row(Modifier.fillMaxSize().padding(insets.only(WindowInsetsSides.Horizontal).asPaddingValues())) {
             if (wide) NavigationRail(
@@ -120,160 +103,123 @@ fun Scaffold(
                         selected = selected == index,
                         onClick = { onTabChange(index) },
                         icon = { Icon(painterResource(tab.icon), null, Modifier.size(22.dp)) },
-                        label = { Text(tab.title(), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                        label = { Text(tab.title(), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        colors = NavigationRailItemDefaults.colors(
+                            selectedIconColor = palette.accent,
+                            selectedTextColor = palette.text,
+                            indicatorColor = palette.accent.copy(alpha = 0.16f),
+                            unselectedIconColor = palette.textSecondary,
+                            unselectedTextColor = palette.textSecondary
+                        )
                     )
                 }
             }
+
             Column(Modifier.weight(1f)) {
-                // Sleek edge-to-edge TopBar
-                Surface(
-                    color = Color.Transparent,
-                    modifier = Modifier.fillMaxWidth()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(insets.only(WindowInsetsSides.Top).asPaddingValues())
+                        .height(60.dp)
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Column(
+                    if (!isHome) IconButton(onClick = onTopIconButtonClick) {
+                        Icon(
+                            painter = painterResource(topIconButtonId),
+                            contentDescription = stringResource(R.string.back),
+                            tint = palette.text
+                        )
+                    }
+                    Text(
+                        text = when {
+                            !isHome -> when (key) {
+                                "settings" -> stringResource(R.string.settings)
+                                "search" -> stringResource(R.string.search)
+                                else -> tabs[selected].title()
+                            }
+                            wide || selected == 0 -> Brand.APP_NAME
+                            selected == 1 -> stringResource(R.string.discover)
+                            else -> stringResource(R.string.library)
+                        },
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = palette.text,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Brush.verticalGradient(listOf(palette.background1, palette.background0)))
-                            .padding(insets.only(WindowInsetsSides.Top).asPaddingValues())
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp)
-                                .padding(horizontal = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            if (!isHome) IconButton(onClick = onTopIconButtonClick) {
-                                Icon(
-                                    painter = painterResource(topIconButtonId),
-                                    contentDescription = stringResource(R.string.back),
-                                    tint = palette.text
+                            .weight(1f)
+                            .padding(start = if (isHome) 12.dp else 0.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (isHome) {
+                        // Phones reach search from the bottom bar; the rail has no search entry.
+                        if (wide) IconButton(onClick = { scope.launch { searchRoute.ensureGlobal("") } }) {
+                            Icon(
+                                painter = painterResource(R.drawable.search),
+                                contentDescription = stringResource(R.string.search),
+                                tint = palette.text
+                            )
+                        }
+                        IconButton(onClick = onTopIconButtonClick) {
+                            Icon(
+                                painter = painterResource(topIconButtonId),
+                                contentDescription = stringResource(R.string.settings),
+                                tint = palette.text
+                            )
+                        }
+                    }
+                }
+
+                val chipTabs = when {
+                    wide || key == "settings" -> emptyList()
+                    isHome -> if (selected >= LIBRARY_FIRST_TAB) tabs.indices.filter { it >= LIBRARY_FIRST_TAB } else emptyList()
+                    else -> tabs.indices.toList()
+                }
+                if (chipTabs.size > 1) LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                ) {
+                    items(chipTabs, key = { tabs[it].key }) { index ->
+                        val tab = tabs[index]
+                        val isSelected = selected == index
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { onTabChange(index) },
+                            label = {
+                                Text(
+                                    text = tab.title(),
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
                                 )
-                            }
-                            Text(
-                                text = if (isHome) Brand.APP_NAME else when (key) {
-                                    "settings" -> stringResource(R.string.settings)
-                                    "search" -> stringResource(R.string.search)
-                                    else -> tabs[selected].title()
-                                },
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = palette.text,
-                                modifier = Modifier.weight(1f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                            },
+                            leadingIcon = { Icon(painterResource(tab.icon), null, Modifier.size(16.dp)) },
+                            shape = CircleShape,
+                            border = null,
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = palette.background2,
+                                labelColor = palette.textSecondary,
+                                iconColor = palette.textSecondary,
+                                selectedContainerColor = palette.accent,
+                                selectedLabelColor = palette.onAccent,
+                                selectedLeadingIconColor = palette.onAccent
                             )
-                            if (isHome) {
-                                IconButton(onClick = { scope.launch { searchRoute.ensureGlobal("") } }) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.search),
-                                        contentDescription = stringResource(R.string.search),
-                                        tint = palette.text
-                                    )
-                                }
-                                IconButton(onClick = onTopIconButtonClick) {
-                                    Icon(
-                                        painter = painterResource(topIconButtonId),
-                                        contentDescription = stringResource(R.string.settings),
-                                        tint = palette.text
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Filter chips only if more than 1 tab exists
-                if (!wide && key != "settings" && (!isHome || selected >= 2) && tabs.size > 1) {
-                    LazyRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        itemsIndexed(tabs, key = { _, tab -> tab.key }) { index, tab ->
-                            val shouldShow = !isHome || (selected in 2..5 && index in 2..5) || (selected >= 6 && index >= 6)
-                            if (shouldShow) FilterChip(
-                                selected = selected == index,
-                                onClick = { onTabChange(index) },
-                                label = { Text(tab.title(), fontWeight = if (selected == index) FontWeight.SemiBold else FontWeight.Normal) },
-                                leadingIcon = { Icon(painterResource(tab.icon), null, Modifier.size(18.dp)) }
-                            )
-                        }
-                    }
-                }
-
-                // Screen content with proper insets
-                val contentInsets = if (isHome) {
-                    val hasSong = currentWindow != null
-                    WindowInsets(bottom = if (hasSong) Dimensions.items.collapsedPlayerHeight + 16.dp else 16.dp)
-                } else {
-                    insets
-                }
-
-                Box(Modifier.weight(1f).fillMaxWidth()) {
-                    CompositionLocalProvider(LocalPlayerAwareWindowInsets provides contentInsets) {
-                        AnimatedContent(
-                            targetState = selected,
-                            modifier = Modifier.fillMaxSize(),
-                            transitionSpec = { fadeIn() togetherWith fadeOut() },
-                            label = "destination",
-                            content = content
                         )
                     }
                 }
 
-                // Bottom Navigation Bar with clean docking
-                if (showBottomNav) {
-                    Surface(
-                        color = palette.background1.copy(alpha = 0.92f),
-                        modifier = Modifier.fillMaxWidth().border(
-                            0.5.dp, palette.text.copy(alpha = 0.08f), RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
-                        ),
-                        shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
-                    ) {
-                        Column {
-                            NavigationBar(
-                                containerColor = Color.Transparent,
-                                windowInsets = WindowInsets(0, 0, 0, 0),
-                                modifier = Modifier.fillMaxWidth().height(64.dp)
-                            ) {
-                                homeDestinations.forEachIndexed { index, destination ->
-                                    val isSelected = selectedDestination == index
-                                    NavigationBarItem(
-                                        selected = isSelected,
-                                        onClick = { onTabChange(destination) },
-                                        icon = {
-                                            Icon(
-                                                painter = painterResource(homeIcons[index]),
-                                                contentDescription = null,
-                                                modifier = Modifier.size(22.dp)
-                                            )
-                                        },
-                                        label = {
-                                            Text(
-                                                text = stringResource(homeTitles[index]),
-                                                maxLines = 1,
-                                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                                            )
-                                        },
-                                        colors = NavigationBarItemDefaults.colors(
-                                            selectedIconColor = palette.accent,
-                                            selectedTextColor = palette.accent,
-                                            indicatorColor = palette.accent.copy(alpha = 0.15f),
-                                            unselectedIconColor = palette.textSecondary,
-                                            unselectedTextColor = palette.textSecondary
-                                        )
-                                    )
-                                }
-                            }
-                            Box(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(insets.only(WindowInsetsSides.Bottom).asPaddingValues())
-                            )
-                        }
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    // The top bar already consumed the status bar; content only pads the bottom.
+                    CompositionLocalProvider(LocalPlayerAwareWindowInsets provides insets.only(WindowInsetsSides.Bottom)) {
+                        AnimatedContent(
+                            targetState = selected,
+                            modifier = Modifier.fillMaxSize(),
+                            transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(120)) },
+                            label = "destination",
+                            content = content
+                        )
                     }
                 }
             }

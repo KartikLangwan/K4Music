@@ -5,6 +5,7 @@ import android.os.Parcel
 import android.os.Parcelable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.palette.graphics.Palette
@@ -100,13 +101,13 @@ private fun lightColorPalette(hue: Float, saturation: Float) = ColorPalette(
     ),
     accent = Color.hsl(
         hue = hue,
-        saturation = saturation.coerceAtMost(0.5f),
+        saturation = saturation.coerceAtMost(0.7f),
         lightness = 0.5f
     ),
     onAccent = Color.White,
     isDefault = false,
     isDark = false
-)
+).withReadableOnAccent()
 
 private fun darkColorPalette(accent: Hsl, darkness: Darkness) = darkColorPalette(
     hue = accent.hue,
@@ -119,45 +120,54 @@ private fun darkColorPalette(
     saturation: Float,
     darkness: Darkness
 ) = ColorPalette(
+    // Near-black surfaces with a hint of the accent hue; each level is one clear step up.
     background0 = if (darkness == Darkness.Normal) Color.hsl(
         hue = hue,
-        saturation = saturation.coerceAtMost(0.1f),
-        lightness = 0.10f
+        saturation = saturation.coerceAtMost(0.22f),
+        lightness = 0.065f
     ) else Color.Black,
     background1 = if (darkness == Darkness.Normal) Color.hsl(
         hue = hue,
-        saturation = saturation.coerceAtMost(0.3f),
-        lightness = 0.15f
+        saturation = saturation.coerceAtMost(0.24f),
+        lightness = 0.105f
     ) else Color.Black,
     background2 = if (darkness == Darkness.Normal) Color.hsl(
         hue = hue,
-        saturation = saturation.coerceAtMost(0.4f),
-        lightness = 0.2f
+        saturation = saturation.coerceAtMost(0.26f),
+        lightness = 0.16f
     ) else Color.Black,
     text = Color.hsl(
         hue = hue,
-        saturation = saturation.coerceAtMost(0.02f),
-        lightness = 0.94f
+        saturation = saturation.coerceAtMost(0.04f),
+        lightness = 0.95f
     ),
     textSecondary = Color.hsl(
         hue = hue,
-        saturation = saturation.coerceAtMost(0.08f),
-        lightness = 0.72f
+        saturation = saturation.coerceAtMost(0.10f),
+        lightness = 0.70f
     ),
     textDisabled = Color.hsl(
         hue = hue,
         saturation = saturation.coerceAtMost(0.12f),
-        lightness = 0.52f
+        lightness = 0.48f
     ),
     accent = Color.hsl(
         hue = hue,
-        saturation = saturation.coerceAtMost(if (darkness == Darkness.AMOLED) 0.4f else 0.5f),
-        lightness = 0.5f
+        saturation = saturation.coerceAtMost(if (darkness == Darkness.AMOLED) 0.6f else 0.82f),
+        lightness = 0.62f
     ),
     onAccent = Color.White,
     isDefault = false,
     isDark = true
-)
+).withReadableOnAccent()
+
+/** Any accent can be chosen, so pick whichever of white or near-black reads better on it. */
+private fun ColorPalette.withReadableOnAccent(): ColorPalette {
+    val luminance = accent.luminance()
+    val onBlack = (luminance + 0.05f) / 0.05f
+    val onWhite = 1.05f / (luminance + 0.05f)
+    return copy(onAccent = if (onWhite >= onBlack || onWhite >= 4.5f) Color.White else Color(0xff0e0c14))
+}
 
 fun accentColorOf(
     source: ColorSource,

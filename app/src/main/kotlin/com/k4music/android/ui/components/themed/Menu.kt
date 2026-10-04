@@ -5,6 +5,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -29,22 +31,31 @@ import com.k4music.android.utils.medium
 import com.k4music.android.utils.secondary
 import com.k4music.core.ui.LocalAppearance
 
+/** Bottom-sheet body for every menu: rounded top, a drag handle and comfortable rows. */
 @Composable
 inline fun Menu(
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp),
+    shape: Shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
     content: @Composable ColumnScope.() -> Unit
 ) = Column(
     modifier = modifier
         .fillMaxWidth()
         .clip(shape)
-        .verticalScroll(rememberScrollState())
         .background(LocalAppearance.current.colorPalette.background1)
-        .padding(top = 2.dp)
-        .padding(vertical = 8.dp)
-        .navigationBarsPadding(),
-    content = content
-)
+        .verticalScroll(rememberScrollState())
+        .padding(bottom = 8.dp)
+        .navigationBarsPadding()
+) {
+    Box(
+        Modifier
+            .padding(top = 10.dp, bottom = 6.dp)
+            .size(width = 36.dp, height = 4.dp)
+            .clip(RoundedCornerShape(2.dp))
+            .background(LocalAppearance.current.colorPalette.textDisabled.copy(alpha = 0.5f))
+            .align(Alignment.CenterHorizontally)
+    )
+    content()
+}
 
 @Composable
 fun MenuEntry(
@@ -61,7 +72,7 @@ fun MenuEntry(
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(24.dp),
+        horizontalArrangement = Arrangement.spacedBy(18.dp),
         modifier = modifier
             .combinedClickable(
                 enabled = enabled,
@@ -69,24 +80,25 @@ fun MenuEntry(
                 onLongClick = onLongClick
             )
             .fillMaxWidth()
+            .heightIn(min = 52.dp)
             .alpha(if (enabled) 1f else 0.4f)
             .padding(horizontal = 24.dp)
     ) {
         Image(
             painter = painterResource(icon),
             contentDescription = null,
-            colorFilter = ColorFilter.tint(colorPalette.text),
-            modifier = Modifier.size(15.dp)
+            colorFilter = ColorFilter.tint(colorPalette.textSecondary),
+            modifier = Modifier.size(20.dp)
         )
 
         Column(
             modifier = Modifier
-                .padding(vertical = 16.dp)
+                .padding(vertical = 12.dp)
                 .weight(1f)
         ) {
             BasicText(
                 text = text,
-                style = typography.xs.medium
+                style = typography.s.medium
             )
 
             secondaryText?.let { secondaryText ->

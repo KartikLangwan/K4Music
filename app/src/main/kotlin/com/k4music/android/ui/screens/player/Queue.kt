@@ -99,7 +99,7 @@ import com.k4music.android.ui.components.MusicEmptyState
 import com.k4music.android.utils.onFirst
 import com.k4music.android.utils.semiBold
 import com.k4music.android.utils.shouldBePlaying
-import com.k4music.android.utils.shuffleQueue
+import com.k4music.android.utils.playOrder
 import com.k4music.android.utils.smoothScrollToTop
 import com.k4music.android.utils.windows
 import com.k4music.compose.persist.persist
@@ -148,9 +148,14 @@ fun Queue(
         mutableIntStateOf(if (binder.player.mediaItemCount == 0) -1 else binder.player.currentMediaItemIndex)
     }
 
-    var windows by remember(binder) { mutableStateOf(binder.player.currentTimeline.windows) }
+    var timeline by remember(binder) { mutableStateOf(binder.player.currentTimeline) }
+    var shuffled by remember(binder) { mutableStateOf(binder.player.shuffleModeEnabled) }
+    // Shown in the order songs will actually play; `order[i]` is the window index of row i.
+    val order = remember(timeline, shuffled) { timeline.playOrder(shuffled) }
+    val allWindows = remember(timeline) { timeline.windows }
+    val windows = remember(order, allWindows) { order.map { allWindows[it] } }
     var shouldBePlaying by remember(binder) { mutableStateOf(binder.player.shouldBePlaying) }
-    val activeMediaId = windows.getOrNull(mediaItemIndex)?.mediaItem?.mediaId
+    val activeMediaId = allWindows.getOrNull(mediaItemIndex)?.mediaItem?.mediaId
     var suggestionRetry by remember { mutableIntStateOf(0) }
     val queueInteraction = remember { MutableInteractionSource() }
     val queuePressed by queueInteraction.collectIsPressedAsState()
@@ -202,14 +207,18 @@ fun Queue(
                     if (binder.player.mediaItemCount == 0) -1 else binder.player.currentMediaItemIndex
             }
 
-            override fun onTimelineChanged(timeline: Timeline, reason: Int) {
-                windows = timeline.windows
+            override fun onTimelineChanged(newTimeline: Timeline, reason: Int) {
+                timeline = newTimeline
                 mediaItemIndex =
                     if (binder.player.mediaItemCount == 0) -1 else binder.player.currentMediaItemIndex
             }
 
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
                 shouldBePlaying = binder.player.shouldBePlaying
+            }
+
+            override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                shuffled = shuffleModeEnabled
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
@@ -282,13 +291,14 @@ fun Queue(
             }
         }
     ) {
+        val playingRow = order.indexOf(mediaItemIndex)
         val musicBarsTransition = updateTransition(
-            targetState = if (reorderingState.isDragging) -1L else mediaItemIndex,
+            targetState = if (reorderingState.isDragging) -1 else playingRow,
             label = ""
         )
 
         LaunchedEffect(Unit) {
-            lazyListState.scrollToItem(mediaItemIndex.coerceAtLeast(0))
+            lazyListState.scrollToItem(playingRow.coerceAtLeast(0))
         }
 
         Column {
@@ -312,7 +322,8 @@ fun Queue(
                             key = { _, window -> window.uid.hashCode() },
                             contentType = { _, _ -> ContentType.Window }
                         ) { i, window ->
-                            val isPlayingThisMediaItem = mediaItemIndex == i
+                            val windowIndex = order.getOrElse(i) { i }
+                            val isPlayingThisMediaItem = mediaItemIndex == windowIndex
 
                             SongItem(
                                 song = window.mediaItem,
@@ -345,7 +356,9 @@ fun Queue(
                                     }
                                 },
                                 trailingContent = {
-                                    ReorderHandle(
+                                    // Display order is the shuffle order while shuffling, so
+                                    // dragging would not mean what it shows.
+                                    if (!shuffled) ReorderHandle(
                                         reorderingState = reorderingState,
                                         index = i
                                     )
@@ -357,7 +370,7 @@ fun Queue(
                                                 QueuedMediaItemMenu(
                                                     mediaItem = window.mediaItem,
                                                     indexInQueue = if (isPlayingThisMediaItem) null
-                                                    else i,
+                                                    else windowIndex,
                                                     onDismiss = menuState::hide
                                                 )
                                             }
@@ -366,7 +379,9 @@ fun Queue(
                                             if (isPlayingThisMediaItem) {
                                                 if (shouldBePlaying) binder.player.pause() else binder.player.play()
                                             } else {
-                                                binder.player.seekToDefaultPosition(i)
+                                                binder.player.seekToDefaultPosition(windowIndex)
+                                                // After a failure the player is idle and must be prepared again.
+                                                if (binder.player.playbackState == Player.STATE_IDLE) binder.player.prepare()
                                                 binder.player.playWhenReady = true
                                             }
                                         }
@@ -384,7 +399,7 @@ fun Queue(
                                                 delay = 100.milliseconds,
                                                 requireUnconsumed = true
                                             ) {
-                                                if (i in 0 until binder.player.mediaItemCount) binder.player.removeMediaItem(i)
+                                                if (windowIndex in 0 until binder.player.mediaItemCount) binder.player.removeMediaItem(windowIndex)
                                             }
                                         else it
                                     },
@@ -475,15 +490,8 @@ fun Queue(
 
                 FloatingActionsContainerWithScrollToTop(
                     lazyListState = lazyListState,
-                    icon = R.drawable.shuffle,
                     visible = !reorderingState.isDragging,
-                    insets = windowInsets.only(WindowInsetsSides.Horizontal),
-                    onClick = {
-                        reorderingState.coroutineScope.launch {
-                            lazyListState.smoothScrollToTop()
-                            binder.player.shuffleQueue()
-                        }
-                    }
+                    insets = windowInsets.only(WindowInsetsSides.Horizontal)
                 )
             }
 
@@ -497,12 +505,17 @@ fun Queue(
                     .height(56.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val repeat = PlayerPreferences.repeatMode
                 TextToggle(
-                    state = PlayerPreferences.queueLoopEnabled,
-                    toggleState = {
-                        PlayerPreferences.queueLoopEnabled = !PlayerPreferences.queueLoopEnabled
-                    },
-                    name = stringResource(R.string.queue_loop)
+                    state = repeat != PlayerPreferences.RepeatMode.Off,
+                    toggleState = { PlayerPreferences.repeatMode = repeat.next },
+                    name = stringResource(
+                        when (repeat) {
+                            PlayerPreferences.RepeatMode.Off -> R.string.repeat_off
+                            PlayerPreferences.RepeatMode.All -> R.string.repeat_all
+                            PlayerPreferences.RepeatMode.One -> R.string.repeat_one
+                        }
+                    )
                 )
 
                 Spacer(modifier = Modifier.weight(1f))

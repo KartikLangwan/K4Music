@@ -129,17 +129,21 @@ fun ProvideRootRouter(content: @Composable RootRouterOwner.() -> Unit) {
     }
 }
 
+/**
+ * A route handler whose child and arguments live with the caller, so a shell outside the handler
+ * (e.g. a bottom navigation bar) can pop to the root or open a route directly.
+ */
 @Composable
-private fun RouteHandler(
+fun RouteHandler(
     child: Route?,
     setChild: (Route?) -> Unit,
     modifier: Modifier = Modifier,
+    parameters: Array<Any?> = rememberSaveable { arrayOfNulls<Any?>(4) },
     listenToGlobalEmitter: Boolean = true,
     transitionSpec: TransitionSpec<Route?> = defaultTransitionSpec,
     content: @Composable RouteHandlerScope.() -> Unit
 ) = ProvideRootRouter {
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
-    val parameters = rememberSaveable { arrayOfNulls<Any?>(4) }
 
     if (listenToGlobalEmitter && child == null) {
         OnGlobalRoute { (route, args) ->

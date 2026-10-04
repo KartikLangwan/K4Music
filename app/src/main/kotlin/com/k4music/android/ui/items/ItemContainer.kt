@@ -30,18 +30,9 @@ fun ItemContainer(
 ) {
     if (alternative) Column(
         horizontalAlignment = horizontalAlignment,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier
-            .padding(6.dp)
-            .background(
-                Brush.verticalGradient(listOf(
-                    LocalAppearance.current.colorPalette.background2.copy(alpha = .48f),
-                    LocalAppearance.current.colorPalette.background1.copy(alpha = .82f)
-                )),
-                RoundedCornerShape(20.dp)
-            )
-            .border(1.dp, LocalAppearance.current.colorPalette.text.copy(alpha = .10f), RoundedCornerShape(20.dp))
-            .padding(10.dp)
+            .padding(horizontal = 6.dp, vertical = 4.dp)
             .width(thumbnailSize)
     ) { content(Modifier.align(Alignment.CenterHorizontally)) }
     else Row(

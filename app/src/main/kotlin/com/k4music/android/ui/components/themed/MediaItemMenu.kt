@@ -192,7 +192,18 @@ fun QueuedMediaItemMenu(
     BaseMediaItemMenu(
         mediaItem = mediaItem,
         onDismiss = onDismiss,
-        onRemoveFromQueue = indexInQueue?.let { index -> { binder?.player?.removeMediaItem(index) } },
+        onRemoveFromQueue = indexInQueue?.let { index ->
+            {
+                // The queue may have changed since the menu opened; never remove a different song.
+                binder?.player?.run {
+                    val target = index.takeIf { it < mediaItemCount && getMediaItemAt(it).mediaId == mediaItem.mediaId }
+                        ?: (0 until mediaItemCount).firstOrNull {
+                            it != currentMediaItemIndex && getMediaItemAt(it).mediaId == mediaItem.mediaId
+                        }
+                    target?.let(::removeMediaItem)
+                }
+            }
+        },
         modifier = modifier
     )
 }
@@ -279,14 +290,17 @@ fun MediaItemMenu(
     val isLocal = mediaItem.isLocal
     val isYouTube = !isLocal && !isSaavnKey(mediaItem.mediaId)
 
-    var isViewingPlaylists by remember { mutableStateOf(false) }
+    // Everything below is keyed on the song: a reused menu slot must never show or act on
+    // the previous song's state.
+    val songId = mediaItem.mediaId
+    var isViewingPlaylists by remember(songId) { mutableStateOf(false) }
     var height by remember { mutableStateOf(0.dp) }
-    var likedAt by remember { mutableStateOf<Long?>(null) }
-    var isBlacklisted by remember { mutableStateOf(false) }
+    var likedAt by remember(songId) { mutableStateOf<Long?>(null) }
+    var isBlacklisted by remember(songId) { mutableStateOf(false) }
 
     val extras = remember(mediaItem) { mediaItem.mediaMetadata.extras?.songBundle }
 
-    var albumInfo by remember {
+    var albumInfo by remember(songId) {
         mutableStateOf(
             extras?.albumId?.let {
                 Info(id = it, name = null)
@@ -294,7 +308,7 @@ fun MediaItemMenu(
         )
     }
 
-    var artistsInfo by remember {
+    var artistsInfo by remember(songId) {
         mutableStateOf(
             extras?.artistNames?.let { names ->
                 extras.artistIds?.let { ids ->
@@ -304,7 +318,7 @@ fun MediaItemMenu(
         )
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(songId) {
         withContext(Dispatchers.IO) {
             if (albumInfo == null) albumInfo = Database.songAlbumInfo(mediaItem.mediaId)
             if (artistsInfo == null) artistsInfo = Database.songArtistInfo(mediaItem.mediaId)

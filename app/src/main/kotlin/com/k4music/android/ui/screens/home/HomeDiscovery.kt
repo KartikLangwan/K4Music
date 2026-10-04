@@ -46,7 +46,9 @@ import com.k4music.android.ui.components.MusicEmptyState
 import com.k4music.android.ui.components.MusicSectionTitle
 import com.k4music.android.ui.components.BrowseCategoryCard
 import com.k4music.android.ui.components.LocalMenuState
+import com.k4music.android.ui.components.ShelfSkeleton
 import com.k4music.android.ui.components.ShimmerHost
+import androidx.compose.ui.text.font.FontWeight
 import com.k4music.android.ui.components.themed.NonQueuedMediaItemMenu
 import com.k4music.android.ui.items.AlbumItem
 import com.k4music.android.ui.items.SongItem
@@ -99,74 +101,93 @@ fun HomeDiscovery(
         visibleDiscoverMoods(page?.moods.orEmpty() + catalogue?.getOrNull()?.items.orEmpty().flatMap { it.items.filterIsInstance<Innertube.Mood.Item>() })
     }
     val [mediaId, playing] = playingSong(binder)
+    val fullSpan: (androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope.() -> GridItemSpan) = { GridItemSpan(maxLineSpan) }
+    fun playSong(song: Innertube.SongItem) {
+        binder?.stopRadio()
+        binder?.player?.forcePlay(song.asMediaItem)
+        binder?.setupRadio(song.info?.endpoint)
+    }
+
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(140.dp),
-        contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 14.dp, bottom = bottomInset + 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        columns = GridCells.Adaptive(150.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = bottomInset + 24.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        item(key = "intro", span = { GridItemSpan(maxLineSpan) }) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(R.string.discover_headline), style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onBackground)
+        item(key = "intro", span = fullSpan) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(stringResource(R.string.discover_headline), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                 Text(stringResource(R.string.discover_description), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        item(key = "indian-title", span = { GridItemSpan(maxLineSpan) }) { MusicSectionTitle(stringResource(R.string.discover_indian_title), stringResource(R.string.search), onSearchClick) }
-        items(indianCategories, key = { it.query }) { category ->
-            BrowseCategoryCard(stringResource(category.title), stringResource(category.subtitle), Color(category.color), { onBrowseCategory(category.query) })
-        }
-        item(key = "global-title", span = { GridItemSpan(maxLineSpan) }) { MusicSectionTitle(stringResource(R.string.discover_genres_title)) }
-        items(globalCategories, key = { it.query }) { category ->
-            BrowseCategoryCard(stringResource(category.title), stringResource(category.subtitle), Color(category.color), { onBrowseCategory(category.query) })
-        }
-        item(key = "feature", span = { GridItemSpan(maxLineSpan) }) {
-            val featuredSong = trending.firstOrNull()
+
+        val featuredSong = trending.firstOrNull()
+        if (featuredSong != null) item(key = "feature", span = fullSpan) {
             FeaturedMusicCard(
-                eyebrow = stringResource(R.string.discover),
-                title = featuredSong?.info?.name ?: stringResource(R.string.find_your_sound),
-                subtitle = stringResource(R.string.discover_description),
-                artwork = featuredSong?.thumbnail?.size(500),
-                enabled = featuredSong == null || binder != null,
-                action = if (featuredSong != null) stringResource(R.string.play) else stringResource(R.string.search),
-                actionIcon = if (featuredSong != null) R.drawable.play else R.drawable.search,
-                onClick = {
-                    if (featuredSong != null) {
-                        binder?.stopRadio()
-                        binder?.player?.forcePlay(featuredSong.asMediaItem)
-                        binder?.setupRadio(featuredSong.info?.endpoint)
-                    } else {
-                        onSearchClick()
-                    }
-                }
+                eyebrow = stringResource(R.string.trending).uppercase(),
+                title = featuredSong.info?.name.orEmpty(),
+                subtitle = featuredSong.authors?.joinToString(", ") { it.name.orEmpty() }.orEmpty(),
+                artwork = featuredSong.thumbnail?.size(400),
+                enabled = binder != null,
+                action = stringResource(R.string.play),
+                actionIcon = R.drawable.play,
+                onClick = { playSong(featuredSong) },
+                modifier = Modifier.padding(top = 8.dp)
             )
         }
-        moods.takeIf { it.isNotEmpty() }?.let { moods ->
-            item(key = "mood-title", span = { GridItemSpan(maxLineSpan) }) { MusicSectionTitle(stringResource(R.string.pick_your_mood), stringResource(R.string.more), onMoreMoodsClick) }
-            items(moods.take(20), key = { "mood/${it.key}" }) { mood -> MoodItem(mood, { onMoodClick(mood) }) }
-        }
-        page?.newReleaseAlbums.orEmpty().validMusicItems().takeIf { it.isNotEmpty() }?.let { albums ->
-            item(key = "release-title", span = { GridItemSpan(maxLineSpan) }) { MusicSectionTitle(stringResource(R.string.new_released_albums), stringResource(R.string.more), onMoreAlbumsClick) }
-            item(key = "releases", span = { GridItemSpan(maxLineSpan) }) { LazyRow { items(albums, key = { it.key }) { album -> AlbumItem(album, 144.dp, Modifier.clickable { onNewReleaseAlbumClick(album.key) }, alternative = true) } } }
-        }
-        if (trending.isNotEmpty()) {
-            item(key = "trending-title", span = { GridItemSpan(maxLineSpan) }) {
-                MusicSectionTitle(stringResource(R.string.trending), page?.trending?.endpoint?.browseId?.let { stringResource(R.string.more) }) { page?.trending?.endpoint?.browseId?.let(onPlaylistClick) }
+
+        if (trending.size > 1) {
+            item(key = "trending-title", span = fullSpan) {
+                MusicSectionTitle(
+                    title = stringResource(R.string.trending),
+                    action = page?.trending?.endpoint?.browseId?.let { stringResource(R.string.more) }
+                ) { page?.trending?.endpoint?.browseId?.let(onPlaylistClick) }
             }
-            items(trending.take(12), key = { "song/${it.key}" }, span = { GridItemSpan(maxLineSpan) }) { song ->
-                SongItem(song, 56.dp, isPlaying = playing && mediaId == song.key, modifier = Modifier.combinedClickable(
+            items(trending.drop(1).take(6), key = { "song/${it.key}" }, span = { GridItemSpan(maxLineSpan) }) { song ->
+                SongItem(song, 52.dp, isPlaying = playing && mediaId == song.key, modifier = Modifier.combinedClickable(
                     enabled = binder != null,
-                    onClick = { binder?.stopRadio(); binder?.player?.forcePlay(song.asMediaItem); binder?.setupRadio(song.info?.endpoint) },
+                    onClick = { playSong(song) },
                     onLongClick = { menu.display { NonQueuedMediaItemMenu(onDismiss = menu::hide, mediaItem = song.asMediaItem) } }
                 ))
             }
         }
-        if (result?.isFailure == true) item(key = "error", span = { GridItemSpan(maxLineSpan) }) {
+
+        page?.newReleaseAlbums.orEmpty().validMusicItems().takeIf { it.isNotEmpty() }?.let { albums ->
+            item(key = "release-title", span = fullSpan) {
+                MusicSectionTitle(stringResource(R.string.new_released_albums), stringResource(R.string.more), onAction = onMoreAlbumsClick)
+            }
+            item(key = "releases", span = fullSpan) {
+                LazyRow { items(albums, key = { it.key }) { album -> AlbumItem(album, 132.dp, Modifier.clickable { onNewReleaseAlbumClick(album.key) }, alternative = true) } }
+            }
+        }
+
+        if (result?.isFailure == true) item(key = "error", span = fullSpan) {
             MusicEmptyState(stringResource(R.string.music_unavailable), stringResource(R.string.connection_retry_message), R.drawable.globe, stringResource(R.string.retry)) { refresh++ }
         }
-        else if (result == null) item(key = "loading", span = { GridItemSpan(maxLineSpan) }) { ShimmerHost { repeat(4) { SongItemPlaceholder(56.dp) } } }
-        else if (page?.moods.isNullOrEmpty() && page?.newReleaseAlbums.isNullOrEmpty() && trending.isEmpty()) item(key = "empty", span = { GridItemSpan(maxLineSpan) }) {
-            MusicEmptyState(stringResource(R.string.find_your_sound), stringResource(R.string.library_empty_description), action = stringResource(R.string.search), onAction = onSearchClick)
+        else if (result == null) item(key = "loading", span = fullSpan) {
+            Column {
+                ShimmerHost { repeat(4) { SongItemPlaceholder(52.dp) } }
+                ShelfSkeleton(Modifier.padding(top = 16.dp))
+            }
+        }
+
+        moods.takeIf { it.isNotEmpty() }?.let { moods ->
+            item(key = "mood-title", span = fullSpan) {
+                MusicSectionTitle(stringResource(R.string.pick_your_mood), stringResource(R.string.more), onAction = onMoreMoodsClick)
+            }
+            items(moods.take(12), key = { "mood/${it.key}" }) { mood -> MoodItem(mood, { onMoodClick(mood) }) }
+        }
+
+        item(key = "indian-title", span = fullSpan) {
+            MusicSectionTitle(stringResource(R.string.discover_indian_title), stringResource(R.string.search), onAction = onSearchClick)
+        }
+        items(indianCategories, key = { it.query }) { category ->
+            BrowseCategoryCard(stringResource(category.title), stringResource(category.subtitle), Color(category.color), { onBrowseCategory(category.query) })
+        }
+        item(key = "global-title", span = fullSpan) { MusicSectionTitle(stringResource(R.string.discover_genres_title)) }
+        items(globalCategories, key = { it.query }) { category ->
+            BrowseCategoryCard(stringResource(category.title), stringResource(category.subtitle), Color(category.color), { onBrowseCategory(category.query) })
         }
     }
 }
