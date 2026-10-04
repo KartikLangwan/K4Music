@@ -74,7 +74,14 @@ import com.k4music.android.preferences.DataPreferences
 import com.k4music.android.service.PlayerService
 import com.k4music.android.service.ServiceNotifications
 import com.k4music.android.service.downloadState
+import com.k4music.android.preferences.UIStatePreferences
+import com.k4music.android.ui.components.BottomBar
 import com.k4music.android.ui.components.BottomSheetMenu
+import com.k4music.android.ui.components.RootDestination
+import com.k4music.android.ui.screens.searchRoute
+import com.k4music.compose.routing.Route
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.graphics.graphicsLayer
 import com.k4music.android.ui.components.rememberBottomSheetState
 import com.k4music.android.ui.components.themed.LinearProgressIndicator
 import com.k4music.android.ui.screens.albumRoute
@@ -326,8 +333,12 @@ class MainActivity : ComponentActivity(), MonetColorsChangedListener {
             val density = LocalDensity.current
             val bottomDp = with(density) { windowInsets.getBottom(density).toDp() }
 
-            var hasBottomNav by remember { mutableStateOf(false) }
-            val bottomNavHeight = if (hasBottomNav) 72.dp else 0.dp
+            // Phones get the bottom bar; wide windows use the navigation rail in each Scaffold.
+            val hasBottomNav = maxWidth < WideLayoutBreakpoint
+            val bottomNavHeight = if (hasBottomNav) Dimensions.items.navigationBarHeight else 0.dp
+
+            var rootRoute by rememberSaveable { mutableStateOf<Route?>(null) }
+            val rootArgs = rememberSaveable { arrayOfNulls<Any?>(4) }
 
             val imeVisible = WindowInsets.isImeVisible
             val imeBottomDp = with(density) { WindowInsets.ime.getBottom(density).toDp() }
@@ -337,7 +348,7 @@ class MainActivity : ComponentActivity(), MonetColorsChangedListener {
             )
 
             val playerBottomSheetState = rememberBottomSheetState(
-                key = (vm.binder to hasBottomNav),
+                key = vm.binder,
                 dismissedBound = 0.dp,
                 collapsedBound = Dimensions.items.collapsedPlayerHeight + bottomNavHeight + bottomDp,
                 expandedBound = maxHeight
@@ -389,13 +400,16 @@ class MainActivity : ComponentActivity(), MonetColorsChangedListener {
                     showLyricsControls = false
                 ) else CompositionLocalProvider(
                     LocalPlayerAwareWindowInsets provides playerAwareWindowInsets,
-                    LocalSetBottomNavigation provides { hasBottomNav = it },
-                    LocalHasBottomNavigation provides hasBottomNav
+                    LocalBottomNavigationHeight provides bottomNavHeight
                 ) {
                     val isDownloading by downloadState.collectAsState()
 
                     Box {
-                        HomeScreen()
+                        HomeScreen(
+                            rootRoute = rootRoute,
+                            setRootRoute = { rootRoute = it },
+                            rootArgs = rootArgs
+                        )
                     }
 
                     AnimatedVisibility(
@@ -421,6 +435,17 @@ class MainActivity : ComponentActivity(), MonetColorsChangedListener {
                             modifier = Modifier.align(Alignment.BottomCenter)
                         )
                     }
+
+                    // Above the player sheet so it receives taps; it slides away as the player opens.
+                    if (hasBottomNav) BottomBar(
+                        selected = rootDestinationOf(rootRoute, UIStatePreferences.homeScreenTabIndex),
+                        onSelect = { destination ->
+                            navigateTo(destination, rootRoute, rootArgs) { rootRoute = it }
+                        },
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .graphicsLayer { translationY = playerBottomSheetState.progress * size.height }
+                    )
 
                     BottomSheetMenu(
                         modifier = Modifier.align(Alignment.BottomCenter)
@@ -603,8 +628,38 @@ fun handleUrl(
 val LocalPlayerServiceBinder = staticCompositionLocalOf<PlayerService.Binder?> { null }
 val LocalPlayerAwareWindowInsets =
     compositionLocalOf<WindowInsets> { error("No player insets provided") }
-val LocalSetBottomNavigation = staticCompositionLocalOf<(Boolean) -> Unit> { {} }
-val LocalHasBottomNavigation = staticCompositionLocalOf { false }
+/** Height of the bottom navigation bar above the system bar; 0 when the rail is used. */
+val LocalBottomNavigationHeight = staticCompositionLocalOf { 0.dp }
+val WideLayoutBreakpoint = 700.dp
+
+private fun rootDestinationOf(route: Route?, homeTab: Int) = when {
+    route == searchRoute || route == searchResultRoute -> RootDestination.Search
+    homeTab == 0 -> RootDestination.Home
+    homeTab == 1 -> RootDestination.Discover
+    else -> RootDestination.Library
+}
+
+/** Bottom-bar taps always land on the destination's root, whatever screen is open. */
+private fun navigateTo(
+    destination: RootDestination,
+    current: Route?,
+    rootArgs: Array<Any?>,
+    setRoute: (Route?) -> Unit
+) {
+    if (destination == RootDestination.Search) {
+        if (current != searchRoute) {
+            rootArgs[0] = ""
+            setRoute(searchRoute)
+        }
+        return
+    }
+    setRoute(null)
+    UIStatePreferences.homeScreenTabIndex = when (destination) {
+        RootDestination.Home -> 0
+        RootDestination.Discover -> 1
+        else -> UIStatePreferences.homeScreenTabIndex.takeIf { it >= 2 } ?: UIStatePreferences.libraryTabIndex
+    }
+}
 val LocalCredentialManager = staticCompositionLocalOf { Dependencies.credentialManager }
 
 class MainApplication : Application(), SingletonImageLoader.Factory, Configuration.Provider {

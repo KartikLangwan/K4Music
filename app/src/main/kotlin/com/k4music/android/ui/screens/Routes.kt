@@ -12,6 +12,7 @@ import com.k4music.android.models.SearchQuery
 import com.k4music.android.preferences.DataPreferences
 import com.k4music.android.query
 import com.k4music.android.ui.screens.album.AlbumScreen
+import com.k4music.android.ui.screens.audio.AudioScreen
 import com.k4music.android.ui.screens.artist.ArtistScreen
 import com.k4music.android.ui.screens.pipedplaylist.PipedPlaylistScreen
 import com.k4music.android.ui.screens.playlist.PlaylistScreen
@@ -48,6 +49,7 @@ val moodRoute = Route1<Mood>("moodRoute")
 val searchResultRoute = Route1<String>("searchResultRoute")
 val searchRoute = Route1<String>("searchRoute")
 val settingsRoute = Route0("settingsRoute")
+val audioRoute = Route0("audioRoute")
 
 @Composable
 fun RouteHandlerScope.GlobalRoutes() {
@@ -88,6 +90,10 @@ fun RouteHandlerScope.GlobalRoutes() {
 
     settingsRoute {
         SettingsScreen()
+    }
+
+    audioRoute {
+        AudioScreen()
     }
 
     searchRoute { initialTextInput ->

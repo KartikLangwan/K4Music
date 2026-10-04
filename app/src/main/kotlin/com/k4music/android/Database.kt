@@ -698,8 +698,8 @@ interface DatabaseAccessor {
     ): Flow<List<Song>>
 
     @Transaction
-    @Query("SELECT * FROM Event ORDER BY timestamp DESC")
-    fun events(): Flow<List<EventWithSong>>
+    @Query("SELECT * FROM Event ORDER BY timestamp DESC LIMIT :limit")
+    fun events(limit: Int): Flow<List<EventWithSong>>
 
     @Query("SELECT COUNT (*) FROM Event")
     fun eventsCount(): Flow<Int>

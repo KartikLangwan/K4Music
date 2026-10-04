@@ -1,6 +1,7 @@
 package com.k4music.android.preferences
 
 import android.media.audiofx.PresetReverb
+import androidx.annotation.DrawableRes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.k4music.android.GlobalPreferencesHolder
@@ -13,6 +14,20 @@ object PlayerPreferences : GlobalPreferencesHolder() {
     var trackLoopEnabled by trackLoopEnabledProperty
     val queueLoopEnabledProperty = boolean(true)
     var queueLoopEnabled by queueLoopEnabledProperty
+
+    /** One view over the two stored loop flags, so every control shows the same mode. */
+    var repeatMode: RepeatMode
+        get() = when {
+            trackLoopEnabled -> RepeatMode.One
+            queueLoopEnabled -> RepeatMode.All
+            else -> RepeatMode.Off
+        }
+        set(value) {
+            queueLoopEnabled = value == RepeatMode.All
+            trackLoopEnabled = value == RepeatMode.One
+        }
+    val shuffleEnabledProperty = boolean(false)
+    var shuffleEnabled by shuffleEnabledProperty
     val skipSilenceProperty = boolean(false)
     var skipSilence by skipSilenceProperty
     val volumeNormalizationProperty = boolean(false)
@@ -21,7 +36,7 @@ object PlayerPreferences : GlobalPreferencesHolder() {
     var volumeNormalizationBaseGain by volumeNormalizationBaseGainProperty
     val bassBoostProperty = boolean(false)
     var bassBoost by bassBoostProperty
-    val bassBoostLevelProperty = int(5)
+    val bassBoostLevelProperty = int(500)
     var bassBoostLevel by bassBoostLevelProperty
     val reverbProperty = enum(Reverb.None)
     var reverb by reverbProperty
@@ -58,6 +73,30 @@ object PlayerPreferences : GlobalPreferencesHolder() {
 
     val sponsorBlockEnabledProperty = boolean(false)
     var sponsorBlockEnabled by sponsorBlockEnabledProperty
+
+    // Audio effects. Band levels are millibels for this device's equalizer bands.
+    val equalizerEnabledProperty = boolean(false)
+    var equalizerEnabled by equalizerEnabledProperty
+    val equalizerLevelsProperty = json(emptyList<Int>())
+    var equalizerLevels by equalizerLevelsProperty
+    var equalizerPreset by string("Flat")
+    var equalizerUserPresets by json(emptyMap<String, List<Int>>())
+    val virtualizerModeProperty = enum(VirtualizerMode.Off)
+    var virtualizerMode by virtualizerModeProperty
+    val virtualizerStrengthProperty = int(700)
+    var virtualizerStrength by virtualizerStrengthProperty
+    val stereoWideningProperty = int(0)
+    var stereoWidening by stereoWideningProperty
+
+    enum class RepeatMode(@param:DrawableRes val icon: Int) {
+        Off(R.drawable.repeat),
+        All(R.drawable.repeat_on),
+        One(R.drawable.repeat_one);
+
+        val next get() = entries[(ordinal + 1) % entries.size]
+    }
+
+    enum class VirtualizerMode { Off, ThreeD, Surround }
 
     enum class PlayerLayout(val displayName: @Composable () -> String) {
         Classic(displayName = { stringResource(R.string.classic_player_layout_name) }),

@@ -12,9 +12,7 @@ import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.MediaDescription
 import android.media.MediaMetadata
-import android.media.audiofx.BassBoost
 import android.media.audiofx.LoudnessEnhancer
-import android.media.audiofx.PresetReverb
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import android.os.Bundle
@@ -32,7 +30,6 @@ import androidx.core.content.ContextCompat.startForegroundService
 import androidx.core.content.getSystemService
 import androidx.core.net.toUri
 import androidx.media3.common.AudioAttributes
-import androidx.media3.common.AuxEffectInfo
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -102,6 +99,7 @@ import com.k4music.android.utils.PlaybackRetryBudget
 import com.k4music.android.utils.isRecoverablePlaybackFailure
 import com.k4music.android.utils.progress
 import com.k4music.android.utils.retryIf
+import com.k4music.android.utils.shuffleFromCurrent
 import com.k4music.android.utils.readOnlyWhen
 import com.k4music.android.utils.setPlaybackPitch
 import com.k4music.android.utils.shouldBePlaying
@@ -222,9 +220,9 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                 /* action = */
                 LOOP_ACTION,
                 /* name   = */
-                getString(R.string.queue_loop),
+                getString(R.string.repeat),
                 /* icon   = */
-                if (PlayerPreferences.trackLoopEnabled) R.drawable.repeat_on else R.drawable.repeat
+                PlayerPreferences.repeatMode.icon
             ).build()
         )
 
@@ -249,8 +247,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
     private var audioDeviceCallback: AudioDeviceCallback? = null
 
     private var loudnessEnhancer: LoudnessEnhancer? = null
-    private var bassBoost: BassBoost? = null
-    private var reverb: PresetReverb? = null
+    private val audioEffects = AudioEffects()
 
     private val binder = Binder()
 
@@ -335,6 +332,8 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
             }
 
         updateRepeatMode()
+        player.shuffleModeEnabled = PlayerPreferences.shuffleEnabled
+        audioEffects.attach(player.audioSessionId)
         maybeRestorePlayerQueue()
 
         mediaSession = MediaSession(baseContext, TAG).apply {
@@ -373,16 +372,31 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                 maybeShowSongCoverInLockScreen()
             }
 
-            subscribe(PlayerPreferences.bassBoostLevelProperty) { maybeBassBoost() }
-            subscribe(PlayerPreferences.bassBoostProperty) { maybeBassBoost() }
-            subscribe(PlayerPreferences.reverbProperty) { maybeReverb() }
+            subscribe(PlayerPreferences.bassBoostLevelProperty) { audioEffects.apply() }
+            subscribe(PlayerPreferences.bassBoostProperty) {
+                audioEffects.apply()
+                if (!it) maybeNormalizeVolume()
+            }
+            subscribe(PlayerPreferences.reverbProperty) { audioEffects.apply() }
+            subscribe(PlayerPreferences.equalizerEnabledProperty) { audioEffects.apply() }
+            subscribe(PlayerPreferences.equalizerLevelsProperty) { audioEffects.apply() }
+            subscribe(PlayerPreferences.virtualizerModeProperty) { audioEffects.apply() }
+            subscribe(PlayerPreferences.virtualizerStrengthProperty) { audioEffects.apply() }
+            subscribe(PlayerPreferences.stereoWideningProperty) { audioEffects.apply() }
+            subscribe(PlayerPreferences.shuffleEnabledProperty) { enabled ->
+                if (enabled && !player.shuffleModeEnabled) player.shuffleFromCurrent()
+                player.shuffleModeEnabled = enabled
+            }
             subscribe(PlayerPreferences.isInvincibilityEnabledProperty) {
                 this@PlayerService.isInvincibilityEnabled = it
             }
             subscribe(PlayerPreferences.pitchProperty) {
                 player.setPlaybackPitch(it.coerceAtLeast(0.01f))
             }
-            subscribe(PlayerPreferences.queueLoopEnabledProperty) { updateRepeatMode() }
+            subscribe(PlayerPreferences.queueLoopEnabledProperty) {
+                updateRepeatMode()
+                updateNotification()
+            }
             subscribe(PlayerPreferences.resumePlaybackWhenDeviceConnectedProperty) {
                 maybeResumePlaybackWhenDeviceConnected()
             }
@@ -416,12 +430,14 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
     }
 
     private fun updateRepeatMode() {
-        player.repeatMode = when {
-            PlayerPreferences.trackLoopEnabled -> Player.REPEAT_MODE_ONE
-            PlayerPreferences.queueLoopEnabled -> Player.REPEAT_MODE_ALL
-            else -> Player.REPEAT_MODE_OFF
+        player.repeatMode = when (PlayerPreferences.repeatMode) {
+            PlayerPreferences.RepeatMode.One -> Player.REPEAT_MODE_ONE
+            PlayerPreferences.RepeatMode.All -> Player.REPEAT_MODE_ALL
+            PlayerPreferences.RepeatMode.Off -> Player.REPEAT_MODE_OFF
         }
     }
+
+    override fun onAudioSessionIdChanged(audioSessionId: Int) = audioEffects.attach(audioSessionId)
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         if (!player.shouldBePlaying || PlayerPreferences.stopWhenClosed) {
@@ -449,6 +465,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
             cache.release()
 
             loudnessEnhancer?.release()
+            audioEffects.release()
             preferenceUpdaterJob?.cancel()
 
             coroutineScope.cancel()
@@ -520,6 +537,12 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
         playbackRecoveryJob?.cancel()
         playbackRetryBudget.onMediaTransition(mediaItem?.mediaId)
         mediaItemState.update { mediaItem }
+
+        // A replaced queue gets a random shuffle order from Exo, which can place songs behind
+        // the starting one where they would never play.
+        if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED && player.shuffleModeEnabled) {
+            player.shuffleFromCurrent()
+        }
 
         maybeRecoverPlaybackError()
         maybeNormalizeVolume()
@@ -804,45 +827,6 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
         }
     }
 
-    private fun maybeBassBoost() {
-        if (!PlayerPreferences.bassBoost) {
-            runCatching {
-                bassBoost?.enabled = false
-                bassBoost?.release()
-            }
-            bassBoost = null
-            maybeNormalizeVolume()
-            return
-        }
-
-        runCatching {
-            if (bassBoost == null) bassBoost = BassBoost(0, player.audioSessionId)
-            bassBoost?.setStrength(PlayerPreferences.bassBoostLevel.coerceIn(0, 1000).toShort())
-            bassBoost?.enabled = true
-        }.onFailure {
-            toast(getString(R.string.error_bassboost_init))
-        }
-    }
-
-    private fun maybeReverb() {
-        if (PlayerPreferences.reverb == PlayerPreferences.Reverb.None) {
-            runCatching {
-                reverb?.enabled = false
-                player.clearAuxEffectInfo()
-                reverb?.release()
-            }
-            reverb = null
-            return
-        }
-
-        runCatching {
-            if (reverb == null) reverb = PresetReverb(1, player.audioSessionId)
-            reverb?.preset = PlayerPreferences.reverb.preset
-            reverb?.enabled = true
-            reverb?.id?.let { player.setAuxEffectInfo(AuxEffectInfo(it, 1f)) }
-        }
-    }
-
     private fun maybeShowSongCoverInLockScreen() = handler.post {
         val bitmap = if (isAtLeastAndroid13 || AppearancePreferences.isShowingThumbnailInLockscreen) {
             bitmapProvider.bitmap
@@ -1063,8 +1047,8 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                     notificationActionReceiver.like.pendingIntent
                 )
                 .addAction(
-                    if (PlayerPreferences.trackLoopEnabled) R.drawable.repeat_on else R.drawable.repeat,
-                    getString(R.string.queue_loop),
+                    PlayerPreferences.repeatMode.icon,
+                    getString(R.string.repeat),
                     notificationActionReceiver.loop.pendingIntent
                 )
                 .setStyle(
@@ -1123,7 +1107,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                 )
                 .setAudioProcessorChain(
                     DefaultAudioProcessorChain(
-                        arrayOf(),
+                        arrayOf(audioEffects.widener),
                         SilenceSkippingAudioProcessor(
                             /* minimumSilenceDurationUs = */
                             minimumSilenceDuration,
@@ -1156,6 +1140,9 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
 
         val mediaSession
             get() = this@PlayerService.mediaSession
+
+        val audioEffects: StateFlow<AudioCapabilities?>
+            get() = this@PlayerService.audioEffects.capabilities
 
         val sleepTimerMillisLeft: StateFlow<Long?>?
             get() = timerJob?.millisLeft
@@ -1302,7 +1289,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
     }.let { }
 
     private fun loopAction() {
-        PlayerPreferences.trackLoopEnabled = !PlayerPreferences.trackLoopEnabled
+        PlayerPreferences.repeatMode = PlayerPreferences.repeatMode.next
     }
 
     private inner class SessionCallback : MediaSession.Callback() {

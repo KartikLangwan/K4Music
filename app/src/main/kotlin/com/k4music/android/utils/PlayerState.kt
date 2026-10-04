@@ -18,6 +18,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -57,37 +58,45 @@ fun Player?.DisposableListener(
     }
 }
 
+/**
+ * Position and duration as a [State]: read it only inside the composables that draw progress so
+ * the rest of the player does not recompose on every tick. Polls only while audio is playing.
+ */
 @Composable
 fun Player?.positionAndDurationState(
     delay: Duration = 500.milliseconds
-): Pair<Long, Long> {
-    var state by remember(this) {
-        mutableStateOf(this?.let { currentPosition to duration } ?: (0L to 1L))
+): State<Pair<Long, Long>> {
+    val state = remember(this) {
+        mutableStateOf(this?.let { currentPosition to duration } ?: (0L to C.TIME_UNSET))
     }
+    var isPlaying by remember(this) { mutableStateOf(this?.isPlaying == true) }
 
     DisposableListener {
         object : Player.Listener {
-            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                state = player.currentPosition to state.second
+            private fun sync() {
+                state.value = player.currentPosition to player.duration
+            }
+
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) = sync()
+            override fun onPlaybackStateChanged(playbackState: Int) = sync()
+            override fun onIsPlayingChanged(playing: Boolean) {
+                isPlaying = playing
+                sync()
             }
 
             override fun onPositionDiscontinuity(
                 oldPosition: Player.PositionInfo,
                 newPosition: Player.PositionInfo,
                 reason: Int
-            ) {
-                if (reason != Player.DISCONTINUITY_REASON_SEEK) return
-                state = player.currentPosition to player.duration
-            }
+            ) = sync()
         }
     }
 
-    LaunchedEffect(this) {
-        while (isActive) {
+    LaunchedEffect(this, isPlaying) {
+        val player = this@positionAndDurationState ?: return@LaunchedEffect
+        while (isActive && isPlaying) {
             delay(delay)
-            this@positionAndDurationState?.run {
-                state = currentPosition to duration
-            }
+            state.value = player.currentPosition to player.duration
         }
     }
 
