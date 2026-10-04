@@ -526,6 +526,12 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+        // A replaced queue gets a random shuffle order from Exo, which can place songs behind
+        // the starting one where they would never play.
+        if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED && player.shuffleModeEnabled) {
+            player.shuffleFromCurrent()
+        }
+
         if (
             AppearancePreferences.hideExplicit &&
             mediaItem?.mediaMetadata?.extras?.songBundle?.explicit == true
@@ -543,12 +549,6 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
         playbackRecoveryJob?.cancel()
         playbackRetryBudget.onMediaTransition(mediaItem?.mediaId)
         mediaItemState.update { mediaItem }
-
-        // A replaced queue gets a random shuffle order from Exo, which can place songs behind
-        // the starting one where they would never play.
-        if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED && player.shuffleModeEnabled) {
-            player.shuffleFromCurrent()
-        }
 
         maybeRecoverPlaybackError()
         maybeNormalizeVolume()

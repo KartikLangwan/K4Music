@@ -1,7 +1,12 @@
 package com.k4music.android.ui.components
 
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -89,6 +94,14 @@ fun PlayerActionButton(
         if (loading) CircularProgressIndicator(
             Modifier.size(iconSize).semantics { contentDescription = loadingLabel },
             color = foreground, strokeWidth = 2.dp
-        ) else Icon(painterResource(icon), label, Modifier.size(iconSize), tint = foreground)
+        ) else AnimatedContent(
+            targetState = icon,
+            transitionSpec = {
+                (fadeIn(tween(140)) + scaleIn(tween(140), initialScale = 0.7f)) togetherWith fadeOut(tween(90))
+            },
+            label = "action icon"
+        ) { currentIcon ->
+            Icon(painterResource(currentIcon), label, Modifier.size(iconSize), tint = foreground)
+        }
     }
 }
