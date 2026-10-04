@@ -167,7 +167,7 @@ fun Queue(
         onDragEnd = binder.player::moveMediaItem
     )
 
-    val visibleSuggestions by remember(binder) {
+    val visibleSuggestions by remember(binder, windows) {
         derivedStateOf {
             suggestions
                 ?.getOrNull()
