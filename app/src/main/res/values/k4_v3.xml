@@ -61,4 +61,9 @@
     <string name="atd_wide_stage">ATD wide stage</string>
     <string name="atd_wide_stage_description">Mid/side stereo widening for a more immersive stage. Stereo tracks only.</string>
     <string name="reverb_effect_description">Room ambience added to the music</string>
+    <string name="added_to_playlist">Added to %1$s</string>
+    <string name="added_songs_to_playlist">Added %1$d songs to %2$s</string>
+    <string name="already_in_playlist">Already in %1$s</string>
+    <string name="playlist_empty_title">This playlist is empty</string>
+    <string name="playlist_empty_message">Add songs from any song menu with “Add to playlist”.</string>
 </resources>

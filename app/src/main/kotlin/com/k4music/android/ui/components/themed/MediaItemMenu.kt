@@ -58,7 +58,7 @@ import com.k4music.app.R
 import com.k4music.android.models.Info
 import com.k4music.android.models.Playlist
 import com.k4music.android.models.Song
-import com.k4music.android.models.SongPlaylistMap
+import com.k4music.android.utils.addToPlaylist
 import com.k4music.android.query
 import com.k4music.android.service.PrecacheService
 import com.k4music.android.service.isLocal
@@ -132,17 +132,13 @@ fun InHistoryMediaItemMenu(
 fun InPlaylistMediaItemMenu(
     onDismiss: () -> Unit,
     playlistId: Long,
-    positionInPlaylist: Int,
     song: Song,
     modifier: Modifier = Modifier
 ) = NonQueuedMediaItemMenu(
     mediaItem = song.asMediaItem,
     onDismiss = onDismiss,
     onRemoveFromPlaylist = {
-        transaction {
-            Database.move(playlistId, positionInPlaylist, Int.MAX_VALUE)
-            Database.delete(SongPlaylistMap(song.id, playlistId, Int.MAX_VALUE))
-        }
+        transaction { Database.removeFromPlaylist(playlistId, song.id) }
     },
     modifier = modifier
 )
@@ -235,18 +231,7 @@ fun BaseMediaItemMenu(
         onStartRadio = onStartRadio,
         onPlayNext = onPlayNext,
         onEnqueue = onEnqueue,
-        onAddToPlaylist = { playlist, position ->
-            transaction {
-                Database.insert(mediaItem)
-                Database.insert(
-                    SongPlaylistMap(
-                        songId = mediaItem.mediaId,
-                        playlistId = Database.insert(playlist).takeIf { it != -1L } ?: playlist.id,
-                        position = position
-                    )
-                )
-            }
-        },
+        onAddToPlaylist = { playlist, _ -> context.addToPlaylist(playlist, listOf(mediaItem)) },
         onHideFromDatabase = onHideFromDatabase,
         onRemoveFromPlaylist = onRemoveFromPlaylist,
         onRemoveFromQueue = onRemoveFromQueue,

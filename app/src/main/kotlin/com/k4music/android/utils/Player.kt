@@ -170,8 +170,10 @@ private fun Player.insert(index: Int, mediaItems: List<MediaItem>, next: Boolean
     }
 }
 
-fun Player.addNext(mediaItem: MediaItem) =
-    insert(currentMediaItemIndex + 1, listOf(mediaItem), next = true)
+fun Player.addNext(mediaItem: MediaItem) = addNext(listOf(mediaItem))
+
+fun Player.addNext(mediaItems: List<MediaItem>) =
+    insert(currentMediaItemIndex + 1, mediaItems, next = true)
 
 fun Player.enqueue(mediaItem: MediaItem) = enqueue(listOf(mediaItem))
 

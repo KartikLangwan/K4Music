@@ -80,7 +80,7 @@ fun HomePlaylists(
         onDismiss = { isCreatingANewPlaylist = false },
         onAccept = { text ->
             query {
-                Database.insert(Playlist(name = text))
+                Database.insert(Playlist(name = text.trim()))
             }
         }
     )

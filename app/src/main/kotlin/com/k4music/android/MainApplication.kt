@@ -333,9 +333,8 @@ class MainActivity : ComponentActivity(), MonetColorsChangedListener {
             val density = LocalDensity.current
             val bottomDp = with(density) { windowInsets.getBottom(density).toDp() }
 
-            // Phones get the bottom bar; wide windows use the navigation rail in each Scaffold.
-            val hasBottomNav = maxWidth < WideLayoutBreakpoint
-            val bottomNavHeight = if (hasBottomNav) Dimensions.items.navigationBarHeight else 0.dp
+            // The bottom bar is the main navigation at every window size.
+            val bottomNavHeight = Dimensions.items.navigationBarHeight
 
             var rootRoute by rememberSaveable { mutableStateOf<Route?>(null) }
             val rootArgs = rememberSaveable { arrayOfNulls<Any?>(4) }
@@ -402,54 +401,55 @@ class MainActivity : ComponentActivity(), MonetColorsChangedListener {
                     LocalPlayerAwareWindowInsets provides playerAwareWindowInsets,
                     LocalBottomNavigationHeight provides bottomNavHeight
                 ) {
-                    val isDownloading by downloadState.collectAsState()
+                    // AnimatedContent ignores Modifier.align; this Box anchors the player and bar to the bottom.
+                    Box(Modifier.fillMaxSize()) {
+                        val isDownloading by downloadState.collectAsState()
 
-                    Box {
                         HomeScreen(
                             rootRoute = rootRoute,
                             setRootRoute = { rootRoute = it },
                             rootArgs = rootArgs
                         )
-                    }
 
-                    AnimatedVisibility(
-                        visible = isDownloading,
-                        modifier = Modifier.padding(playerAwareWindowInsets.asPaddingValues())
-                    ) {
-                        LinearProgressIndicator(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .align(Alignment.TopCenter)
-                        )
-                    }
-
-                    CompositionLocalProvider(
-                        LocalAppearance provides LocalAppearance.current.let {
-                            if (it.colorPalette.isDark && AppearancePreferences.darkness == Darkness.AMOLED) {
-                                it.copy(colorPalette = it.colorPalette.amoled())
-                            } else it
+                        AnimatedVisibility(
+                            visible = isDownloading,
+                            modifier = Modifier.padding(playerAwareWindowInsets.asPaddingValues())
+                        ) {
+                            LinearProgressIndicator(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .align(Alignment.TopCenter)
+                            )
                         }
-                    ) {
-                        Player(
-                            layoutState = playerBottomSheetState,
+
+                        CompositionLocalProvider(
+                            LocalAppearance provides LocalAppearance.current.let {
+                                if (it.colorPalette.isDark && AppearancePreferences.darkness == Darkness.AMOLED) {
+                                    it.copy(colorPalette = it.colorPalette.amoled())
+                                } else it
+                            }
+                        ) {
+                            Player(
+                                layoutState = playerBottomSheetState,
+                                modifier = Modifier.align(Alignment.BottomCenter)
+                            )
+                        }
+
+                        // Above the player sheet so it receives taps; it slides away as the player opens.
+                        BottomBar(
+                            selected = rootDestinationOf(rootRoute, UIStatePreferences.homeScreenTabIndex),
+                            onSelect = { destination ->
+                                navigateTo(destination, rootRoute, rootArgs) { rootRoute = it }
+                            },
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .graphicsLayer { translationY = playerBottomSheetState.progress * size.height }
+                        )
+
+                        BottomSheetMenu(
                             modifier = Modifier.align(Alignment.BottomCenter)
                         )
                     }
-
-                    // Above the player sheet so it receives taps; it slides away as the player opens.
-                    if (hasBottomNav) BottomBar(
-                        selected = rootDestinationOf(rootRoute, UIStatePreferences.homeScreenTabIndex),
-                        onSelect = { destination ->
-                            navigateTo(destination, rootRoute, rootArgs) { rootRoute = it }
-                        },
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .graphicsLayer { translationY = playerBottomSheetState.progress * size.height }
-                    )
-
-                    BottomSheetMenu(
-                        modifier = Modifier.align(Alignment.BottomCenter)
-                    )
                 }
             }
 
@@ -630,7 +630,6 @@ val LocalPlayerAwareWindowInsets =
     compositionLocalOf<WindowInsets> { error("No player insets provided") }
 /** Height of the bottom navigation bar above the system bar; 0 when the rail is used. */
 val LocalBottomNavigationHeight = staticCompositionLocalOf { 0.dp }
-val WideLayoutBreakpoint = 700.dp
 
 private fun rootDestinationOf(route: Route?, homeTab: Int) = when {
     route == searchRoute || route == searchResultRoute -> RootDestination.Search
