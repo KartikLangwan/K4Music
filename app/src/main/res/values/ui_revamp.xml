@@ -1,0 +1,31 @@
+<resources>
+    <string name="home_browse_title">Find your next favourite</string>
+    <string name="home_rotation_title">Keep the music going</string>
+    <string name="discover_indian_title">Sounds of India</string>
+    <string name="discover_genres_title">Explore your sound</string>
+    <string name="genre_bollywood">Bollywood</string>
+    <string name="genre_hindi_description">Hindi hits &amp; favourites</string>
+    <string name="genre_punjabi">Punjabi</string>
+    <string name="genre_punjabi_description">New hits, big energy</string>
+    <string name="genre_south">South Indian</string>
+    <string name="genre_south_description">Tamil, Telugu &amp; more</string>
+    <string name="genre_indian_indie">Indian indie</string>
+    <string name="genre_indie_description">Fresh voices to discover</string>
+    <string name="genre_pop">Pop</string>
+    <string name="genre_pop_description">Hits on repeat</string>
+    <string name="genre_rock">Rock</string>
+    <string name="genre_rock_description">Guitars &amp; anthems</string>
+    <string name="genre_hiphop">Hip-hop</string>
+    <string name="genre_hiphop_description">Beats, bars &amp; rhythm</string>
+    <string name="genre_lofi">Lo-fi &amp; chill</string>
+    <string name="genre_lofi_description">Slow down, tune in</string>
+    <string name="settings_headline">Make it yours.</string>
+    <string name="settings_description">Your sound. Your style. Everything in one place.</string>
+    <string name="settings_appearance_summary">Theme, colours &amp; the way your music looks</string>
+    <string name="settings_playback_summary">Audio, queue &amp; playback controls</string>
+    <string name="settings_storage_summary">Downloads, offline music &amp; storage</string>
+    <string name="settings_library_summary">Backups, playlists &amp; your collection</string>
+    <string name="settings_system_summary">Network, notifications &amp; app preferences</string>
+    <string name="settings_help_summary">Get started &amp; find answers</string>
+    <string name="settings_about_summary">K4 Music, Kartik Langwan &amp; credits</string>
+</resources>

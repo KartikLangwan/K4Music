@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="up_next">अगले गाने</string>
+    <string name="loading_music">गाना लोड हो रहा है</string>
+    <string name="queue_filtered_message">इन गानों को स्पष्ट सामग्री के फ़िल्टर ने छिपाया है। दूसरा गाना चुनें या सेटिंग में फ़िल्टर बदलें।</string>
+    <string name="share_unavailable">शेयर नहीं हो पाया। किसी दूसरे ऐप से कोशिश करें।</string>
+</resources>
