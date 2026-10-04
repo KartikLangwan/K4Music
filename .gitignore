@@ -20,9 +20,3 @@ jniLibs/
 /.direnv
 /result*
 /repl-result*
-
-# local baseline excludes
-.local-maven/
-*.apk
-*.apk.sha256
-*.log

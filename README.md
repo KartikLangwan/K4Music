@@ -7,7 +7,7 @@
 
 ---
 
-Version **2.0.0.14** adds artwork recommendations on Home, visible Indian and global genres on Discover, a Settings dashboard and consistent player press feedback. Lightweight glass panels follow the selected theme. Playback has bounded recovery, fresh stream resolution, visible retry and buffering feedback.
+Version **2.1.0** is a stability and redesign release: one consistent repeat/shuffle model, queue-safe "Play next", a persistent bottom bar with the mini player docked above it, a rebuilt full player, real audio effects (equalizer with presets and manual bands, bass boost, 3D/surround, ATD wide stage, reverb) and a new dark-purple design. See [AUDIT.md](AUDIT.md) for every fix and its validation.
 
 ## Features
 
