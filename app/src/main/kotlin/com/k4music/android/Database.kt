@@ -738,6 +738,47 @@ interface DatabaseAccessor {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     fun insertSongPlaylistMaps(songPlaylistMaps: List<SongPlaylistMap>)
 
+    @Query("SELECT COUNT(*) FROM SongPlaylistMap WHERE playlistId = :playlistId")
+    fun playlistSongCount(playlistId: Long): Int
+
+    @Query("SELECT position FROM SongPlaylistMap WHERE playlistId = :playlistId AND songId = :songId")
+    fun playlistPosition(playlistId: Long, songId: String): Int?
+
+    @Query("DELETE FROM SongPlaylistMap WHERE playlistId = :playlistId AND songId = :songId")
+    fun deleteFromPlaylist(playlistId: Long, songId: String)
+
+    @Query("UPDATE SongPlaylistMap SET position = position - 1 WHERE playlistId = :playlistId AND position > :position")
+    fun closePlaylistGap(playlistId: Long, position: Int)
+
+    /** Removes by song, not by list index, so a stale index can never drop or corrupt another entry. */
+    @Transaction
+    fun removeFromPlaylist(playlistId: Long, songId: String) {
+        val position = playlistPosition(playlistId, songId) ?: return
+        deleteFromPlaylist(playlistId, songId)
+        closePlaylistGap(playlistId, position)
+    }
+
+    /**
+     * Appends [mediaItems] to [playlist] (created first when it has no id yet) and returns how many
+     * were really added; songs already in the playlist are skipped. Positions stay contiguous.
+     */
+    @Transaction
+    fun addToPlaylist(playlist: Playlist, mediaItems: List<MediaItem>): Int {
+        val playlistId = if (playlist.id == 0L) insert(playlist.copy(name = playlist.name.trim())) else playlist.id
+        if (playlistId == -1L) return 0
+
+        return mediaItems.distinctBy { it.mediaId }.count { mediaItem ->
+            insert(mediaItem)
+            insert(
+                SongPlaylistMap(
+                    songId = mediaItem.mediaId,
+                    playlistId = playlistId,
+                    position = playlistSongCount(playlistId)
+                )
+            ) != -1L
+        }
+    }
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     fun insert(album: Album, songAlbumMap: SongAlbumMap)
 

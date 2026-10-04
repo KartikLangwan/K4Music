@@ -41,6 +41,7 @@ import com.k4music.android.preferences.DataPreferences
 import com.k4music.android.query
 import com.k4music.android.transaction
 import com.k4music.android.ui.components.LocalMenuState
+import com.k4music.android.ui.components.MusicEmptyState
 import com.k4music.android.ui.components.themed.CircularProgressIndicator
 import com.k4music.android.ui.components.themed.ConfirmationDialog
 import com.k4music.android.ui.components.themed.FloatingActionsContainerWithScrollToTop
@@ -57,6 +58,7 @@ import com.k4music.android.ui.items.SongItem
 import com.k4music.android.utils.PlaylistDownloadIcon
 import com.k4music.android.utils.asMediaItem
 import com.k4music.android.utils.completed
+import com.k4music.android.utils.addNext
 import com.k4music.android.utils.enqueue
 import com.k4music.android.utils.forcePlayAtIndex
 import com.k4music.android.utils.forcePlayFromBeginning
@@ -126,7 +128,7 @@ fun LocalPlaylistSongs(
         onDismiss = { isRenaming = false },
         onAccept = { text ->
             query {
-                Database.update(playlist.copy(name = text))
+                Database.update(playlist.copy(name = text.trim()))
             }
         }
     )
@@ -166,6 +168,15 @@ fun LocalPlaylistSongs(
                             title = playlist.name,
                             modifier = Modifier.padding(bottom = 8.dp)
                         ) {
+                            SecondaryTextButton(
+                                text = stringResource(R.string.play),
+                                enabled = songs.isNotEmpty(),
+                                onClick = {
+                                    binder?.stopRadio()
+                                    binder?.player?.forcePlayFromBeginning(songs.map { it.asMediaItem })
+                                }
+                            )
+
                             SecondaryTextButton(
                                 text = stringResource(R.string.enqueue),
                                 enabled = songs.isNotEmpty(),
@@ -243,6 +254,15 @@ fun LocalPlaylistSongs(
                                                 }
                                             }
 
+                                            if (songs.isNotEmpty()) MenuEntry(
+                                                icon = R.drawable.play_skip_forward,
+                                                text = stringResource(R.string.play_next),
+                                                onClick = {
+                                                    menuState.hide()
+                                                    binder?.player?.addNext(songs.map { it.asMediaItem })
+                                                }
+                                            )
+
                                             MenuEntry(
                                                 icon = R.drawable.pencil,
                                                 text = stringResource(R.string.rename),
@@ -270,6 +290,14 @@ fun LocalPlaylistSongs(
                     }
                 }
 
+                if (songs.isEmpty() && !loading) item(key = "empty", contentType = 2) {
+                    MusicEmptyState(
+                        title = stringResource(R.string.playlist_empty_title),
+                        message = stringResource(R.string.playlist_empty_message),
+                        icon = R.drawable.playlist
+                    )
+                }
+
                 itemsIndexed(
                     items = songs,
                     key = { _, song -> song.id },
@@ -282,7 +310,6 @@ fun LocalPlaylistSongs(
                                     menuState.display {
                                         InPlaylistMediaItemMenu(
                                             playlistId = playlist.id,
-                                            positionInPlaylist = index,
                                             song = song,
                                             onDismiss = menuState::hide
                                         )

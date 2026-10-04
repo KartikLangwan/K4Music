@@ -65,7 +65,7 @@ fun TextFieldDialog(
     singleLine: Boolean = true,
     maxLines: Int = 1,
     onCancel: () -> Unit = onDismiss,
-    isTextInputValid: (String) -> Boolean = { it.isNotEmpty() },
+    isTextInputValid: (String) -> Boolean = { it.isNotBlank() },
     keyboardOptions: KeyboardOptions = KeyboardOptions()
 ) = DefaultDialog(
     onDismiss = onDismiss,

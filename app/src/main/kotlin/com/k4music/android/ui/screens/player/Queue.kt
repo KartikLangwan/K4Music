@@ -65,7 +65,8 @@ import androidx.media3.common.Timeline
 import com.k4music.android.Database
 import com.k4music.app.R
 import com.k4music.android.models.Playlist
-import com.k4music.android.models.SongPlaylistMap
+import com.k4music.android.utils.addToPlaylist
+import androidx.compose.ui.platform.LocalContext
 import com.k4music.android.preferences.AppearancePreferences
 import com.k4music.android.preferences.PlayerPreferences
 import com.k4music.android.service.PlayerService
@@ -137,6 +138,7 @@ fun Queue(
 ) {
     val [colorPalette, typography, _, thumbnailShape] = LocalAppearance.current
     val menuState = LocalMenuState.current
+    val context = LocalContext.current
 
     val horizontalBottomPaddingValues = windowInsets
         .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
@@ -537,24 +539,8 @@ fun Queue(
                     modifier = Modifier
                         .clip(16.dp.roundedShape)
                         .clickable {
-                            fun addToPlaylist(playlist: Playlist, index: Int) = transaction {
-                                val playlistId = Database
-                                    .insert(playlist)
-                                    .takeIf { it != -1L } ?: playlist.id
-
-                                windows.forEachIndexed { i, window ->
-                                    val mediaItem = window.mediaItem
-
-                                    Database.insert(mediaItem)
-                                    Database.insert(
-                                        SongPlaylistMap(
-                                            songId = mediaItem.mediaId,
-                                            playlistId = playlistId,
-                                            position = index + i
-                                        )
-                                    )
-                                }
-                            }
+                            fun addToPlaylist(playlist: Playlist) =
+                                context.addToPlaylist(playlist, windows.map { it.mediaItem })
 
                             menuState.display {
                                 var isCreatingNewPlaylist by rememberSaveable { mutableStateOf(false) }
@@ -573,7 +559,7 @@ fun Queue(
                                     onDismiss = { isCreatingNewPlaylist = false },
                                     onAccept = { text ->
                                         menuState.hide()
-                                        addToPlaylist(Playlist(name = text), 0)
+                                        addToPlaylist(Playlist(name = text))
                                     }
                                 )
 
@@ -617,10 +603,7 @@ fun Queue(
                                             ),
                                             onClick = {
                                                 menuState.hide()
-                                                addToPlaylist(
-                                                    playlistPreview.playlist,
-                                                    playlistPreview.songCount
-                                                )
+                                                addToPlaylist(playlistPreview.playlist)
                                             }
                                         )
                                     }
