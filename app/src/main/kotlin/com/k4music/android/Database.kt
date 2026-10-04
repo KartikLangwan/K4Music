@@ -758,6 +758,13 @@ interface DatabaseAccessor {
         closePlaylistGap(playlistId, position)
     }
 
+    /** Creates [playlist] and fills it in one transaction (all or nothing); returns its id and the songs added. */
+    @Transaction
+    fun createPlaylist(playlist: Playlist, mediaItems: List<MediaItem>): Pair<Long, Int> {
+        val id = insert(playlist.copy(id = 0, name = playlist.name.trim().ifBlank { "Imported playlist" }))
+        return id to addToPlaylist(playlist.copy(id = id), mediaItems)
+    }
+
     /**
      * Appends [mediaItems] to [playlist] (created first when it has no id yet) and returns how many
      * were really added; songs already in the playlist are skipped. Positions stay contiguous.

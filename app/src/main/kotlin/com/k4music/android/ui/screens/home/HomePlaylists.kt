@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.k4music.android.Database
+import com.k4music.android.playlistimport.PlaylistImportDialog
 import com.k4music.android.LocalPlayerAwareWindowInsets
 import com.k4music.app.R
 import com.k4music.android.models.PipedSession
@@ -84,6 +85,10 @@ fun HomePlaylists(
             }
         }
     )
+    var isImportingAPlaylist by rememberSaveable { mutableStateOf(false) }
+
+    if (isImportingAPlaylist) PlaylistImportDialog(onDismiss = { isImportingAPlaylist = false })
+
     var items by persistList<PlaylistPreview>("home/playlists")
     var pipedSessions by persist<Map<PipedSession, List<PipedPlaylistPreview>?>>("home/piped")
 
@@ -135,6 +140,11 @@ fun HomePlaylists(
                     SecondaryTextButton(
                         text = stringResource(R.string.new_playlist),
                         onClick = { isCreatingANewPlaylist = true }
+                    )
+
+                    SecondaryTextButton(
+                        text = stringResource(R.string.import_playlist),
+                        onClick = { isImportingAPlaylist = true }
                     )
 
                     Spacer(modifier = Modifier.weight(1f))

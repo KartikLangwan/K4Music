@@ -66,4 +66,18 @@
     <string name="already_in_playlist">Already in %1$s</string>
     <string name="playlist_empty_title">This playlist is empty</string>
     <string name="playlist_empty_message">Add songs from any song menu with “Add to playlist”.</string>
+    <string name="import_playlist">Import</string>
+    <string name="import_title">Import playlist</string>
+    <string name="import_hint">Paste a Spotify or YouTube Music playlist link</string>
+    <string name="import_reading">Reading playlist… %1$d tracks</string>
+    <string name="import_matching">Finding songs… %1$d / %2$d</string>
+    <string name="import_saving">Saving playlist…</string>
+    <string name="import_result_count">Imported %1$d / %2$d</string>
+    <string name="import_duplicates">%1$d duplicate tracks skipped</string>
+    <string name="import_not_provided">%1$d more tracks are not provided by Spotify without a login (limit: first 100)</string>
+    <string name="import_maybe_truncated">Spotify only provides the first 100 tracks without a login; this playlist may contain more</string>
+    <string name="import_failed_header">%1$d tracks could not be imported</string>
+    <string name="import_retry_failed">Retry failed tracks</string>
+    <string name="import_error_title">Import failed</string>
+    <string name="import_close">Close</string>
 </resources>

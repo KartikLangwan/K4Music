@@ -4,6 +4,15 @@ Creator: **Kartik Langwan**
 Instagram: **K4RTIK.nvm** — https://www.instagram.com/K4RTIK.nvm/  
 Website: https://kartiklangwan.vercel.app
 
+## Playlist import (Spotify + YouTube Music)
+
+`Playlists -> Import` takes a Spotify or YouTube Music playlist link, shows progress, saves one playlist in a single database transaction and reports `Imported X / Total Y` with duplicates, failures and shortfalls named. Code: `app/.../playlistimport/`; each provider implements `PlaylistSource`.
+
+- **YouTube Music**: uses the existing Innertube client. Fixed a long-standing bug there: YouTube now ends the first page with a `continuationItemRenderer` token and sends later pages as `onResponseReceivedActions`, which the parser ignored, so every playlist silently stopped after ~100 tracks (a 182-track playlist imported 98). Pages are retried and a page that keeps failing aborts the import instead of saving a truncated playlist.
+- **Spotify**: no login or API key. The public embed page lists at most the first 100 tracks and Spotify's API rejects its anonymous token, so longer playlists import their first 100 and say how many were not provided (`Imported 100 / 1223`). Tracks are matched to playable songs (YouTube Music first, JioSaavn second) by title plus artist or duration; unmatched tracks are listed by name and can be retried.
+- Verified live: Spotify 50 / 100 / 1223-track playlists, YouTube 2 / 99 / 182 / 200-track playlists, invalid, private and non-playlist links. Offline tests (`PlaylistImportTest`, 28 cases) cover pagination, ordering, duplicates, retry, errors and parsing; `PlaylistImportLiveTest` is an opt-in live check (`K4_LIVE=1`).
+- Limits: private playlists need a login and are reported as unavailable; YouTube hides unavailable videos, so those are counted but cannot be named; error messages are English only.
+
 ## v2.1.0 — audit, stabilisation and redesign (5 October 2026)
 
 A full pass over playback, navigation, audio, menus and the main screens, with the bugs fixed before the redesign. The source is now under local git (`dc89fa5` is the untouched v2.0.0.14 baseline), so every change can be reviewed with `git diff dc89fa5`.

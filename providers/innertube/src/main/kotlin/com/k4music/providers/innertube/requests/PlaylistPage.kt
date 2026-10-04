@@ -164,7 +164,19 @@ suspend fun Innertube.playlistPage(body: ContinuationBody) = runCatchingCancella
         .continuationContents
         ?.musicShelfContinuation
         ?.toSongsPage()
+        ?: response.onResponseReceivedActions
+            ?.firstNotNullOfOrNull { it.appendContinuationItemsAction?.continuationItems }
+            ?.toSongsPage()
+        ?: Innertube.ItemsPage(items = null, continuation = null)
 }
+
+private fun List<MusicShelfRenderer.Content>.toSongsPage() = Innertube.ItemsPage(
+    items = mapNotNull(MusicShelfRenderer.Content::musicResponsiveListItemRenderer)
+        .mapNotNull(Innertube.SongItem::from),
+    continuation = firstNotNullOfOrNull {
+        it.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token
+    }
+)
 
 private fun MusicShelfRenderer?.toSongsPage() = Innertube.ItemsPage(
     items = this
@@ -176,4 +188,5 @@ private fun MusicShelfRenderer?.toSongsPage() = Innertube.ItemsPage(
         ?.firstOrNull()
         ?.nextContinuationData
         ?.continuation
+        ?: this?.contents?.firstNotNullOfOrNull { it.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token }
 )

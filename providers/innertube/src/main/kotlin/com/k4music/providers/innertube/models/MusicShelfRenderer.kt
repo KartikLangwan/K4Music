@@ -11,8 +11,19 @@ data class MusicShelfRenderer(
 ) {
     @Serializable
     data class Content(
-        val musicResponsiveListItemRenderer: MusicResponsiveListItemRenderer?
+        val musicResponsiveListItemRenderer: MusicResponsiveListItemRenderer?,
+        val continuationItemRenderer: ContinuationItemRenderer? = null
     ) {
+        /** Newer responses end a long list with an item that carries the next-page token. */
+        @Serializable
+        data class ContinuationItemRenderer(val continuationEndpoint: Endpoint?) {
+            @Serializable
+            data class Endpoint(val continuationCommand: Command?)
+
+            @Serializable
+            data class Command(val token: String?)
+        }
+
         val runs: Pair<List<Runs.Run>, List<List<Runs.Run>>>
             get() = musicResponsiveListItemRenderer
                 ?.flexColumns
