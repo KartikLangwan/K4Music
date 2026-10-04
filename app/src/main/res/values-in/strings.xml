@@ -102,7 +102,6 @@
     <string name="error_unknown_playback">Terjadi kesalahan pemutaran yang tidak diketahui</string>
     <string name="error_piped_link">Terjadi kesalahan yang tidak diketahui saat menautkan akun Piped Anda. Silakan coba lagi.</string>
     <string name="error_piped_instances_unavailable">Daftar contoh Piped saat ini tidak tersedia</string>
-    <string name="error_bassboost_init">Terjadi kesalahan dalam menginisialisasi Bass Boost. Mungkin perangkat Anda tidak mendukungnya. Coba ubah tingkat penguat bass atau coba lagi.</string>
     <string name="error_pre_cache">Terjadi kesalahan yang tidak diketahui selama pra-caching. Silakan coba lagi.</string>
     <string name="error_url">Tidak dapat membuka url %1$s</string>
     <string name="media_permission_declined">Izin ditolak, berikan izin media di pengaturan perangkat Anda.</string>
@@ -134,7 +133,6 @@
     <string name="playback_speed">Kecepatan pemutaran</string>
     <string name="minimum_speed_value">Mengapa Anda melakukan ini?!</string>
     <string name="volume_boost">Peningkatan volume</string>
-    <string name="queue_loop">Antrian loop</string>
     <string name="add_queue_to_playlist">Tambahkan antrian ke daftar putar</string>
     <string name="id">Id</string>
     <string name="itag">Itag</string>
@@ -261,17 +259,10 @@
     <string name="loudness_base_gain">Kebisingan dasar</string>
     <string name="loudness_base_gain_description">Peningkatan target untuk normalisasi kebisingan</string>
     <string name="bass_boost">Peningkatan bass</string>
-    <string name="bass_boost_description">Boost low frequencies to improve listening experience</string>
-    <string name="bass_boost_level">Bass boost level</string>
-    <string name="bass_boost_level_description">Level (0–1000) peningkatan frekuensi rendah; gunakan dengan risiko sendiri!</string>
-    <string name="equalizer_description">Interaksi dengan pengatur suara sistem</string>
     <string name="filter_placeholder">Filter…</string>
     <string name="last_interaction">Terakhir diputar</string>
     <string name="trending">Trending</string>
     <string name="quick_picks_source">Sumber Pilihan Cepat</string>
-    <string name="player_layout">Tata letak pemutar</string>
-    <string name="classic_player_layout_name">Klasik</string>
-    <string name="new_player_layout_name">Modern (baru)</string>
     <string name="piped">Piped</string>
     <string name="instance">Instansi</string>
     <string name="click_to_select">Klik untuk memilih</string>

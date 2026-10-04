@@ -82,6 +82,8 @@ import com.k4music.compose.persist.persistList
 import com.k4music.core.data.enums.SongSortBy
 import com.k4music.core.data.enums.SortOrder
 import com.k4music.core.ui.Dimensions
+import com.k4music.android.ui.components.ShimmerHost
+import com.k4music.android.ui.items.SongItemPlaceholder
 import com.k4music.core.ui.LocalAppearance
 import com.k4music.core.ui.onOverlay
 import com.k4music.core.ui.overlay
@@ -141,9 +143,14 @@ fun HomeSongs(
         }
     }
     var hidingSong: String? by rememberSaveable { mutableStateOf(null) }
+    // Until the first query returns, an empty list means "loading", not "empty library".
+    var loaded by remember { mutableStateOf(false) }
 
     LaunchedEffect(sortBy, sortOrder, songProvider) {
-        songProvider().collect { items = it.toPersistentList() }
+        songProvider().collect {
+            items = it.toPersistentList()
+            loaded = true
+        }
     }
 
     val lazyListState = rememberLazyListState()
@@ -230,11 +237,17 @@ fun HomeSongs(
             }
 
             if (items.isEmpty()) item(key = "empty-library") {
-                MusicEmptyState(
+                if (loaded) MusicEmptyState(
                     title = stringResource(R.string.library_empty_title),
                     message = stringResource(R.string.library_empty_description),
                     action = stringResource(R.string.search),
                     onAction = onSearchClick
+                ) else ShimmerHost { repeat(6) { SongItemPlaceholder(Dimensions.thumbnails.song) } }
+            } else if (filteredItems.isEmpty()) item(key = "no-matches") {
+                MusicEmptyState(
+                    title = stringResource(R.string.no_matches_title),
+                    message = stringResource(R.string.no_matches_description),
+                    icon = R.drawable.search
                 )
             }
             items(

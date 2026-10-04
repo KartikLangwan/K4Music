@@ -1,6 +1,8 @@
 package com.k4music.android.ui.screens.audio
 
+import androidx.annotation.OptIn
 import androidx.annotation.StringRes
+import androidx.media3.common.util.UnstableApi
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -576,6 +578,7 @@ private fun ReverbSection(caps: AudioCapabilities) {
     }
 }
 
+@OptIn(UnstableApi::class)
 @Composable
 private fun SystemEqualizerEntry() {
     val binder = LocalPlayerServiceBinder.current

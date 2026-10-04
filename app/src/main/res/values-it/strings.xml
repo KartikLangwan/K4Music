@@ -124,7 +124,6 @@
     <string name="error_unknown_playback">Si è verificato un errore di riproduzione sconosciuto</string>
     <string name="error_piped_link">Si è verificato un errore sconosciuto nel collegamento del tuo account Piped. Riprova.</string>
     <string name="error_piped_instances_unavailable">Elenco delle istanze Piped attualmente non disponibile</string>
-    <string name="error_bassboost_init">Si è verificato un errore durante l\'inizializzazione di Bass Boost. Probabilmente il tuo dispositivo non lo supporta. Prova a cambiare il livello di bass boost o riprova.</string>
     <string name="error_pre_cache">Si è verificato un errore sconosciuto durante il pre-caching. Riprova.</string>
     <string name="error_url">Impossibile aprire l\'url %1$s</string>
 
@@ -164,7 +163,6 @@
     <string name="playback_settings">Velocità e tono</string>
     <string name="minimum_speed_value">Perché lo faresti?!</string>
     <string name="volume_boost">Potenziamento volume</string>
-    <string name="queue_loop">Ripeti coda</string>
     <string name="add_queue_to_playlist">Aggiungi coda alla playlist</string>
 
     <string name="id">Id</string>
@@ -327,15 +325,11 @@
     <string name="loudness_base_gain_description">Il guadagno \'obiettivo\' per la normalizzazione del volume</string>
     <string name="loudness_normalization_extreme">Rilevato valore volume estremo (%s), disattivazione della normalizzazione per questo brano</string>
     <string name="bass_boost">Potenziamento bassi</string>
-    <string name="bass_boost_description">Potenzia le basse frequenze per migliorare l\'esperienza di ascolto</string>
-    <string name="bass_boost_level">Livello potenziamento bassi</string>
-    <string name="bass_boost_level_description">Livello (0–1000) di potenziamento delle basse frequenze; usa a tuo rischio!</string>
     <string name="sponsor_block">Sponsorblock</string>
     <string name="sponsor_block_description">Blocca contenuti sponsorizzati/fuori tema utilizzando i dati dall\'API Sponsorblock</string>
     <string name="reverb">Riverbero</string>
     <string name="audio_focus">Focus audio</string>
     <string name="audio_focus_description">Se il player debba richiedere il focus audio (media) a livello di sistema</string>
-    <string name="equalizer_description">Interagisci con l\'equalizzatore di sistema</string>
 
     <string name="filter_placeholder">Filtra…</string>
 
@@ -345,9 +339,6 @@
     <string name="quick_picks_cache">Cache dei dati delle selezioni rapide</string>
     <string name="quick_picks_cache_description">Salva i dati delle selezioni rapide su disco per l\'accesso offline</string>
 
-    <string name="player_layout">Layout player</string>
-    <string name="classic_player_layout_name">Classico</string>
-    <string name="new_player_layout_name">Moderno (nuovo)</string>
 
     <string name="piped">Piped</string>
     <string name="instance">Istanza</string>

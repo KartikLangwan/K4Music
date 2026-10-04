@@ -437,7 +437,13 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
         }
     }
 
-    override fun onAudioSessionIdChanged(audioSessionId: Int) = audioEffects.attach(audioSessionId)
+    // Media3 assigns the session id asynchronously; effects bound to an old (or unset) id do nothing.
+    override fun onAudioSessionIdChanged(audioSessionId: Int) {
+        audioEffects.attach(audioSessionId)
+        loudnessEnhancer?.release()
+        loudnessEnhancer = null
+        maybeNormalizeVolume()
+    }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         if (!player.shouldBePlaying || PlayerPreferences.stopWhenClosed) {
@@ -709,6 +715,8 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
             return
         }
 
+        // Session 0 is the global output mix; never attach to it.
+        if (player.audioSessionId == C.AUDIO_SESSION_ID_UNSET) return
         runCatching {
             if (loudnessEnhancer == null) loudnessEnhancer = LoudnessEnhancer(player.audioSessionId)
         }.onFailure { return }
@@ -1248,6 +1256,12 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
             player.pause()
             isInvincibilityEnabled = false
             stopSelf()
+        }
+
+        fun handleCustomAction(action: String) = when (action) {
+            LIKE_ACTION -> likeAction()
+            LOOP_ACTION -> loopAction()
+            else -> Unit
         }
 
         fun isCached(song: SongWithContentLength) =

@@ -24,15 +24,13 @@ import com.k4music.android.preferences.PlayerPreferences
 import com.k4music.android.service.PlayerService
 import com.k4music.android.ui.components.themed.SecondaryTextButton
 import com.k4music.android.ui.screens.Route
-import com.k4music.android.utils.rememberEqualizerLauncher
+import com.k4music.android.ui.screens.audioRoute
 import com.k4music.core.ui.utils.isAtLeastAndroid6
 
 @OptIn(UnstableApi::class)
 @Route
 @Composable
 fun PlayerSettings() = with(PlayerPreferences) {
-    val binder = LocalPlayerServiceBinder.current
-    val launchEqualizer by rememberEqualizerLauncher(audioSessionId = { binder?.player?.audioSessionId })
     var changed by rememberSaveable { mutableStateOf(false) }
 
     SettingsCategoryScreen(title = stringResource(R.string.player)) {
@@ -135,26 +133,11 @@ fun PlayerSettings() = with(PlayerPreferences) {
                 )
             }
 
-            SwitchSettingsEntry(
-                title = stringResource(R.string.bass_boost),
-                text = stringResource(R.string.bass_boost_description),
-                isChecked = bassBoost,
-                onCheckedChange = { bassBoost = it }
+            SettingsEntry(
+                title = stringResource(R.string.audio_effects),
+                text = stringResource(R.string.audio_effects_settings_description),
+                onClick = { audioRoute.global() }
             )
-
-            AnimatedVisibility(visible = bassBoost) {
-                var newValue by remember(bassBoostLevel) { mutableFloatStateOf(bassBoostLevel.coerceIn(0, 1000) / 1000f) }
-
-                SliderSettingsEntry(
-                    title = stringResource(R.string.bass_boost_level),
-                    text = stringResource(R.string.bass_boost_level_description),
-                    state = newValue,
-                    onSlide = { newValue = it },
-                    onSlideComplete = { bassBoostLevel = (newValue * 1000).toInt().coerceIn(0, 1000) },
-                    toDisplay = { (it * 1000f).toInt().toString() },
-                    range = 0f..1f
-                )
-            }
 
             SwitchSettingsEntry(
                 title = stringResource(R.string.sponsor_block),
@@ -165,13 +148,6 @@ fun PlayerSettings() = with(PlayerPreferences) {
                 }
             )
 
-            EnumValueSelectorSettingsEntry(
-                title = stringResource(R.string.reverb),
-                selectedValue = reverb,
-                onValueSelect = { reverb = it },
-                valueText = { it.displayName() }
-            )
-
             SwitchSettingsEntry(
                 title = stringResource(R.string.audio_focus),
                 text = stringResource(R.string.audio_focus_description),
@@ -180,12 +156,6 @@ fun PlayerSettings() = with(PlayerPreferences) {
                     handleAudioFocus = it
                     changed = true
                 }
-            )
-
-            SettingsEntry(
-                title = stringResource(R.string.equalizer),
-                text = stringResource(R.string.equalizer_description),
-                onClick = launchEqualizer
             )
         }
     }

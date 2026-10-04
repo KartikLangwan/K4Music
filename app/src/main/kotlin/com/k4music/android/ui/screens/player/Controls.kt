@@ -80,7 +80,7 @@ fun Controls(
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             MediaInfo(media, Modifier.weight(1f))
-            PlayerActionButton(
+            if (PlayerPreferences.showLike) PlayerActionButton(
                 icon = if (likedAt == null) R.drawable.heart_outline else R.drawable.heart,
                 label = stringResource(if (likedAt == null) R.string.like else R.string.unlike),
                 onClick = { setLikedAt(if (likedAt == null) System.currentTimeMillis() else null) },

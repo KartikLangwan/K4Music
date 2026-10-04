@@ -135,7 +135,7 @@ fun Scaffold(
                     Text(
                         text = when {
                             !isHome -> when (key) {
-                                "settings" -> stringResource(R.string.settings)
+                                "settings" -> if (selected == 0) stringResource(R.string.settings) else tabs[selected].title()
                                 "search" -> stringResource(R.string.search)
                                 else -> tabs[selected].title()
                             }

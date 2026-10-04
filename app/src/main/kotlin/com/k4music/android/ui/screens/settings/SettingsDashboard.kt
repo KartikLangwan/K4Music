@@ -1,5 +1,7 @@
 package com.k4music.android.ui.screens.settings
 
+import com.k4music.android.ui.screens.audioRoute
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -23,14 +25,16 @@ import com.k4music.core.ui.LocalAppearance
 fun SettingsDashboard(onCategory: (Int) -> Unit) {
     val palette = LocalAppearance.current.colorPalette
     val bottom = LocalPlayerAwareWindowInsets.current.asPaddingValues().calculateBottomPadding()
-    val categories = listOf(
-        Triple(R.string.appearance, R.string.settings_appearance_summary, R.drawable.color_palette),
-        Triple(R.string.player, R.string.settings_playback_summary, R.drawable.play),
-        Triple(R.string.cache, R.string.settings_storage_summary, R.drawable.download),
-        Triple(R.string.database, R.string.settings_library_summary, R.drawable.server),
-        Triple(R.string.other, R.string.settings_system_summary, R.drawable.shapes),
-        Triple(R.string.user_guide, R.string.settings_help_summary, R.drawable.help_outline),
-        Triple(R.string.about, R.string.settings_about_summary, R.drawable.information)
+    // Tab categories open in place; Audio effects is its own screen.
+    val categories = listOf<Pair<Triple<Int, Int, Int>, () -> Unit>>(
+        Triple(R.string.appearance, R.string.settings_appearance_summary, R.drawable.color_palette) to { onCategory(1) },
+        Triple(R.string.player, R.string.settings_playback_summary, R.drawable.play) to { onCategory(2) },
+        Triple(R.string.audio_effects, R.string.audio_effects_settings_description, R.drawable.equalizer) to { audioRoute.global() },
+        Triple(R.string.cache, R.string.settings_storage_summary, R.drawable.download) to { onCategory(3) },
+        Triple(R.string.database, R.string.settings_library_summary, R.drawable.server) to { onCategory(4) },
+        Triple(R.string.other, R.string.settings_system_summary, R.drawable.shapes) to { onCategory(5) },
+        Triple(R.string.user_guide, R.string.settings_help_summary, R.drawable.help_outline) to { onCategory(6) },
+        Triple(R.string.about, R.string.settings_about_summary, R.drawable.information) to { onCategory(7) }
     )
     LazyColumn(contentPadding = PaddingValues(18.dp, 14.dp, 18.dp, bottom + 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item(key = "intro") {
@@ -39,9 +43,10 @@ fun SettingsDashboard(onCategory: (Int) -> Unit) {
                 Text(stringResource(R.string.settings_description), style = MaterialTheme.typography.bodyMedium, color = palette.textSecondary)
             }
         }
-        categories.forEachIndexed { index, (title, subtitle, icon) ->
+        categories.forEach { (category, open) ->
+            val (title, subtitle, icon) = category
             item(key = title) {
-                Surface(onClick = { onCategory(index + 1) }, shape = RoundedCornerShape(20.dp), color = palette.background1.copy(alpha = .8f), contentColor = palette.text) {
+                Surface(onClick = open, shape = RoundedCornerShape(20.dp), color = palette.background1, contentColor = palette.text) {
                     Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                         Surface(shape = CircleShape, color = palette.accent.copy(alpha = .12f)) {
                             Icon(painterResource(icon), null, Modifier.padding(11.dp).size(22.dp), tint = palette.accent)

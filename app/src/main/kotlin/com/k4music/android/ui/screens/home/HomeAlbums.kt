@@ -37,6 +37,10 @@ import com.k4music.compose.persist.persist
 import com.k4music.core.data.enums.AlbumSortBy
 import com.k4music.core.data.enums.SortOrder
 import com.k4music.core.ui.Dimensions
+import com.k4music.android.ui.components.MusicEmptyState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.k4music.core.ui.LocalAppearance
 
 @Route
@@ -49,8 +53,13 @@ fun HomeAlbums(
 
     var items by persist<List<Album>>(tag = "home/albums", emptyList())
 
+    var loaded by remember { mutableStateOf(false) }
+
     LaunchedEffect(albumSortBy, albumSortOrder) {
-        Database.albums(albumSortBy, albumSortOrder).collect { items = it }
+        Database.albums(albumSortBy, albumSortOrder).collect {
+            items = it
+            loaded = true
+        }
     }
 
     val sortOrderIconRotation by animateFloatAsState(
@@ -102,6 +111,16 @@ fun HomeAlbums(
                         modifier = Modifier.graphicsLayer { rotationZ = sortOrderIconRotation }
                     )
                 }
+            }
+
+            if (loaded && items.isEmpty()) item(key = "empty") {
+                MusicEmptyState(
+                    title = stringResource(R.string.library_albums_empty_title),
+                    message = stringResource(R.string.library_albums_empty_description),
+                    icon = R.drawable.disc,
+                    action = stringResource(R.string.search),
+                    onAction = onSearchClick
+                )
             }
 
             items(

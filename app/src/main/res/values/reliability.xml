@@ -16,9 +16,7 @@
     <string name="good_afternoon">Good afternoon</string>
     <string name="good_evening">Good evening</string>
     <string name="home_headline">Your next favourite.</string>
-    <string name="made_for_you">MADE FOR YOU</string>
     <string name="find_your_sound">Find your sound</string>
-    <string name="home_feature_description">New discoveries. Familiar favourites. Your music, all in one place.</string>
     <string name="your_daily_mix">On your wavelength</string>
     <string name="refresh">Refresh</string>
     <string name="music_unavailable">Let’s reconnect</string>
@@ -31,7 +29,6 @@
     <string name="open_source_credits">Open-source credits</string>
     <string name="upstream_credits">Built on ViTune and its open-source contributors. Original licences and attribution are retained.</string>
     <string name="link_unavailable">No app could open this link.</string>
-    <string name="repeat_track">Repeat track</string>
     <string name="previous_track">Previous track</string>
     <string name="next_track">Next track</string>
     <string name="collapse_player">Close player</string>

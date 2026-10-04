@@ -62,9 +62,9 @@ fun MusicArtwork(
 @Composable
 fun MusicSectionTitle(
     title: String,
+    modifier: Modifier = Modifier,
     action: String? = null,
     subtitle: String? = null,
-    modifier: Modifier = Modifier,
     onAction: () -> Unit = {}
 ) {
     val palette = LocalAppearance.current.colorPalette

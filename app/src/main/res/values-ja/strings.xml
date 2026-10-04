@@ -105,7 +105,6 @@
     <string name="error_unknown_playback">不明な再生エラーが発生しました</string>
     <string name="error_piped_link">Piped アカウントのリンク中に不明なエラーが発生しました\nもう一度試してください.</string>
     <string name="error_piped_instances_unavailable">Piped インスタンスのリストは現在利用できません</string>
-    <string name="error_bassboost_init">バスブーストの初期化中にエラーが発生しました一低音ブーストレベルを変更するか、もう一度試してください</string>
     <string name="error_pre_cache">事前キャッシュ中に不明なエラーが発生しました一もう一度試してください</string>
     <string name="error_url">%1$sを開けません</string>
     <string name="media_permission_declined">デバイスの設定でメディアの権限をを付与してください.</string>
@@ -140,7 +139,6 @@
     <string name="playback_settings">再生速度とピッチ</string>
     <string name="minimum_speed_value">低過ぎです</string>
     <string name="volume_boost">ボリュームブースト</string>
-    <string name="queue_loop">再生中の曲をループ再生</string>
     <string name="add_queue_to_playlist">キューをプレイリストに追加</string>
     <string name="id">Id</string>
     <string name="itag">Itag</string>
@@ -270,19 +268,12 @@
     <string name="loudness_base_gain_description">ラウドネスノーマライズのターゲットゲイン</string>
     <string name="loudness_normalization_extreme">極端なラウドネスの値が検出されました (%s).\この曲のノーマライズをオフにします</string>
     <string name="bass_boost">バスブースト</string>
-    <string name="bass_boost_description">低音域を強化します</string>
-    <string name="bass_boost_level">バスブーストレベル</string>
-    <string name="bass_boost_level_description">自己責任でブーストレベルを0から1000の間で指定してください</string>
-    <string name="equalizer_description">システムイコライザーを開く</string>
     <string name="filter_placeholder">フィルター…</string>
     <string name="last_interaction">最後に再生した曲</string>
     <string name="trending">トレンド</string>
     <string name="quick_picks_source">おすすめの取得元</string>
     <string name="quick_picks_cache">おすすめのデータを一時保存する</string>
     <string name="quick_picks_cache_description">オフラインでもおすすめの曲を聞けるように一時保存します</string>
-    <string name="player_layout">プレーヤーのレイアウト</string>
-    <string name="classic_player_layout_name">クラシック</string>
-    <string name="new_player_layout_name">モダン (新しい)</string>
     <string name="piped">Piped</string>
     <string name="instance">一覧</string>
     <string name="click_to_select">タップして選択してください</string>

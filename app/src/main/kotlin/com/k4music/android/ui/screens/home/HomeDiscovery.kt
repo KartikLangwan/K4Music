@@ -155,7 +155,7 @@ fun HomeDiscovery(
 
         page?.newReleaseAlbums.orEmpty().validMusicItems().takeIf { it.isNotEmpty() }?.let { albums ->
             item(key = "release-title", span = fullSpan) {
-                MusicSectionTitle(stringResource(R.string.new_released_albums), stringResource(R.string.more), onAction = onMoreAlbumsClick)
+                MusicSectionTitle(stringResource(R.string.new_released_albums), action = stringResource(R.string.more), onAction = onMoreAlbumsClick)
             }
             item(key = "releases", span = fullSpan) {
                 LazyRow { items(albums, key = { it.key }) { album -> AlbumItem(album, 132.dp, Modifier.clickable { onNewReleaseAlbumClick(album.key) }, alternative = true) } }
@@ -174,13 +174,13 @@ fun HomeDiscovery(
 
         moods.takeIf { it.isNotEmpty() }?.let { moods ->
             item(key = "mood-title", span = fullSpan) {
-                MusicSectionTitle(stringResource(R.string.pick_your_mood), stringResource(R.string.more), onAction = onMoreMoodsClick)
+                MusicSectionTitle(stringResource(R.string.pick_your_mood), action = stringResource(R.string.more), onAction = onMoreMoodsClick)
             }
             items(moods.take(12), key = { "mood/${it.key}" }) { mood -> MoodItem(mood, { onMoodClick(mood) }) }
         }
 
         item(key = "indian-title", span = fullSpan) {
-            MusicSectionTitle(stringResource(R.string.discover_indian_title), stringResource(R.string.search), onAction = onSearchClick)
+            MusicSectionTitle(stringResource(R.string.discover_indian_title), action = stringResource(R.string.search), onAction = onSearchClick)
         }
         items(indianCategories, key = { it.query }) { category ->
             BrowseCategoryCard(stringResource(category.title), stringResource(category.subtitle), Color(category.color), { onBrowseCategory(category.query) })

@@ -83,7 +83,7 @@ fun LocalSongSearch(
                         BasicTextField(
                             value = textFieldValue,
                             onValueChange = onTextFieldValueChange,
-                            textStyle = typography.xxl.medium.align(TextAlign.Start),
+                            textStyle = typography.s.medium.align(TextAlign.Start),
                             singleLine = true,
                             maxLines = 1,
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
