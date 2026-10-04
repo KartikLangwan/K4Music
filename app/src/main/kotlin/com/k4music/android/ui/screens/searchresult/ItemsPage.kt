@@ -141,10 +141,13 @@ inline fun <T : Innertube.Item> ItemsPage(
             }
 
             if (loadError) item(key = "retry") {
-                Column(Modifier.padding(16.dp)) {
-                    Text(stringResource(R.string.connection_retry_message))
-                    TextButton(onClick = { retry++ }) { Text(stringResource(R.string.retry)) }
-                }
+                com.k4music.android.ui.components.MusicEmptyState(
+                    title = stringResource(R.string.music_unavailable),
+                    message = stringResource(R.string.connection_retry_message),
+                    icon = R.drawable.globe,
+                    action = stringResource(R.string.retry),
+                    onAction = { retry++ }
+                )
             }
 
             if (!loadError && !(itemsPage != null && itemsPage?.continuation == null)) item(key = "loading") {
