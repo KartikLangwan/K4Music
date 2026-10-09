@@ -33,6 +33,7 @@ import com.k4music.app.R
 import com.k4music.android.models.Song
 import com.k4music.android.preferences.AppearancePreferences
 import com.k4music.android.ui.components.themed.TextPlaceholder
+import com.k4music.android.utils.artistNames
 import com.k4music.android.utils.medium
 import com.k4music.android.utils.secondary
 import com.k4music.android.utils.semiBold
@@ -57,7 +58,7 @@ fun SongItem(
     modifier = modifier,
     thumbnailUrl = song.thumbnail?.size(thumbnailSize.px),
     title = song.info?.name,
-    authors = song.authors?.joinToString(", ") { it.name.orEmpty() },
+    authors = song.authors.artistNames(),
     duration = song.durationText,
     explicit = song.explicit,
     thumbnailSize = thumbnailSize,

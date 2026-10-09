@@ -48,6 +48,15 @@ data class PlayerResponse(
                         ?: formats.maxByOrNull { it.bitrate ?: 0L }
                 }
 
+        /** First of [itags] that is available; falls back to [highestQualityFormat]. */
+        fun audioFormat(itags: List<Int>): AdaptiveFormat? {
+            val audio = adaptiveFormats?.filter {
+                it.mimeType.startsWith("audio/") && (it.url != null || it.signatureCipher != null)
+            }
+            return itags.firstNotNullOfOrNull { t -> audio?.firstOrNull { it.itag == t } }
+                ?: highestQualityFormat
+        }
+
         @Serializable
         data class AdaptiveFormat(
             val itag: Int,
