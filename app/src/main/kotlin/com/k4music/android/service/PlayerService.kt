@@ -289,7 +289,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
         super.onCreate()
 
         glyphInterface.tryInit()
-        notificationActionReceiver.register(flags = ContextCompat.RECEIVER_EXPORTED)
+        notificationActionReceiver.register(flags = ContextCompat.RECEIVER_NOT_EXPORTED)
 
         bitmapProvider = BitmapProvider(
             getBitmapSize = {
