@@ -31,6 +31,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -65,6 +68,15 @@ private val coroutineScope = CoroutineScope(
 // While the class is not a singleton (lifecycle), there should only be one download state at a time
 private val mutableDownloadState = MutableStateFlow(false)
 val downloadState = mutableDownloadState.asStateFlow()
+
+/** Live state of one song's download: active ones and failed ones that were not retried yet. */
+@OptIn(UnstableApi::class)
+data class DownloadProgress(val id: String, val percent: Int, val state: Int) {
+    val failed get() = state == Download.STATE_FAILED
+}
+
+private val mutableDownloadProgress = MutableStateFlow<Map<String, DownloadProgress>>(emptyMap())
+val downloadProgress = mutableDownloadProgress.asStateFlow()
 
 private const val DOWNLOAD_NOTIFICATION_UPDATE_INTERVAL = 1000L // default
 private const val DOWNLOAD_WORK_NAME = "precacher-work"
@@ -132,6 +144,24 @@ class PrecacheService : DownloadService(
     private var binder: PlayerService.Binder? = null
 
     private var progressUpdaterJob: Job? = null
+    private var progressTicker: Job? = null
+
+    // DownloadManager must be read on its application thread (main).
+    private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var manager: DownloadManager? = null
+
+    private fun publishProgress() {
+        val active = manager?.currentDownloads.orEmpty()
+            .filter { it.state != Download.STATE_REMOVING }
+            .associate {
+                it.request.id to DownloadProgress(
+                    id = it.request.id,
+                    percent = it.percentDownloaded.takeIf { p -> p >= 0f }?.toInt()?.coerceIn(0, 100) ?: 0,
+                    state = it.state
+                )
+            }
+        mutableDownloadProgress.update { old -> old.filter { (id, v) -> v.failed && id !in active } + active }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -183,24 +213,46 @@ class PrecacheService : DownloadService(
             /* executor = */ executor
         ).apply {
             maxParallelDownloads = 3
-            minRetryCount = 1
+            minRetryCount = 3
             requirements = Requirements(Requirements.NETWORK)
+
+            manager = this
+            progressTicker?.cancel()
+            progressTicker = mainScope.launch {
+                while (true) {
+                    publishProgress()
+                    delay(500)
+                }
+            }
 
             addListener(
                 object : DownloadManager.Listener {
-                    override fun onIdle(downloadManager: DownloadManager) =
+                    override fun onIdle(downloadManager: DownloadManager) {
                         mutableDownloadState.update { false }
+                        publishProgress()
+                    }
 
                     override fun onDownloadChanged(
                         downloadManager: DownloadManager,
                         download: Download,
                         finalException: Exception?
-                    ) = downloadQueue.trySend(downloadManager).let { }
+                    ) {
+                        if (download.state == Download.STATE_FAILED) {
+                            val id = download.request.id
+                            mutableDownloadProgress.update { it + (id to DownloadProgress(id, 0, Download.STATE_FAILED)) }
+                        }
+                        publishProgress()
+                        downloadQueue.trySend(downloadManager)
+                    }
 
                     override fun onDownloadRemoved(
                         downloadManager: DownloadManager,
                         download: Download
-                    ) = downloadQueue.trySend(downloadManager).let { }
+                    ) {
+                        mutableDownloadProgress.update { it - download.request.id }
+                        publishProgress()
+                        downloadQueue.trySend(downloadManager)
+                    }
                 }
             )
         }
@@ -242,9 +294,37 @@ class PrecacheService : DownloadService(
 
         unregisterReceiver(notificationActionReceiver)
         mutableDownloadState.update { false }
+        mainScope.cancel()
+        manager = null
+        mutableDownloadProgress.update { it.filterValues(DownloadProgress::failed) }
     }
 
     companion object {
+        /** Cancels a running download or deletes a finished one (frees its cached bytes). */
+        fun remove(context: Context, cache: Cache?, ids: Collection<String>) {
+            val appContext = context.applicationContext
+            coroutineScope.launch {
+                ids.forEach { id ->
+                    runCatching { cache?.removeResource(id) }
+                    runCatching {
+                        DownloadService.sendRemoveDownload(appContext, PrecacheService::class.java, id, false)
+                    }
+                }
+                mutableDownloadProgress.update { it - ids.toSet() }
+            }
+        }
+
+        fun removeAll(context: Context, cache: Cache?, ids: Collection<String>) {
+            val appContext = context.applicationContext
+            coroutineScope.launch {
+                runCatching {
+                    DownloadService.sendRemoveAllDownloads(appContext, PrecacheService::class.java, false)
+                }
+                ids.forEach { runCatching { cache?.removeResource(it) } }
+                mutableDownloadProgress.update { emptyMap() }
+            }
+        }
+
         fun scheduleCache(context: Context, mediaItem: MediaItem) {
             if (mediaItem.isLocal) return
 

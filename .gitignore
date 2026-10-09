@@ -20,3 +20,8 @@ jniLibs/
 /.direnv
 /result*
 /repl-result*
+
+# build outputs / logs
+*.apk
+*.apk.sha256
+*.log

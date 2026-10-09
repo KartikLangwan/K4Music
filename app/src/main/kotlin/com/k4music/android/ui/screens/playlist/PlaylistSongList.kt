@@ -33,6 +33,8 @@ import com.k4music.android.query
 import com.k4music.android.transaction
 import com.k4music.android.ui.components.LocalMenuState
 import com.k4music.android.ui.components.ShimmerHost
+import com.k4music.android.ui.components.themed.BigPlayButton
+import com.k4music.android.ui.components.themed.ShuffleButton
 import com.k4music.android.ui.components.themed.FloatingActionsContainerWithScrollToTop
 import com.k4music.android.ui.components.themed.Header
 import com.k4music.android.ui.components.themed.HeaderIconButton
@@ -128,6 +130,11 @@ fun PlaylistSongList(
     val headerContent: @Composable () -> Unit = {
         if (playlistPage == null) HeaderPlaceholder(modifier = Modifier.shimmer())
         else Header(title = playlistPage?.title ?: stringResource(R.string.unknown)) {
+            ShuffleButton(
+                items = { playlistPage?.songsPage?.items.orEmpty().map(Innertube.SongItem::asMediaItem) },
+                enabled = playlistPage?.songsPage?.items?.isNotEmpty() == true
+            )
+
             SecondaryTextButton(
                 text = stringResource(R.string.enqueue),
                 enabled = playlistPage?.songsPage?.items?.isNotEmpty() == true,
@@ -199,6 +206,10 @@ fun PlaylistSongList(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         headerContent()
                         if (!isLandscape) thumbnailContent()
+                        if (playlistPage != null) BigPlayButton(
+                            items = { playlistPage?.songsPage?.items.orEmpty().map(Innertube.SongItem::asMediaItem) },
+                            enabled = playlistPage?.songsPage?.items?.isNotEmpty() == true
+                        )
                         PlaylistInfo(playlist = playlistPage)
                     }
                 }

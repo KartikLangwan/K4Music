@@ -42,6 +42,8 @@ import com.k4music.android.query
 import com.k4music.android.transaction
 import com.k4music.android.ui.components.LocalMenuState
 import com.k4music.android.ui.components.MusicEmptyState
+import com.k4music.android.ui.components.themed.BigPlayButton
+import com.k4music.android.ui.components.themed.ShuffleButton
 import com.k4music.android.ui.components.themed.CircularProgressIndicator
 import com.k4music.android.ui.components.themed.ConfirmationDialog
 import com.k4music.android.ui.components.themed.FloatingActionsContainerWithScrollToTop
@@ -168,13 +170,9 @@ fun LocalPlaylistSongs(
                             title = playlist.name,
                             modifier = Modifier.padding(bottom = 8.dp)
                         ) {
-                            SecondaryTextButton(
-                                text = stringResource(R.string.play),
-                                enabled = songs.isNotEmpty(),
-                                onClick = {
-                                    binder?.stopRadio()
-                                    binder?.player?.forcePlayFromBeginning(songs.map { it.asMediaItem })
-                                }
+                            ShuffleButton(
+                                items = { songs.map { it.asMediaItem } },
+                                enabled = songs.isNotEmpty()
                             )
 
                             SecondaryTextButton(
@@ -287,6 +285,10 @@ fun LocalPlaylistSongs(
                         }
 
                         if (!isLandscape) thumbnailContent()
+                        BigPlayButton(
+                            items = { songs.map { it.asMediaItem } },
+                            enabled = songs.isNotEmpty()
+                        )
                     }
                 }
 

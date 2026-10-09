@@ -73,6 +73,13 @@ fun PlayerSettings() = with(PlayerPreferences) {
             )
         }
         SettingsGroup(title = stringResource(R.string.audio)) {
+            EnumValueSelectorSettingsEntry(
+                title = stringResource(R.string.audio_quality),
+                selectedValue = audioQuality,
+                onValueSelect = { audioQuality = it },
+                valueText = { it.displayName() }
+            )
+
             AnimatedVisibility(visible = changed) {
                 RestartPlayerSettingsEntry(
                     onRestart = { changed = false }

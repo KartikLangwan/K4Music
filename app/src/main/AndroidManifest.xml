@@ -227,7 +227,7 @@
 
         <meta-data
             android:name="com.google.android.gms.car.notification.SmallIcon"
-            android:resource="@drawable/app_icon" />
+            android:resource="@drawable/ic_stat_k4music" />
 
         <meta-data
             android:name="NothingKey"

@@ -15,7 +15,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import android.text.format.Formatter
+import kotlinx.coroutines.flow.onEach
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -26,6 +30,13 @@ import com.k4music.android.LocalPlayerAwareWindowInsets
 import com.k4music.android.LocalPlayerServiceBinder
 import com.k4music.app.R
 import com.k4music.android.models.Song
+import androidx.compose.ui.platform.LocalContext
+import com.k4music.android.service.PrecacheService
+import com.k4music.android.ui.components.themed.BigPlayButton
+import com.k4music.android.ui.components.themed.ShuffleButton
+import com.k4music.android.ui.components.themed.ActiveDownloads
+import com.k4music.android.ui.components.themed.ConfirmationDialog
+import com.k4music.android.utils.toast
 import com.k4music.android.preferences.DataPreferences
 import com.k4music.android.ui.components.LocalMenuState
 import com.k4music.android.ui.components.themed.FloatingActionsContainerWithScrollToTop
@@ -70,6 +81,8 @@ fun BuiltInPlaylistSongs(
     val menuState = LocalMenuState.current
 
     var songs by persistList<Song>("${builtInPlaylist.name}/songs")
+    var offlineBytes by remember { mutableLongStateOf(0L) }
+    val context = LocalContext.current
 
     var sortBy by rememberSaveable(stateSaver = enumSaver()) { mutableStateOf(SongSortBy.DateAdded) }
     var sortOrder by rememberSaveable(stateSaver = enumSaver()) { mutableStateOf(SortOrder.Descending) }
@@ -87,8 +100,11 @@ fun BuiltInPlaylistSongs(
                         sortBy = sortBy,
                         sortOrder = sortOrder
                     )
-                    .flatMapLatest { songs ->
-                        binder?.cachedSongsFlow(songs) ?: flowOf(emptyList())
+                    .flatMapLatest { all ->
+                        val lengths = all.associate { it.song.id to (it.contentLength ?: 0L) }
+                        (binder?.cachedSongsFlow(all) ?: flowOf(emptyList())).onEach { cached ->
+                            offlineBytes = cached.sumOf { lengths[it.id] ?: 0L }
+                        }
                     }
 
             BuiltInPlaylist.Top -> combine(
@@ -134,7 +150,8 @@ fun BuiltInPlaylistSongs(
                     title = when (builtInPlaylist) {
                         BuiltInPlaylist.Favorites -> stringResource(R.string.favorites)
 
-                        BuiltInPlaylist.Offline -> stringResource(R.string.offline)
+                        BuiltInPlaylist.Offline -> stringResource(R.string.offline) +
+                            if (offlineBytes > 0L) " · ${Formatter.formatShortFileSize(context, offlineBytes)}" else ""
 
                         BuiltInPlaylist.Top -> stringResource(
                             R.string.format_my_top_playlist,
@@ -145,6 +162,11 @@ fun BuiltInPlaylistSongs(
                     },
                     modifier = Modifier.padding(bottom = 8.dp)
                 ) {
+                    ShuffleButton(
+                        items = { songs.map(Song::asMediaItem) },
+                        enabled = songs.isNotEmpty()
+                    )
+
                     SecondaryTextButton(
                         text = stringResource(R.string.enqueue),
                         enabled = songs.isNotEmpty(),
@@ -154,6 +176,25 @@ fun BuiltInPlaylistSongs(
                     )
 
                     Spacer(modifier = Modifier.weight(1f))
+
+                    if (builtInPlaylist == BuiltInPlaylist.Offline) {
+                        var confirmingDeleteAll by rememberSaveable { mutableStateOf(false) }
+
+                        SecondaryTextButton(
+                            text = stringResource(R.string.delete_all_downloads),
+                            enabled = songs.isNotEmpty(),
+                            onClick = { confirmingDeleteAll = true }
+                        )
+
+                        if (confirmingDeleteAll) ConfirmationDialog(
+                            text = stringResource(R.string.delete_all_downloads_confirm),
+                            onDismiss = { confirmingDeleteAll = false },
+                            onConfirm = {
+                                PrecacheService.removeAll(context, binder?.cache, songs.map { it.id })
+                                context.toast(R.string.download_removed)
+                            }
+                        )
+                    }
 
                     if (builtInPlaylist != BuiltInPlaylist.Offline) PlaylistDownloadIcon(
                         songs = songs.map(Song::asMediaItem).toImmutableList()
@@ -187,6 +228,14 @@ fun BuiltInPlaylistSongs(
                         )
                     }
                 }
+            }
+
+            if (songs.isNotEmpty()) item(key = "play-all") {
+                BigPlayButton(items = { songs.map(Song::asMediaItem) }, enabled = true)
+            }
+
+            if (builtInPlaylist == BuiltInPlaylist.Offline) item(key = "active-downloads") {
+                ActiveDownloads()
             }
 
             if (songs.isEmpty()) item(key = "empty-library") {

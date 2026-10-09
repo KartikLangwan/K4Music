@@ -28,7 +28,7 @@
     <string name="artists">Artists</string>
     <string name="singles">Singles</string>
     <string name="favorites">Favorites</string>
-    <string name="offline">Offline</string>
+    <string name="offline">Downloads</string>
     <string name="history">History</string>
     <string name="overview">Overview</string>
     <string name="library">Library</string>
@@ -276,6 +276,18 @@
     <string name="pause_minimum_volume">Pause on minimum volume</string>
     <string name="pause_minimum_volume_description">Pause the player when you set your device volume to zero</string>
     <string name="audio">Audio</string>
+    <string name="permission_intro">For the best experience K4 Music would like:
+
+• Notifications – playback controls and download progress
+• Music &amp; audio – show the songs stored on your device
+
+Both are optional. The app works fine without them.</string>
+    <string name="permission_intro_continue">Continue</string>
+    <string name="permission_intro_skip">Not now</string>
+    <string name="audio_quality">Streaming quality</string>
+    <string name="audio_quality_data_saver">Data saver</string>
+    <string name="audio_quality_balanced">Balanced</string>
+    <string name="audio_quality_high">High quality</string>
     <string name="skip_silence">Skip silence</string>
     <string name="skip_silence_description">Skip silent parts during playback</string>
     <string name="minimum_silence_length">Minimum silence length</string>
@@ -330,6 +342,22 @@
     <string name="reset_blacklist">Reset blacklist</string>
     <string name="blacklist_empty">Blacklist empty</string>
     <string name="pre_cache">Pre cache</string>
+    <string name="download">Download</string>
+    <string name="downloaded">Downloaded</string>
+    <string name="download_started">Download started</string>
+    <string name="downloading_percent">Downloading %1$d%% · tap to cancel</string>
+    <string name="download_percent">%1$d%%</string>
+    <string name="download_failed">Download failed</string>
+    <string name="retry_download">Retry download</string>
+    <string name="remove_download">Remove download</string>
+    <string name="download_removed">Download removed</string>
+    <string name="downloads_in_progress">Downloading (%1$d)</string>
+    <string name="delete_all_downloads">Delete all</string>
+    <string name="delete_all_downloads_confirm">Remove all offline songs from this device?</string>
+    <string name="import_paste">Paste</string>
+    <string name="promo_features">No ads • Free forever • Lightweight • Optimized • Import playlists</string>
+    <string name="promo_made_by">Made by %1$s</string>
+    <string name="promo_visit">Visit</string>
     <string name="swipe_to_hide_song">Swipe to hide song</string>
     <string name="swipe_to_hide_song_description">When you swipe a song to the left, it gets removed from the database and cache</string>
     <string name="swipe_to_hide_song_confirm">Confirm swipe to hide song</string>

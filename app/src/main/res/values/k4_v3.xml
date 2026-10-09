@@ -80,4 +80,8 @@
     <string name="import_retry_failed">Retry failed tracks</string>
     <string name="import_error_title">Import failed</string>
     <string name="import_close">Close</string>
+    <string name="import_link_unknown">This doesn’t look like a Spotify or YouTube Music playlist link</string>
+    <string name="import_songs_added">songs added to your library</string>
+    <string name="import_clear">Clear</string>
+    <string name="import_retrying">Retrying…</string>
 </resources>

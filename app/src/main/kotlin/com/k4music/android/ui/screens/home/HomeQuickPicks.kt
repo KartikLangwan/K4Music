@@ -59,6 +59,7 @@ import com.k4music.android.ui.items.SongItem
 import com.k4music.android.ui.items.SongItemPlaceholder
 import com.k4music.android.ui.screens.Route
 import com.k4music.android.ui.screens.builtInPlaylistRoute
+import com.k4music.android.utils.artistNames
 import com.k4music.android.utils.asMediaItem
 import com.k4music.android.utils.forcePlay
 import com.k4music.android.utils.forcePlayAtIndex
@@ -178,7 +179,7 @@ fun QuickPicks(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 4.dp, bottom = bottomInset + 24.dp)
+        contentPadding = PaddingValues(top = 8.dp, bottom = bottomInset + 24.dp)
     ) {
         item(key = "greeting") {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
@@ -274,7 +275,7 @@ fun QuickPicks(
                             items(more, key = { it.key }) { song ->
                                 MusicTile(
                                     title = song.info?.name.orEmpty(),
-                                    subtitle = song.authors?.joinToString(" · ") { it.name.orEmpty() }.orEmpty(),
+                                    subtitle = song.authors.artistNames(" · "),
                                     artwork = song.thumbnail?.size(300),
                                     playing = playing && mediaId == song.key,
                                     enabled = binder != null,

@@ -21,9 +21,10 @@ private val saavnApi by lazy { JioSaavnApi() }
 fun isSaavnKey(key: String?) = key?.startsWith(SAAVN_KEY_PREFIX) == true
 
 /** Best CDN mp4 for a saavn key, or null when nothing serves. Never throws. */
-fun resolveSaavnStream(key: String): String? {
+fun resolveSaavnStream(key: String, quality: String = "320"): String? {
     val base = key.removePrefix(SAAVN_KEY_PREFIX)
     if (base.isBlank()) return null
+    saavnApi.preferredQuality = quality
     return runCatching { saavnApi.bestVariant(base) }.getOrNull()
 }
 

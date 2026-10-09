@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.k4music.android.models.Album
 import com.k4music.android.ui.components.themed.TextPlaceholder
+import com.k4music.android.utils.artistNames
 import com.k4music.android.utils.secondary
 import com.k4music.android.utils.semiBold
 import com.k4music.android.utils.thumbnail
@@ -48,7 +49,7 @@ fun AlbumItem(
 ) = AlbumItem(
     thumbnailUrl = album.thumbnail?.url,
     title = album.info?.name,
-    authors = album.authors?.joinToString(", ") { it.name.orEmpty() },
+    authors = album.authors.artistNames(),
     year = album.year,
     thumbnailSize = thumbnailSize,
     alternative = alternative,

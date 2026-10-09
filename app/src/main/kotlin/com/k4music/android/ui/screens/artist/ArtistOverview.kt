@@ -28,6 +28,7 @@ import com.k4music.android.LocalPlayerServiceBinder
 import com.k4music.app.R
 import com.k4music.android.ui.components.LocalMenuState
 import com.k4music.android.ui.components.ShimmerHost
+import com.k4music.android.ui.components.themed.BigPlayButton
 import com.k4music.android.ui.components.themed.Attribution
 import com.k4music.android.ui.components.themed.FloatingActionsContainerWithScrollToTop
 import com.k4music.android.ui.components.themed.LayoutWithAdaptiveThumbnail
@@ -111,6 +112,10 @@ fun ArtistOverview(
             }
 
             if (!isLandscape) thumbnailContent()
+
+            youtubeArtistPage?.songs?.takeIf { it.isNotEmpty() }?.let { songs ->
+                BigPlayButton(items = { songs.map(Innertube.SongItem::asMediaItem) }, enabled = true)
+            }
 
             youtubeArtistPage?.let { artist ->
                 artist.songs?.let { songs ->
