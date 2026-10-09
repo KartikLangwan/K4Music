@@ -166,7 +166,7 @@ class PrecacheService : DownloadService(
     override fun onCreate() {
         super.onCreate()
 
-        notificationActionReceiver.register(flags = ContextCompat.RECEIVER_EXPORTED)
+        notificationActionReceiver.register(flags = ContextCompat.RECEIVER_NOT_EXPORTED)
         mutableDownloadState.update { false }
     }
 
