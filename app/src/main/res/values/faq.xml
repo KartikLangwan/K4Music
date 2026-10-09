@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="faq_title">Questions &amp; answers</string>
+    <string name="settings_backup_title">Backup &amp; restore</string>
+    <string name="settings_backup_summary">Save your library to a file or bring it back</string>
+
+    <string name="faq_q_playstore">Why isn’t K4 Music on the Play Store?</string>
+    <string name="faq_a_playstore">K4 Music plays songs from YouTube Music and JioSaavn. The Play Store doesn’t allow apps that stream from these services without an official licence, so K4 Music is shared as a free APK from kartiklangwan.vercel.app instead. It has no ads, no account and no tracking.</string>
+
+    <string name="faq_q_update">How do I update to a new version?</string>
+    <string name="faq_a_update">Download the latest APK from the website and install it over the current app. Your favourites, playlists and history stay as they are.\n\nIf Android says “App not installed” or that the package conflicts: first make a backup (Settings → Backup &amp; restore → Backup), then uninstall K4 Music, install the new APK and restore your backup.</string>
+
+    <string name="faq_q_backup">How do I back up or move my library?</string>
+    <string name="faq_a_backup">Open Settings → Backup &amp; restore.\n\n• Backup saves one .db file with your favourites, playlists, history and lyrics. Keep it in Downloads or on Google Drive.\n• Restore picks that file. K4 Music checks it, keeps a copy of your current library, swaps it in and restarts.\n\nUse it before uninstalling, when changing phones, or before trying a different build.</string>
+
+    <string name="faq_q_downloads">Are my downloaded songs in the backup?</string>
+    <string name="faq_a_downloads">No. The backup holds your library, not the audio files. After restoring on a new phone, open a playlist and tap the download icon to fetch its songs again.</string>
+
+    <string name="faq_q_download_how">How do I download songs for offline listening?</string>
+    <string name="faq_a_download_how">Hold any song and choose Download, or tap the download icon on a playlist or album to save all of it. Everything you saved is in Library → Downloads, where you can also see progress, cancel, retry or delete all.</string>
+
+    <string name="faq_q_import">Can I bring my Spotify or YouTube Music playlists?</string>
+    <string name="faq_a_import">Yes. Go to Library → Playlists → Import and paste the playlist link. Spotify only shares the first 100 tracks of a playlist without a login; songs that can’t be matched are listed so you can retry them.</string>
+
+    <string name="faq_q_quality">How do I save mobile data or get the best sound?</string>
+    <string name="faq_a_quality">Settings → Player → Streaming quality: Data saver, Balanced or High quality. The equalizer, bass boost and other effects are under Settings → Audio effects.</string>
+
+    <string name="faq_q_unplayable">A song won’t play. What can I do?</string>
+    <string name="faq_a_unplayable">Check your internet first. Some songs are removed or blocked in your region; search for the song again and pick another version (results from JioSaavn are included). Turning on Settings → Player → Skip on error moves on automatically.</string>
+
+    <string name="faq_q_contact">Found a bug or have an idea?</string>
+    <string name="faq_a_contact">Message @K4RTIK.nvm on Instagram, or visit kartiklangwan.vercel.app. Settings → Other → Logs has details you can share.</string>
+</resources>

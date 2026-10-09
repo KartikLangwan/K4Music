@@ -54,6 +54,8 @@ interface PlaylistSource {
 data class ImportPlan(val fetched: FetchedPlaylist, val duplicates: Int)
 
 class PlaylistImporter(private val sources: List<PlaylistSource>) {
+    val sourceNames: List<String> get() = sources.map { it.name }
+
     fun sourceFor(link: String): PlaylistSource? = sources.firstOrNull { it.accepts(link.trim()) }
 
     suspend fun prepare(link: String, progress: (ImportProgress) -> Unit): ImportPlan {

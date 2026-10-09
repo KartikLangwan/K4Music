@@ -61,6 +61,7 @@ import com.k4music.android.models.Song
 import com.k4music.android.utils.addToPlaylist
 import com.k4music.android.query
 import com.k4music.android.service.PrecacheService
+import com.k4music.android.service.downloadProgress
 import com.k4music.android.service.isLocal
 import com.k4music.android.transaction
 import com.k4music.android.ui.items.SongItem
@@ -448,6 +449,56 @@ fun MediaItemMenu(
                     .padding(vertical = 8.dp)
             )
 
+            if (!isLocal) {
+                val progress = downloadProgress.collectAsState().value[songId]
+                val downloaded = isCached(mediaItem.mediaId, key = progress != null)
+                val startDownload = {
+                    onDismiss()
+                    runCatching {
+                        PrecacheService.scheduleCache(
+                            context = context.applicationContext,
+                            mediaItem = mediaItem
+                        )
+                        context.toast(R.string.download_started)
+                    }.onFailure { context.toast(R.string.error_network) }
+                    Unit
+                }
+                when {
+                    progress?.failed == true -> MenuEntry(
+                        icon = R.drawable.download,
+                        text = stringResource(R.string.retry_download),
+                        secondaryText = stringResource(R.string.download_failed),
+                        onClick = startDownload
+                    )
+
+                    progress != null -> MenuEntry(
+                        icon = R.drawable.close,
+                        text = stringResource(R.string.downloading_percent, progress.percent),
+                        onClick = {
+                            onDismiss()
+                            PrecacheService.remove(context, binder?.cache, listOf(songId))
+                        }
+                    )
+
+                    downloaded -> MenuEntry(
+                        icon = R.drawable.trash,
+                        text = stringResource(R.string.remove_download),
+                        secondaryText = stringResource(R.string.downloaded),
+                        onClick = {
+                            onDismiss()
+                            PrecacheService.remove(context, binder?.cache, listOf(songId))
+                            context.toast(R.string.download_removed)
+                        }
+                    )
+
+                    else -> MenuEntry(
+                        icon = R.drawable.download,
+                        text = stringResource(R.string.download),
+                        onClick = startDownload
+                    )
+                }
+            }
+
             onPlayNext?.let {
                 MenuEntry(
                     icon = R.drawable.play_skip_forward,
@@ -732,20 +783,6 @@ fun MediaItemMenu(
                     } else {
                         context.toast(errorMsg)
                     }
-                }
-            )
-
-            if (!isLocal && !isCached(mediaItem.mediaId)) MenuEntry(
-                icon = R.drawable.download,
-                text = stringResource(R.string.pre_cache),
-                onClick = {
-                    onDismiss()
-                    runCatching {
-                        PrecacheService.scheduleCache(
-                            context = context.applicationContext,
-                            mediaItem = mediaItem
-                        )
-                    }.onFailure { context.toast(R.string.error_network) }
                 }
             )
 

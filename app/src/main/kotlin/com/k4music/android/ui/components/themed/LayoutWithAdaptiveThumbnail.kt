@@ -13,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 import com.k4music.android.utils.thumbnail
@@ -55,9 +56,11 @@ fun adaptiveThumbnailContent(
         val [colorPalette, _, _, thumbnailShape] = LocalAppearance.current
         val thumbnailSize =
             if (isLandscape) (maxHeight - 96.dp - Dimensions.items.collapsedPlayerHeight)
-            else maxWidth
+            // Centred artwork with breathing room around it, like the big streaming apps' collection pages.
+            else (maxWidth * 0.72f).coerceAtMost(340.dp)
 
         val innerModifier = Modifier
+            .shadow(elevation = 18.dp, shape = shape ?: thumbnailShape)
             .clip(shape ?: thumbnailShape)
             .size(thumbnailSize)
 

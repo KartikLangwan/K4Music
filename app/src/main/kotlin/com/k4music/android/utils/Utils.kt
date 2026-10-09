@@ -29,6 +29,15 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.isActive
 import kotlin.time.Duration
 
+/** Artist names from Innertube runs, dropping the ", " / " & " separator runs it mixes in. */
+fun List<Innertube.Info<*>>?.artistNames(separator: String = ", "): String =
+    this?.mapNotNull { it.name?.trim() }
+        ?.filter { it.isNotEmpty() && it !in ARTIST_SEPARATORS }
+        ?.joinToString(separator)
+        .orEmpty()
+
+private val ARTIST_SEPARATORS = setOf(",", "&", "•", "·", "/")
+
 val Innertube.SongItem.asMediaItem: MediaItem
     get() = MediaItem.Builder()
         .setMediaId(key)
