@@ -80,7 +80,7 @@ fun Scaffold(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(insets.only(WindowInsetsSides.Top).asPaddingValues())
-                        .height(60.dp)
+                        .height(if (isHome) 54.dp else 60.dp)
                         .padding(horizontal = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -120,6 +120,8 @@ fun Scaffold(
                         )
                     }
                 }
+
+                if (isHome) PromoMarquee()
 
                 val chipTabs = when {
                     key == "settings" -> emptyList()

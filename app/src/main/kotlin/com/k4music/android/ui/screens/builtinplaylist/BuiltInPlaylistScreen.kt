@@ -56,7 +56,7 @@ fun BuiltInPlaylistScreen(builtInPlaylist: BuiltInPlaylist) {
                 onTabChange = onTabIndexChanged,
                 tabColumnContent = {
                     tab(0, R.string.favorites, R.drawable.heart)
-                    tab(1, R.string.offline, R.drawable.airplane)
+                    tab(1, R.string.offline, R.drawable.download)
                     tab(2, topTabTitle, R.drawable.trending_up)
                     tab(3, R.string.history, R.drawable.history)
                 },

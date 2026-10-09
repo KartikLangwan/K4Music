@@ -134,7 +134,54 @@ fun DatabaseSettings() = with(DataPreferences) {
         }
     }
 
-    SettingsCategoryScreen(title = stringResource(R.string.database)) {
+    SettingsCategoryScreen(title = stringResource(R.string.settings_backup_title)) {
+        SettingsGroup(
+            title = stringResource(R.string.backup),
+            description = stringResource(R.string.backup_description)
+        ) {
+            val errorMsg = stringResource(R.string.no_file_chooser_installed)
+
+            SettingsEntry(
+                title = stringResource(R.string.backup),
+                text = stringResource(R.string.backup_action_description),
+                isEnabled = !transferInProgress,
+                onClick = {
+                    val dateFormat = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault())
+
+                    try {
+                        backupLauncher.launch("K4_Music_backup_${dateFormat.format(Date())}.db")
+                    } catch (_: ActivityNotFoundException) {
+                        context.toast(errorMsg)
+                    }
+                }
+            )
+        }
+        SettingsGroup(
+            title = stringResource(R.string.restore),
+            description = stringResource(R.string.restore_warning),
+            important = true
+        ) {
+            val errorMsg = stringResource(R.string.no_file_chooser_installed)
+
+            SettingsEntry(
+                title = stringResource(R.string.restore),
+                text = stringResource(R.string.restore_description),
+                isEnabled = !transferInProgress,
+                onClick = {
+                    try {
+                        restoreLauncher.launch(
+                            arrayOf(
+                                "application/vnd.sqlite3",
+                                "application/x-sqlite3",
+                                "application/octet-stream"
+                            )
+                        )
+                    } catch (_: ActivityNotFoundException) {
+                        context.toast(errorMsg)
+                    }
+                }
+            )
+        }
         SettingsGroup(title = stringResource(R.string.cleanup)) {
             SwitchSettingsEntry(
                 title = stringResource(R.string.pause_playback_history),
@@ -185,53 +232,6 @@ fun DatabaseSettings() = with(DataPreferences) {
                 onClick = {
                     transaction {
                         Database.resetBlacklist()
-                    }
-                }
-            )
-        }
-        SettingsGroup(
-            title = stringResource(R.string.backup),
-            description = stringResource(R.string.backup_description)
-        ) {
-            val errorMsg = stringResource(R.string.no_file_chooser_installed)
-
-            SettingsEntry(
-                title = stringResource(R.string.backup),
-                text = stringResource(R.string.backup_action_description),
-                isEnabled = !transferInProgress,
-                onClick = {
-                    val dateFormat = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault())
-
-                    try {
-                        backupLauncher.launch("K4_Music_backup_${dateFormat.format(Date())}.db")
-                    } catch (_: ActivityNotFoundException) {
-                        context.toast(errorMsg)
-                    }
-                }
-            )
-        }
-        SettingsGroup(
-            title = stringResource(R.string.restore),
-            description = stringResource(R.string.restore_warning),
-            important = true
-        ) {
-            val errorMsg = stringResource(R.string.no_file_chooser_installed)
-
-            SettingsEntry(
-                title = stringResource(R.string.restore),
-                text = stringResource(R.string.restore_description),
-                isEnabled = !transferInProgress,
-                onClick = {
-                    try {
-                        restoreLauncher.launch(
-                            arrayOf(
-                                "application/vnd.sqlite3",
-                                "application/x-sqlite3",
-                                "application/octet-stream"
-                            )
-                        )
-                    } catch (_: ActivityNotFoundException) {
-                        context.toast(errorMsg)
                     }
                 }
             )

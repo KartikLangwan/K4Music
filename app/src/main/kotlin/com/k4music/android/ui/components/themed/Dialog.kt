@@ -17,6 +17,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import com.k4music.core.ui.ColorPalette
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -214,6 +217,15 @@ fun ColumnScope.ConfirmationDialogBody(
     }
 }
 
+private val DialogShape = RoundedCornerShape(24.dp)
+
+/** Shared look of every dialog: rounded card with a hairline border, inset from the screen edges. */
+fun Modifier.dialogSurface(palette: ColorPalette) = this
+    .padding(horizontal = 20.dp, vertical = 32.dp)
+    .clip(DialogShape)
+    .background(palette.background1)
+    .border(1.dp, palette.text.copy(alpha = 0.08f), DialogShape)
+
 @Composable
 fun DefaultDialog(
     onDismiss: () -> Unit,
@@ -225,14 +237,10 @@ fun DefaultDialog(
     Column(
         horizontalAlignment = horizontalAlignment,
         modifier = modifier
-            .padding(all = 48.dp)
-            .background(
-                color = LocalAppearance.current.colorPalette.background1,
-                shape = 8.dp.roundedShape
-            )
+            .dialogSurface(LocalAppearance.current.colorPalette)
             .padding(
                 horizontal = horizontalPadding,
-                vertical = 16.dp
+                vertical = 20.dp
             ),
         content = content
     )
@@ -255,11 +263,7 @@ fun <T> ValueSelectorDialog(
         values = values,
         onValueSelect = onValueSelect,
         modifier = modifier
-            .padding(all = 48.dp)
-            .background(
-                color = LocalAppearance.current.colorPalette.background1,
-                shape = 8.dp.roundedShape
-            )
+            .dialogSurface(LocalAppearance.current.colorPalette)
             .padding(vertical = 16.dp),
         valueText = valueText
     )
@@ -398,8 +402,7 @@ fun SliderDialog(
 
     Column(
         modifier = modifier
-            .padding(all = 48.dp)
-            .background(color = colorPalette.background1, shape = 8.dp.roundedShape)
+            .dialogSurface(colorPalette)
             .padding(vertical = 16.dp)
     ) {
         BasicText(

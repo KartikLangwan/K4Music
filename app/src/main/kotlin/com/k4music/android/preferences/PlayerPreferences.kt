@@ -65,6 +65,7 @@ object PlayerPreferences : GlobalPreferencesHolder() {
     var lyricsKeepScreenAwake by boolean(false)
     var lyricsShowSystemBars by boolean(true)
 
+    var audioQuality by enum(AudioQuality.High)
     var skipOnError by boolean(false)
     var handleAudioFocus by boolean(true)
 
@@ -96,6 +97,16 @@ object PlayerPreferences : GlobalPreferencesHolder() {
     }
 
     enum class VirtualizerMode { Off, ThreeD, Surround }
+
+    enum class AudioQuality(
+        val saavn: String,
+        val youtubeItags: List<Int>,
+        val displayName: @Composable () -> String
+    ) {
+        DataSaver("96", listOf(250, 249, 139), { stringResource(R.string.audio_quality_data_saver) }),
+        Balanced("160", listOf(140, 251), { stringResource(R.string.audio_quality_balanced) }),
+        High("320", listOf(251, 140), { stringResource(R.string.audio_quality_high) })
+    }
 
     enum class SeekBarStyle(val displayName: @Composable () -> String) {
         Static(displayName = { stringResource(R.string.static_seek_bar_name) }),

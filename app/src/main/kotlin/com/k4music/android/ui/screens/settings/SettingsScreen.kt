@@ -82,7 +82,7 @@ fun SettingsScreen() {
                     tab(1, R.string.appearance, R.drawable.color_palette, canHide = false)
                     tab(2, R.string.player, R.drawable.play, canHide = false)
                     tab(3, R.string.cache, R.drawable.download, canHide = false)
-                    tab(4, R.string.database, R.drawable.server, canHide = false)
+                    tab(4, R.string.settings_backup_title, R.drawable.server, canHide = false)
                     tab(5, R.string.other, R.drawable.shapes, canHide = false)
                     tab(6, R.string.user_guide, R.drawable.help_outline, canHide = false)
                     tab(7, R.string.about, R.drawable.information, canHide = false)
