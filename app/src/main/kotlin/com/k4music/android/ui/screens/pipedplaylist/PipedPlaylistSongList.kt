@@ -25,6 +25,8 @@ import com.k4music.android.LocalPlayerServiceBinder
 import com.k4music.app.R
 import com.k4music.android.ui.components.LocalMenuState
 import com.k4music.android.ui.components.ShimmerHost
+import com.k4music.android.ui.components.themed.BigPlayButton
+import com.k4music.android.ui.components.themed.ShuffleButton
 import com.k4music.android.ui.components.themed.FloatingActionsContainerWithScrollToTop
 import com.k4music.android.ui.components.themed.Header
 import com.k4music.android.ui.components.themed.HeaderPlaceholder
@@ -106,6 +108,11 @@ fun PipedPlaylistSongList(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         if (playlist == null) HeaderPlaceholder(modifier = Modifier.shimmer())
                         else Header(title = playlist?.name ?: stringResource(R.string.unknown)) {
+                            ShuffleButton(
+                                items = { mediaItems.orEmpty() },
+                                enabled = playlist?.videos?.isNotEmpty() == true
+                            )
+
                             SecondaryTextButton(
                                 text = stringResource(R.string.enqueue),
                                 enabled = playlist?.videos?.isNotEmpty() == true,
@@ -120,6 +127,10 @@ fun PipedPlaylistSongList(
                         }
 
                         if (!isLandscape) thumbnailContent()
+                        if (playlist != null) BigPlayButton(
+                            items = { mediaItems.orEmpty() },
+                            enabled = playlist?.videos?.isNotEmpty() == true
+                        )
                     }
                 }
 

@@ -39,9 +39,9 @@ Python 3.13+ (used by Chaquopy for yt-dlp) ships 64-bit Android builds only, so 
 
 ### Validation
 
-- Unit tests: 105 run, 0 failures (2 live-network tests skipped), including new recovery-sequence tests.
-- Release build (R8, resource shrinking, lint-vital): passed. `K4Music-v2.12.14-RELEASE.apk`, version code 2121400, 36,407,890 bytes, arm64-v8a + x86_64, minSdk 24 / targetSdk 37.
-- SHA256: `45D0CD5C5147690CDD483DC4F044EC9265FA10082F9422E09B4CE76995C18C85`.
+- Unit tests: 107 run, 0 failures (2 live-network tests skipped), including new recovery-sequence tests.
+- Release build (R8, resource shrinking, lint-vital): passed. `K4Music-v2.12.14-RELEASE.apk`, version code 2121400, 36,559,150 bytes, arm64-v8a + x86_64, minSdk 24 / targetSdk 37.
+- SHA256: `7CC80335AEB36B9B36E02760235D88761C9288FF28535FD9BBC07D9C44DA42BB`.
 - Full `lintDebug` did not finish within an hour on this machine and was stopped; the release build's lint-vital (fatal checks) passed.
 - Not yet verified on a device: the JioSaavn switch and the backdrop need a phone run.
 

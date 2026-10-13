@@ -54,6 +54,7 @@ import com.k4music.android.ui.items.AlbumItem
 import com.k4music.android.ui.items.SongItem
 import com.k4music.android.ui.items.SongItemPlaceholder
 import com.k4music.android.ui.screens.Route
+import com.k4music.android.utils.artistNames
 import com.k4music.android.utils.asMediaItem
 import com.k4music.android.utils.forcePlay
 import com.k4music.android.utils.networkResult
@@ -110,7 +111,7 @@ fun HomeDiscovery(
 
     LazyVerticalGrid(
         columns = GridCells.Adaptive(150.dp),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = bottomInset + 24.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = bottomInset + 24.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.fillMaxSize()
@@ -127,7 +128,7 @@ fun HomeDiscovery(
             FeaturedMusicCard(
                 eyebrow = stringResource(R.string.trending).uppercase(),
                 title = featuredSong.info?.name.orEmpty(),
-                subtitle = featuredSong.authors?.joinToString(", ") { it.name.orEmpty() }.orEmpty(),
+                subtitle = featuredSong.authors.artistNames(),
                 artwork = featuredSong.thumbnail?.size(400),
                 enabled = binder != null,
                 action = stringResource(R.string.play),

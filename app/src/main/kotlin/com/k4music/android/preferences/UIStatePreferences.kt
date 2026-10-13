@@ -27,6 +27,7 @@ object UIStatePreferences : GlobalPreferencesHolder() {
     var artistScreenTabIndex by artistScreenTabIndexProperty
 
     var playlistsAsGrid by boolean(true)
+    var permissionsIntroShown by boolean(false)
 
     private var visibleTabs by json(mapOf<String, List<String>>())
 

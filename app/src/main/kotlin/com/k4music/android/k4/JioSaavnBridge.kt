@@ -25,9 +25,10 @@ private val saavnApi by lazy { JioSaavnApi() }
 fun isSaavnKey(key: String?) = key?.startsWith(SAAVN_KEY_PREFIX) == true
 
 /** Best CDN mp4 for a saavn key, or null when nothing serves. Never throws. */
-fun resolveSaavnStream(key: String): String? {
+fun resolveSaavnStream(key: String, quality: String = "320"): String? {
     val base = key.removePrefix(SAAVN_KEY_PREFIX)
     if (base.isBlank()) return null
+    saavnApi.preferredQuality = quality
     return runCatching { saavnApi.bestVariant(base) }.getOrNull()
 }
 
@@ -35,11 +36,12 @@ fun resolveSaavnStream(key: String): String? {
  * The same song on JioSaavn, as a verified CDN url, or null. Used when YouTube
  * cannot serve a track; requires a real title match plus artist or duration.
  */
-suspend fun findSaavnStream(title: String, artist: String, durationMs: Long?): String? {
+suspend fun findSaavnStream(title: String, artist: String, durationMs: Long?, quality: String = "320"): String? {
     if (title.isBlank()) return null
     val candidates = searchSaavnSongs("$title $artist".trim())
         .map { Candidate(it.title, it.artist, it.durationMs.takeIf { d -> d > 0 }, it.contentUri) }
     val match = pickBestMatch(title, artist, durationMs, candidates) ?: return null
+    saavnApi.preferredQuality = quality
     return runCatching { saavnApi.bestVariant(match.payload) }.getOrNull()
 }
 

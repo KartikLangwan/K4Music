@@ -77,6 +77,7 @@ import com.k4music.android.service.downloadState
 import com.k4music.android.preferences.UIStatePreferences
 import com.k4music.android.ui.components.BottomBar
 import com.k4music.android.ui.components.BottomSheetMenu
+import com.k4music.android.ui.components.themed.PermissionIntro
 import com.k4music.android.ui.components.RootDestination
 import com.k4music.android.ui.screens.searchRoute
 import com.k4music.compose.routing.Route
@@ -449,6 +450,8 @@ class MainActivity : ComponentActivity(), MonetColorsChangedListener {
                         BottomSheetMenu(
                             modifier = Modifier.align(Alignment.BottomCenter)
                         )
+
+                        PermissionIntro()
                     }
                 }
             }
