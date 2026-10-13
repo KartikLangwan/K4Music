@@ -45,7 +45,7 @@
 
     <application
         android:name="com.k4music.android.MainApplication"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:banner="@mipmap/ic_banner"
         android:configChanges="colorMode|density|fontScale|keyboard|keyboardHidden|layoutDirection|locale|mcc|mnc|navigation|orientation|screenLayout|screenSize|smallestScreenSize|touchscreen|uiMode"
         android:enableOnBackInvokedCallback="true"
@@ -189,7 +189,7 @@
 
         <receiver
             android:name="com.k4music.android.service.PlayerService$NotificationActionReceiver"
-            android:exported="true"
+            android:exported="false"
             tools:ignore="ExportedReceiver,Instantiatable" />
 
         <receiver
@@ -227,7 +227,7 @@
 
         <meta-data
             android:name="com.google.android.gms.car.notification.SmallIcon"
-            android:resource="@drawable/app_icon" />
+            android:resource="@drawable/ic_stat_k4music" />
 
         <meta-data
             android:name="NothingKey"

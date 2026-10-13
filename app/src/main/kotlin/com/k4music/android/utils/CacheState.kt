@@ -5,7 +5,11 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -13,7 +17,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastAll
@@ -31,7 +37,7 @@ import com.k4music.android.models.Format
 import com.k4music.android.service.LOCAL_KEY_PREFIX
 import com.k4music.android.service.PlayerService
 import com.k4music.android.service.PrecacheService
-import com.k4music.android.service.downloadState
+import com.k4music.android.service.downloadProgress
 import com.k4music.android.ui.components.themed.CircularProgressIndicator
 import com.k4music.android.ui.components.themed.HeaderIconButton
 import com.k4music.core.ui.LocalAppearance
@@ -47,9 +53,13 @@ fun PlaylistDownloadIcon(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val (colorPalette) = LocalAppearance.current
+    val (colorPalette, typography) = LocalAppearance.current
 
-    val isDownloading by downloadState.collectAsState()
+    val progress by downloadProgress.collectAsState()
+    val ids = remember(songs) { songs.map { it.mediaId }.toSet() }
+    val mine = progress.values.filter { it.id in ids && !it.failed }
+    val isDownloading = mine.isNotEmpty()
+    val percent = if (mine.isEmpty()) 0 else mine.sumOf { it.percent } / mine.size
 
     AnimatedContent(
         targetState = isDownloading,
@@ -57,7 +67,19 @@ fun PlaylistDownloadIcon(
         transitionSpec = { fadeIn() togetherWith fadeOut() }
     ) { currentIsDownloading ->
         when {
-            currentIsDownloading -> CircularProgressIndicator(modifier = Modifier.size(18.dp))
+            currentIsDownloading -> Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = modifier.clickable {
+                    PrecacheService.remove(context, null, mine.map { it.id })
+                }
+            ) {
+                CircularProgressIndicator(progress = percent / 100f, modifier = Modifier.size(18.dp))
+                BasicText(
+                    text = stringResource(R.string.download_percent, percent),
+                    style = typography.xxs.medium.copy(color = colorPalette.text),
+                    modifier = Modifier.padding(start = 6.dp)
+                )
+            }
 
             !songs.map { it.mediaId }.fastAll {
                 isCached(

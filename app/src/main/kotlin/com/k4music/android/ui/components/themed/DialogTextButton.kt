@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import com.k4music.android.utils.disabled
 import com.k4music.android.utils.medium
 import com.k4music.android.utils.primary
+import com.k4music.android.utils.semiBold
 import com.k4music.core.ui.LocalAppearance
 import com.k4music.core.ui.utils.roundedShape
 
@@ -29,15 +30,21 @@ fun DialogTextButton(
         text = text,
         style = typography.xs.medium.let {
             when {
+                primary -> it.primary.semiBold
                 !enabled -> it.disabled
-                primary -> it.primary
                 else -> it
             }
         },
         modifier = modifier
             .clip(36.dp.roundedShape)
-            .background(if (primary) colorPalette.accent else Color.Transparent)
+            .background(
+                when {
+                    !primary -> Color.Transparent
+                    enabled -> colorPalette.accent
+                    else -> colorPalette.accent.copy(alpha = 0.3f)
+                }
+            )
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 16.dp)
+            .padding(horizontal = 20.dp, vertical = 12.dp)
     )
 }

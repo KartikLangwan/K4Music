@@ -24,7 +24,7 @@
     <string name="artists">कलाकार</string>
     <string name="singles">सिंगल्स</string>
     <string name="favorites">पसंदीदा</string>
-    <string name="offline">ऑफलाइन</string>
+    <string name="offline">डाउनलोड</string>
     <string name="history">इतिहास</string>
     <string name="overview">संक्षिप्त विवरण</string>
     <string name="library">संग्रह</string>
@@ -280,6 +280,18 @@
     <string name="pause_minimum_volume">न्यूनतम आवाज़ पर रोकें</string>
     <string name="pause_minimum_volume_description">जब आप अपने डिवाइस का आवाज़ शून्य पर सेट करें तो प्लेयर को रोकें</string>
     <string name="audio">ऑडियो</string>
+    <string name="permission_intro">बेहतर अनुभव के लिए K4 Music को ये चाहिए:
+
+• नोटिफिकेशन – प्लेबैक कंट्रोल और डाउनलोड प्रगति
+• म्यूज़िक और ऑडियो – फोन में रखे गाने दिखाने के लिए
+
+दोनों वैकल्पिक हैं। इनके बिना भी ऐप चलेगा।</string>
+    <string name="permission_intro_continue">आगे बढ़ें</string>
+    <string name="permission_intro_skip">अभी नहीं</string>
+    <string name="audio_quality">स्ट्रीमिंग क्वालिटी</string>
+    <string name="audio_quality_data_saver">डेटा सेवर</string>
+    <string name="audio_quality_balanced">संतुलित</string>
+    <string name="audio_quality_high">हाई क्वालिटी</string>
     <string name="skip_silence">मौन भागों को छोड़ें</string>
     <string name="skip_silence_description">प्लेबैक के दौरान मौन भागों को छोड़ें</string>
     <string name="minimum_silence_length">न्यूनतम मौन अवधि</string>

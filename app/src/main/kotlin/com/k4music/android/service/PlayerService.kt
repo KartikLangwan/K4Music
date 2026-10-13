@@ -297,7 +297,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
         super.onCreate()
 
         glyphInterface.tryInit()
-        notificationActionReceiver.register(flags = ContextCompat.RECEIVER_EXPORTED)
+        notificationActionReceiver.register(flags = ContextCompat.RECEIVER_NOT_EXPORTED)
 
         bitmapProvider = BitmapProvider(
             getBitmapSize = {
@@ -1026,7 +1026,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                 .setOnlyAlertOnce(true)
                 .setShowWhen(false)
                 .setSmallIcon(
-                    player.playerError?.let { R.drawable.alert_circle } ?: R.drawable.app_icon
+                    player.playerError?.let { R.drawable.alert_circle } ?: R.drawable.ic_stat_k4music
                 )
                 .setOngoing(false)
                 .setContentIntent(
@@ -1193,7 +1193,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                         .setAutoCancel(true)
                         .setOnlyAlertOnce(true)
                         .setShowWhen(true)
-                        .setSmallIcon(R.drawable.app_icon)
+                        .setSmallIcon(R.drawable.ic_stat_k4music)
                 }
 
                 handler.post {
@@ -1450,7 +1450,12 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                 val durationText = item?.mediaMetadata?.extras?.songBundle?.durationText ?: song?.durationText
                 val url = title?.let {
                     runCatching {
-                        runBlocking(Dispatchers.IO) { findSaavnStream(it, artist, durationText?.let(::parseClockToMs)?.takeIf { ms -> ms > 0 }) }
+                        runBlocking(Dispatchers.IO) { findSaavnStream(
+                                it,
+                                artist,
+                                durationText?.let(::parseClockToMs)?.takeIf { ms -> ms > 0 },
+                                PlayerPreferences.audioQuality.saavn
+                            ) }
                     }.getOrNull()
                 }
                 StreamFallback.resolved(mediaId, url)
@@ -1496,7 +1501,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                     if (isSaavnKey(mediaId)) {
                         // K4Music: JioSaavn-backed item — resolve its CDN url once
                         // and remember it, skipping the YouTube/yt-dlp path entirely.
-                        val cdn = runBlocking(Dispatchers.IO) { resolveSaavnStream(mediaId) }
+                        val cdn = runBlocking(Dispatchers.IO) { resolveSaavnStream(mediaId, PlayerPreferences.audioQuality.saavn) }
                             ?: throw UnplayableException()
                         uriCache.push(key = mediaId, meta = null, uri = cdn.toUri())
                         return@run dataSpec.withUri(cdn.toUri())
@@ -1510,7 +1515,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                     val body = if (mediaId in rejectedDirectStreams) null else runBlocking(Dispatchers.IO) {
                         com.k4music.android.utils.networkResult { Innertube.player(PlayerBody(videoId = mediaId)) }
                     }.getOrNull()
-                    val youtubeFormat = body?.streamingData?.highestQualityFormat
+                    val youtubeFormat = body?.streamingData?.audioFormat(PlayerPreferences.audioQuality.youtubeItags)
 
                     val directUrl = youtubeFormat?.url?.takeIf { it.isNotBlank() && mediaId !in rejectedDirectStreams }
                     val uri: android.net.Uri

@@ -48,8 +48,9 @@ class JioSaavnApi(client: OkHttpClient? = null) {
         if (isPreviewUrl(url)) return null
         // Unknown naming scheme: the url itself is the only candidate.
         val base = saavnBase(url) ?: return url.takeIf { it.startsWith("http") && it !in excluded }
-        val order = (listOf(preferredQuality) + listOf("320", "160", "96"))
-            .distinct().filter { it in SAAVN_QUALITIES }
+        val ladder = listOf("320", "160", "96")
+        val i = ladder.indexOf(preferredQuality).coerceAtLeast(0)
+        val order = ladder.drop(i) + ladder.take(i).reversed()
         for (q in order) {
             val cand = "${base}_$q.mp4"
             if (cand in excluded) continue

@@ -21,6 +21,8 @@ import com.k4music.app.R
 import com.k4music.android.models.Song
 import com.k4music.android.ui.components.LocalMenuState
 import com.k4music.android.ui.components.ShimmerHost
+import com.k4music.android.ui.components.themed.BigPlayButton
+import com.k4music.android.ui.components.themed.ShuffleButton
 import com.k4music.android.ui.components.themed.FloatingActionsContainerWithScrollToTop
 import com.k4music.android.ui.components.themed.LayoutWithAdaptiveThumbnail
 import com.k4music.android.ui.components.themed.NonQueuedMediaItemMenu
@@ -79,6 +81,11 @@ fun AlbumSongs(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     headerContent(
                         {
+                            ShuffleButton(
+                                items = { songs.map(Song::asMediaItem) },
+                                enabled = songs.isNotEmpty()
+                            )
+
                             SecondaryTextButton(
                                 text = stringResource(R.string.enqueue),
                                 enabled = songs.isNotEmpty(),
@@ -95,6 +102,10 @@ fun AlbumSongs(
                     )
 
                     if (!isLandscape) thumbnailContent()
+                    BigPlayButton(
+                        items = { songs.map(Song::asMediaItem) },
+                        enabled = songs.isNotEmpty()
+                    )
                     afterHeaderContent?.invoke()
                 }
             }
