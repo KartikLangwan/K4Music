@@ -46,7 +46,8 @@ class JioSaavnApi(client: OkHttpClient? = null) {
     /** Best verified CDN file for a Saavn stream URL, or null when none serve. */
     fun bestVariant(url: String, excluded: Set<String> = emptySet()): String? {
         if (isPreviewUrl(url)) return null
-        val base = saavnBase(url) ?: return null
+        // Unknown naming scheme: the url itself is the only candidate.
+        val base = saavnBase(url) ?: return url.takeIf { it.startsWith("http") && it !in excluded }
         val ladder = listOf("320", "160", "96")
         val i = ladder.indexOf(preferredQuality).coerceAtLeast(0)
         val order = ladder.drop(i) + ladder.take(i).reversed()
@@ -109,8 +110,11 @@ class JioSaavnApi(client: OkHttpClient? = null) {
         }
     }
 
+    // A CDN probe is a 2-byte read; a slow answer is as bad as none.
+    private val probe by lazy { http.newBuilder().callTimeout(3, TimeUnit.SECONDS).build() }
+
     private fun reachable(url: String): Boolean = try {
-        http.newCall(
+        probe.newCall(
             Request.Builder().url(url)
                 .addHeader("User-Agent", UA)
                 .addHeader("Range", "bytes=0-1")

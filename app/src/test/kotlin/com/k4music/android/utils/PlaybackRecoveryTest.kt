@@ -5,6 +5,33 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class PlaybackRecoveryTest {
+    private fun sequence(code: Int, status: Int?, fallbackAllowed: Boolean): List<Recovery> {
+        val retries = PlaybackRetryBudget()
+        val fallbacks = PlaybackRetryBudget(limit = 1)
+        return List(5) { chooseRecovery(code, status, "song", fallbackAllowed, retries, fallbacks) }
+    }
+    @Test fun `a lost connection retries the same source before falling back`() {
+        assertEquals(
+            listOf(Recovery.Retry, Recovery.Retry, Recovery.Fallback, Recovery.None, Recovery.None),
+            sequence(PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED, null, fallbackAllowed = true)
+        )
+    }
+    @Test fun `a refused or unplayable stream falls back first and never loops`() {
+        assertEquals(
+            listOf(Recovery.Fallback, Recovery.Retry, Recovery.Retry, Recovery.None, Recovery.None),
+            sequence(PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS, 403, fallbackAllowed = true)
+        )
+        assertEquals(
+            listOf(Recovery.Fallback, Recovery.None, Recovery.None, Recovery.None, Recovery.None),
+            sequence(PlaybackException.ERROR_CODE_IO_UNSPECIFIED, null, fallbackAllowed = true)
+        )
+    }
+    @Test fun `a song already on the fallback only retries`() {
+        assertEquals(
+            listOf(Recovery.Retry, Recovery.Retry, Recovery.None, Recovery.None, Recovery.None),
+            sequence(PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS, 503, fallbackAllowed = false)
+        )
+    }
     @Test fun `error callbacks do not hang on cyclic exception causes`() {
         val first = Exception("first")
         val second = Exception("second")

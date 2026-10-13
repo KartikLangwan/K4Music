@@ -42,7 +42,7 @@ data class PlayerResponse(
         val expiresInSeconds: Long?
     ) {
         val highestQualityFormat: AdaptiveFormat?
-            get() = adaptiveFormats?.filter { it.mimeType.startsWith("audio/") && (it.url != null || it.signatureCipher != null) }
+            get() = adaptiveFormats?.filter { it.mimeType.startsWith("audio/") && !it.url.isNullOrBlank() }
                 ?.let { formats ->
                     formats.findLast { it.itag == 251 || it.itag == 140 }
                         ?: formats.maxByOrNull { it.bitrate ?: 0L }
@@ -51,7 +51,7 @@ data class PlayerResponse(
         /** First of [itags] that is available; falls back to [highestQualityFormat]. */
         fun audioFormat(itags: List<Int>): AdaptiveFormat? {
             val audio = adaptiveFormats?.filter {
-                it.mimeType.startsWith("audio/") && (it.url != null || it.signatureCipher != null)
+                it.mimeType.startsWith("audio/") && !it.url.isNullOrBlank()
             }
             return itags.firstNotNullOfOrNull { t -> audio?.firstOrNull { it.itag == t } }
                 ?: highestQualityFormat

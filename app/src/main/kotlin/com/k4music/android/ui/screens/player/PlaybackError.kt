@@ -13,6 +13,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -23,6 +25,10 @@ import com.k4music.android.ui.components.GlassPanel
 import com.k4music.android.utils.isInPip
 import com.k4music.app.R
 import com.k4music.core.ui.LocalAppearance
+import kotlinx.coroutines.delay
+
+// The service retries and switches source within a few hundred ms; only a failure that outlives this shows.
+private const val ERROR_GRACE_MS = 1_200L
 
 /** Playback failures keep a visible, labelled recovery action above the artwork. */
 @Composable
@@ -34,7 +40,11 @@ fun PlaybackError(
 ) {
     val palette = LocalAppearance.current.colorPalette
     val pip = isInPip()
-    AnimatedVisibility(isDisplayed, modifier, enter = fadeIn(), exit = fadeOut()) {
+    val visible by produceState(false, isDisplayed) {
+        if (isDisplayed) delay(ERROR_GRACE_MS)
+        value = isDisplayed
+    }
+    AnimatedVisibility(visible, modifier, enter = fadeIn(), exit = fadeOut()) {
         Box(
             Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.56f)).padding(16.dp),
             contentAlignment = Alignment.Center

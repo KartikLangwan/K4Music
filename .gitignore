@@ -25,3 +25,4 @@ jniLibs/
 *.apk
 *.apk.sha256
 *.log
+downloads/

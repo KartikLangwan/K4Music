@@ -341,10 +341,6 @@
     <string name="daily">Diariamente</string>
     <string name="weekly">Semanalmente</string>
     <string name="version_check">Verificar atualizações automaticamente</string>
-    <string name="skip_on_error">Pular automaticamente</string>
-    <string name="skip_on_error_description">Pula a música atual quando ocorre um erro.</string>
-    <string name="skip_on_error_notification">Música %s pulada devido a um erro</string>
-    <string name="skip_on_error_notification_unknown_song">A música atual foi pulada devido a um erro</string>
     <string name="reverb_small_room">Sala pequena</string>
     <string name="reverb_medium_room">Sala média</string>
     <string name="reverb_large_room">Sala grande</string>
