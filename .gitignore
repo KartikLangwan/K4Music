@@ -20,3 +20,5 @@ jniLibs/
 /.direnv
 /result*
 /repl-result*
+
+downloads/

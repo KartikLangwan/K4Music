@@ -92,11 +92,15 @@ import com.k4music.android.utils.forceSeekToPrevious
 import com.k4music.android.utils.get
 import com.k4music.android.k4.isSaavnKey
 import com.k4music.android.k4.resolveSaavnStream
+import com.k4music.android.k4.StreamFallback
+import com.k4music.android.k4.parseClockToMs
+import com.k4music.android.k4.findSaavnStream
 import com.k4music.android.utils.handleUnknownErrors
 import com.k4music.android.utils.intent
 import com.k4music.android.utils.mediaItems
 import com.k4music.android.utils.PlaybackRetryBudget
-import com.k4music.android.utils.isRecoverablePlaybackFailure
+import com.k4music.android.utils.Recovery
+import com.k4music.android.utils.chooseRecovery
 import com.k4music.android.utils.progress
 import com.k4music.android.utils.retryIf
 import com.k4music.android.utils.shuffleFromCurrent
@@ -161,6 +165,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
@@ -240,6 +247,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
     private var sponsorBlockJob: Job? = null
     private var playbackRecoveryJob: Job? = null
     private val playbackRetryBudget = PlaybackRetryBudget()
+    private val playbackFallbackBudget = PlaybackRetryBudget(limit = 1)
 
     override var isInvincibilityEnabled by mutableStateOf(false)
 
@@ -362,6 +370,11 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
 
         maybeResumePlaybackWhenDeviceConnected()
 
+        coroutineScope.launch(Dispatchers.IO) {
+            delay(PYTHON_WARM_UP_DELAY_MS) // after launch work settles
+            runCatching { Dependencies.warmUp() }.onFailure { Log.w(TAG, "yt-dlp warm-up failed", it) }
+        }
+
         preferenceUpdaterJob = coroutineScope.launch {
             fun <T : Any> subscribe(
                 prop: SharedPreferencesProperty<T>,
@@ -452,8 +465,11 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
         super.onTaskRemoved(rootIntent)
     }
 
-    override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) =
+    override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+        // Covers every play entry point (UI, notification, headset, Android Auto) for a restored queue.
+        if (playWhenReady && player.playbackState == Player.STATE_IDLE && player.mediaItemCount > 0) player.prepare()
         maybeSavePlayerQueue()
+    }
 
     override fun onDestroy() {
         playbackRecoveryJob?.cancel()
@@ -548,6 +564,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
 
         playbackRecoveryJob?.cancel()
         playbackRetryBudget.onMediaTransition(mediaItem?.mediaId)
+        playbackFallbackBudget.onMediaTransition(mediaItem?.mediaId)
         mediaItemState.update { mediaItem }
 
         maybeRecoverPlaybackError()
@@ -576,37 +593,30 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
         super.onPlayerError(error)
         Log.w(TAG, "Playback failure ${error.errorCodeName}", error)
 
-        val current = player.currentMediaItem
-        val status = error.findCause<InvalidResponseCodeException>()?.responseCode
-        if (current != null && !current.isLocal && isRecoverablePlaybackFailure(error.errorCode, status) && playbackRetryBudget.tryAcquire(current.mediaId)) {
-            val position = player.currentPosition.coerceAtLeast(0L)
-            playbackRecoveryJob?.cancel()
-            playbackRecoveryJob = coroutineScope.launch(Dispatchers.Main) {
-                delay(1_000)
-                if (player.currentMediaItem?.mediaId != current.mediaId || player.playerError == null) return@launch
-                player.seekTo(position)
-                player.prepare()
-            }
-            return
+        val current = player.currentMediaItem ?: return
+        if (current.isLocal) return
+        val id = current.mediaId
+        val recovery = chooseRecovery(
+            code = error.errorCode,
+            httpStatus = error.findCause<InvalidResponseCodeException>()?.responseCode,
+            id = id,
+            fallbackAllowed = !isSaavnKey(id) && PlayerPreferences.smartFallback,
+            retries = playbackRetryBudget,
+            fallbacks = playbackFallbackBudget
+        )
+        if (recovery == Recovery.None) return
+        if (recovery == Recovery.Fallback) {
+            Log.i(TAG, "Switching $id to the JioSaavn fallback after ${error.errorCodeName}")
+            StreamFallback.force(id)
         }
 
-        if (!PlayerPreferences.skipOnError || !player.hasNextMediaItem()) return
-
-        val prev = player.currentMediaItem ?: return
-        player.seekToNextMediaItem()
-
-        ServiceNotifications.autoSkip.sendNotification(this) {
-            this
-                .setSmallIcon(R.drawable.app_icon)
-                .setCategory(NotificationCompat.CATEGORY_ERROR)
-                .setOnlyAlertOnce(false)
-                .setContentIntent(activityPendingIntent<MainActivity>())
-                .setContentText(
-                    prev.mediaMetadata.title?.let {
-                        getString(R.string.skip_on_error_notification, it)
-                    } ?: getString(R.string.skip_on_error_notification_unknown_song)
-                )
-                .setContentTitle(getString(R.string.skip_on_error))
+        val position = player.currentPosition.coerceAtLeast(0L)
+        playbackRecoveryJob?.cancel()
+        playbackRecoveryJob = coroutineScope.launch(Dispatchers.Main) {
+            delay(RECOVERY_DELAY_MS)
+            if (player.currentMediaItem?.mediaId != id || player.playerError == null) return@launch
+            player.seekTo(position)
+            player.prepare()
         }
     }
 
@@ -693,7 +703,8 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                         /* startPositionMs = */
                         queue.getOrNull(index)?.position ?: C.TIME_UNSET
                     )
-                    player.prepare()
+                    // Not prepared here: resolving a stream at launch competes with the UI.
+                    // onPlayWhenReadyChanged prepares on the first play.
 
                     runCatching {
                         isNotificationStarted = true
@@ -1367,6 +1378,10 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
     companion object {
         private const val DEFAULT_CACHE_DIRECTORY = "exoplayer"
         private const val DEFAULT_CHUNK_LENGTH = 512 * 1024L
+        private const val YT_DLP_TIMEOUT_MS = 15_000L
+        private const val RECOVERY_DELAY_MS = 300L
+        private const val PYTHON_WARM_UP_DELAY_MS = 8_000L
+        private val ytDlpScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
         fun createDatabaseProvider(context: Context) = StandaloneDatabaseProvider(context)
         fun createCache(
@@ -1422,7 +1437,43 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                 .setHttpRequestHeaders(headers + httpRequestHeaders)
                 .build()
 
-            if (
+            // YouTube could not serve this song: play the same track from JioSaavn under the same
+            // cache key. The old bytes are purged first so two sources never mix in one file.
+            fun saavnFallback(): DataSpec? {
+                runCatching { cache.removeResource(mediaId) }
+                uriCache.remove(mediaId)
+                val item = runCatching { runBlocking(Dispatchers.IO) { findMediaItem(mediaId) } }.getOrNull()
+                val song = if (item != null) null
+                else runCatching { runBlocking(Dispatchers.IO) { Database.song(mediaId).first() } }.getOrNull()
+                val title = item?.mediaMetadata?.title?.toString() ?: song?.title
+                val artist = item?.mediaMetadata?.artist?.toString() ?: song?.artistsText.orEmpty()
+                val durationText = item?.mediaMetadata?.extras?.songBundle?.durationText ?: song?.durationText
+                val url = title?.let {
+                    runCatching {
+                        runBlocking(Dispatchers.IO) { findSaavnStream(it, artist, durationText?.let(::parseClockToMs)?.takeIf { ms -> ms > 0 }) }
+                    }.getOrNull()
+                }
+                StreamFallback.resolved(mediaId, url)
+                if (url == null) {
+                    Log.w(TAG, "No JioSaavn fallback for $mediaId ($title)")
+                    return null
+                }
+                Log.i(TAG, "Playing $mediaId from JioSaavn fallback")
+                uriCache.push(key = mediaId, meta = null, uri = url.toUri())
+                return dataSpec.withUri(url.toUri())
+            }
+
+            val fallbackOn = PlayerPreferences.smartFallback
+            if (!fallbackOn && StreamFallback.url(mediaId) != null) {
+                // Fallback turned off: forget the JioSaavn copy and its cached bytes, back to YouTube.
+                StreamFallback.drop(mediaId)
+                uriCache.remove(mediaId)
+                runCatching { cache.removeResource(mediaId) }
+            }
+
+            if (!dataSpec.isLocal && fallbackOn && StreamFallback.isForced(mediaId)) {
+                saavnFallback() ?: throw UnplayableException()
+            } else if (
                 dataSpec.isLocal || (
                     chunkLength != null && cache.isCached(
                         /* key = */
@@ -1451,6 +1502,11 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                         return@run dataSpec.withUri(cdn.toUri())
                     }
 
+                    StreamFallback.url(mediaId)?.let { saved ->
+                        uriCache.push(key = mediaId, meta = null, uri = saved.toUri())
+                        return@run dataSpec.withUri(saved.toUri())
+                    }
+
                     val body = if (mediaId in rejectedDirectStreams) null else runBlocking(Dispatchers.IO) {
                         com.k4music.android.utils.networkResult { Innertube.player(PlayerBody(videoId = mediaId)) }
                     }.getOrNull()
@@ -1468,15 +1524,18 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                         bitrate = youtubeFormat.bitrate
                         contentLength = youtubeFormat.contentLength
                     } else {
+                        // yt-dlp can hang on a slow network; past the deadline JioSaavn takes over.
+                        val job = ytDlpScope.async { Dependencies.runDownload(mediaId) }
                         val info = runCatching {
-                            Dependencies.runDownload(mediaId)
+                            runBlocking { withTimeoutOrNull(YT_DLP_TIMEOUT_MS) { job.await() } }
+                                ?: error("yt-dlp timed out for $mediaId")
                         }.mapCatching {
                             YouTubeDLResponse.fromString(it)
-                        }.also { it.exceptionOrNull()?.printStackTrace() }.getOrNull()
+                        }.onFailure { Log.w(TAG, "yt-dlp failed for $mediaId", it) }.getOrNull()
                         if (info?.id != null && info.id != mediaId) throw VideoIdMismatchException()
                         val format = info?.formats?.firstOrNull { it.formatId == info.formatId }
                         uri = (info?.url?.takeIf { it.isNotBlank() } ?: format?.url?.takeIf { it.isNotBlank() })?.toUri()
-                            ?: throw UnplayableException()
+                            ?: return@run (if (fallbackOn) saavnFallback() else null) ?: throw UnplayableException()
                         formatId = info?.formatId
                         bitrate = format?.abr?.let { it * 1000 }?.toLong()
                         contentLength = info?.fileSize?.takeIf { it > 0L }
@@ -1532,17 +1591,18 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                         .ranged(contentLength)
                 }
             }
-        }.handleUnknownErrors { error ->
-            val http = error.findCause<InvalidResponseCodeException>()
-            if (http?.responseCode == 403 || http?.responseCode == 410) {
-                http.dataSpec.key?.removePrefix("https://youtube.com/watch?v=")?.takeUnless(::isSaavnKey)?.let {
-                    // A valid-looking Innertube URL can still be forbidden by the CDN.
-                    // Re-extract this exact video through yt-dlp on the next attempt.
-                    if (rejectedDirectStreams.size >= 64) rejectedDirectStreams.clear()
-                    rejectedDirectStreams.add(it)
-                }
+        }.handleUnknownErrors { error, spec ->
+            // Only an HTTP refusal proves a stream url bad; a dropped socket keeps it.
+            val http = error.findCause<InvalidResponseCodeException>() ?: return@handleUnknownErrors
+            val id = (http.dataSpec.key ?: spec?.key)?.removePrefix("https://youtube.com/watch?v=")
+                ?: return@handleUnknownErrors
+            uriCache.remove(id)
+            if ((http.responseCode == 403 || http.responseCode == 410) && !isSaavnKey(id) && StreamFallback.url(id) == null) {
+                // A valid-looking Innertube URL can still be forbidden by the CDN.
+                // Re-extract this exact video through yt-dlp on the next attempt.
+                if (rejectedDirectStreams.size >= 64) rejectedDirectStreams.clear()
+                rejectedDirectStreams.add(id)
             }
-            uriCache.clear()
         }.retryIf(maxRetries = 2) { error ->
             val status = error.findCause<InvalidResponseCodeException>()?.responseCode
             if (status != null) status in setOf(403, 408, 410, 429, 500, 502, 503, 504)

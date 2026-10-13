@@ -36,6 +36,13 @@ fun PlayerSettings() = with(PlayerPreferences) {
     SettingsCategoryScreen(title = stringResource(R.string.player)) {
         SettingsGroup(title = stringResource(R.string.player)) {
             SwitchSettingsEntry(
+                title = stringResource(R.string.smart_fallback),
+                text = stringResource(R.string.smart_fallback_description),
+                isChecked = smartFallback,
+                onCheckedChange = { smartFallback = it }
+            )
+
+            SwitchSettingsEntry(
                 title = stringResource(R.string.persistent_queue),
                 text = stringResource(R.string.persistent_queue_description),
                 isChecked = persistentQueue,
@@ -63,13 +70,6 @@ fun PlayerSettings() = with(PlayerPreferences) {
                 text = stringResource(R.string.pause_minimum_volume_description),
                 isChecked = stopOnMinimumVolume,
                 onCheckedChange = { stopOnMinimumVolume = it }
-            )
-
-            SwitchSettingsEntry(
-                title = stringResource(R.string.skip_on_error),
-                text = stringResource(R.string.skip_on_error_description),
-                isChecked = skipOnError,
-                onCheckedChange = { skipOnError = it }
             )
         }
         SettingsGroup(title = stringResource(R.string.audio)) {

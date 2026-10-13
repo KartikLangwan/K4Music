@@ -341,10 +341,6 @@
     <string name="daily">Diàriament</string>
     <string name="weekly">Setmanalment</string>
     <string name="version_check">Comprovar actualitzacions automàticament</string>
-    <string name="skip_on_error">Salt automàtic</string>
-    <string name="skip_on_error_description">Salta la cançó actual quan hi ha un error.</string>
-    <string name="skip_on_error_notification">S\'ha saltat %s degut a un error</string>
-    <string name="skip_on_error_notification_unknown_song">S\'ha saltat la cançó actual degut a un error</string>
     <string name="reverb_small_room">Habitació petita</string>
     <string name="reverb_medium_room">Habitació mitjana</string>
     <string name="reverb_large_room">Habitació gran</string>

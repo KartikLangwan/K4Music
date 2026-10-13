@@ -3,6 +3,10 @@ package com.k4music.android.k4
 import com.k4music.providers.innertube.Innertube
 import com.k4music.providers.innertube.models.NavigationEndpoint
 import com.k4music.providers.innertube.models.Thumbnail
+import android.content.Context
+import com.k4music.android.Dependencies
+import com.k4music.android.playlistimport.Candidate
+import com.k4music.android.playlistimport.pickBestMatch
 import kotlinx.coroutines.CancellationException
 
 /**
@@ -25,6 +29,49 @@ fun resolveSaavnStream(key: String): String? {
     val base = key.removePrefix(SAAVN_KEY_PREFIX)
     if (base.isBlank()) return null
     return runCatching { saavnApi.bestVariant(base) }.getOrNull()
+}
+
+/**
+ * The same song on JioSaavn, as a verified CDN url, or null. Used when YouTube
+ * cannot serve a track; requires a real title match plus artist or duration.
+ */
+suspend fun findSaavnStream(title: String, artist: String, durationMs: Long?): String? {
+    if (title.isBlank()) return null
+    val candidates = searchSaavnSongs("$title $artist".trim())
+        .map { Candidate(it.title, it.artist, it.durationMs.takeIf { d -> d > 0 }, it.contentUri) }
+    val match = pickBestMatch(title, artist, durationMs, candidates) ?: return null
+    return runCatching { saavnApi.bestVariant(match.payload) }.getOrNull()
+}
+
+/**
+ * YouTube ids whose audio comes from JioSaavn because YouTube failed them.
+ * Persisted: the player cache is keyed by the YouTube id, and bytes from two
+ * different sources must never be mixed under one key.
+ */
+object StreamFallback {
+    private val prefs by lazy {
+        Dependencies.application.getSharedPreferences("stream_fallback", Context.MODE_PRIVATE)
+    }
+    private val forced = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    fun url(id: String): String? = prefs.getString(id, null)
+
+    /** Next resolve of [id] skips YouTube and looks the song up on JioSaavn afresh. */
+    fun force(id: String) {
+        drop(id)
+        forced.add(id)
+    }
+    fun isForced(id: String) = id in forced
+
+    fun drop(id: String) = prefs.edit().remove(id).apply()
+
+    fun resolved(id: String, url: String?) {
+        forced.remove(id)
+        if (url == null) return
+        // ponytail: wholesale reset at 1000 entries; a dropped song just re-resolves via YouTube.
+        if (prefs.all.size >= 1000) prefs.edit().clear().apply()
+        prefs.edit().putString(id, url).apply()
+    }
 }
 
 /** Saavn search results with unplayable (blank) entries dropped. Never throws. */

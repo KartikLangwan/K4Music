@@ -48,6 +48,7 @@ object PlayerPreferences : GlobalPreferencesHolder() {
     var pitch by pitchProperty
     var minimumSilence by long(2_000_000L)
     var persistentQueue by boolean(true)
+    var smartFallback by boolean(true)
     var stopWhenClosed by boolean(false)
     var stopOnMinimumVolume by boolean(true)
 
@@ -65,7 +66,6 @@ object PlayerPreferences : GlobalPreferencesHolder() {
     var lyricsKeepScreenAwake by boolean(false)
     var lyricsShowSystemBars by boolean(true)
 
-    var skipOnError by boolean(false)
     var handleAudioFocus by boolean(true)
 
     var pauseCache by boolean(false)

@@ -81,6 +81,7 @@ import com.k4music.providers.innertube.utils.from
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -145,11 +146,16 @@ fun QuickPicks(
             DataPreferences.QuickPicksSource.Trending -> Database.trending().distinctUntilChanged().collect { load(it.firstOrNull()) }
             DataPreferences.QuickPicksSource.LastInteraction -> Database.events(limit = 1).distinctUntilChanged().collect { load(it.firstOrNull()?.song) }
             // ponytail: scores the latest 500 plays; older history barely moves the ranking.
+            // Play-time ticks rewrite Song rows; only membership and likes change the picks.
             DataPreferences.QuickPicksSource.ForYou -> combine(
-                Database.songs(SongSortBy.Title, SortOrder.Ascending), Database.events(limit = 500)
+                Database.songs(SongSortBy.Title, SortOrder.Ascending)
+                    .distinctUntilChangedBy { songs -> songs.map { it.id to it.likedAt } },
+                Database.events(limit = 500)
             ) { songs, events -> songs to events }.distinctUntilChanged().collect { (songs, events) ->
                 val picks = withContext(Dispatchers.Default) { forYouPicks(songs, events) }
                 if (picks.isEmpty()) {
+                    // The popular shelf does not change per play; fetch it once.
+                    if (origin == PicksOrigin.Popular && result?.isSuccess == true) return@collect
                     result = indiaFallback()
                     origin = PicksOrigin.Popular
                 } else {

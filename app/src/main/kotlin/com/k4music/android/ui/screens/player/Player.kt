@@ -1,7 +1,14 @@
 package com.k4music.android.ui.screens.player
 
+import kotlin.math.sin
+import kotlin.math.cos
+import kotlin.math.PI
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -44,6 +51,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
@@ -214,10 +224,11 @@ fun Player(
 
         val containerModifier = Modifier
             .background(colorPalette.background0)
+            .livingBackdrop(accent = colorPalette.accent, playing = shouldBePlaying)
             .background(
                 Brush.verticalGradient(
-                    0f to colorPalette.accent.copy(alpha = 0.22f),
-                    0.45f to colorPalette.background1.copy(alpha = 0.6f),
+                    0f to Color.Transparent,
+                    0.5f to colorPalette.background1.copy(alpha = 0.35f),
                     1f to colorPalette.background0
                 )
             )
@@ -709,3 +720,52 @@ private fun onDismiss(binder: PlayerService.Binder) {
     binder.stopRadio()
     binder.player.clearMediaItems()
 }
+
+/**
+ * An aurora in the song's own accent behind the full player: two soft glows that drift
+ * while music plays and settle when paused. Draw-phase only; frozen when the system
+ * animation scale is off.
+ */
+@Composable
+private fun Modifier.livingBackdrop(accent: Color, playing: Boolean): Modifier {
+    val context = LocalContext.current
+    val motion = remember {
+        android.provider.Settings.Global.getFloat(
+            context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f
+        ) > 0f
+    }
+    val partner = remember(accent) {
+        val hsv = FloatArray(3)
+        android.graphics.Color.colorToHSV(accent.toArgb(), hsv)
+        hsv[0] = (hsv[0] + 48f) % 360f
+        Color(android.graphics.Color.HSVToColor(hsv))
+    }
+    val phase = remember { Animatable(0f) }
+    LaunchedEffect(playing, motion) {
+        if (!playing || !motion) return@LaunchedEffect
+        while (true) phase.animateTo(phase.value + 2f * PI.toFloat(), tween(BACKDROP_CYCLE_MS, easing = LinearEasing))
+    }
+    val energy by animateFloatAsState(if (playing) 1f else 0f, tween(1_200), label = "backdropEnergy")
+
+    return drawBehind {
+        val w = size.width
+        val h = size.height
+        if (w <= 0f || h <= 0f) return@drawBehind
+        val a = phase.value
+        val glow = 0.16f + 0.10f * energy
+        fun glowAt(x: Float, y: Float, radius: Float, color: Color) = drawCircle(
+            brush = Brush.radialGradient(listOf(color, Color.Transparent), center = Offset(x, y), radius = radius),
+            radius = radius,
+            center = Offset(x, y)
+        )
+        glowAt(w * (0.28f + 0.14f * cos(a)), h * (0.16f + 0.05f * sin(a)), w * 0.95f, accent.copy(alpha = glow))
+        glowAt(
+            w * (0.78f + 0.12f * sin(a * 0.7f + 1f)),
+            h * (0.40f + 0.07f * cos(a * 1.3f)),
+            w * 0.8f,
+            partner.copy(alpha = glow * 0.75f)
+        )
+    }
+}
+
+private const val BACKDROP_CYCLE_MS = 18_000
