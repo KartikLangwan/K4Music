@@ -26,3 +26,9 @@ jniLibs/
 *.apk.sha256
 *.log
 downloads/
+
+# Windows desktop build
+windows/downloads/
+windows/build/
+windows/.gradle/
+windows/.kotlin/
