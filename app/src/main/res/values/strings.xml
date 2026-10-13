@@ -267,6 +267,14 @@
     <string name="show_logs">View debug logs</string>
     <string name="logs">Logs</string>
     <string name="show_troubleshoot_section">Show troubleshoot section</string>
+    <string name="smart_fallback">Smart fallback</string>
+    <string name="smart_fallback_description">If YouTube cannot play a song, play the same song from JioSaavn instead of stopping</string>
+    <string name="settings_section_sound">Sound &amp; playback</string>
+    <string name="settings_section_look">Look &amp; feel</string>
+    <string name="settings_section_library">Library &amp; storage</string>
+    <string name="settings_section_more">More</string>
+    <string name="settings_fallback_on">Smart fallback on</string>
+    <string name="settings_fallback_off">Smart fallback off</string>
     <string name="persistent_queue">Persistent queue</string>
     <string name="persistent_queue_description">Save and restore playing songs</string>
     <string name="resume_playback">Resume playback</string>
@@ -354,10 +362,6 @@
     <string name="daily">Daily</string>
     <string name="weekly">Weekly</string>
     <string name="version_check">Automatically check for updates</string>
-    <string name="skip_on_error">Autoskip</string>
-    <string name="skip_on_error_description">Skips the current song when there is an error</string>
-    <string name="skip_on_error_notification">Skipped %s because of an error</string>
-    <string name="skip_on_error_notification_unknown_song">Skipped the current song because of an error</string>
     <string name="reverb_small_room">Small room</string>
     <string name="reverb_medium_room">Medium room</string>
     <string name="reverb_large_room">Large room</string>

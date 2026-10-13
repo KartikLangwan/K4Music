@@ -55,11 +55,13 @@ class RangeHandlerDataSourceFactory(private val parent: DataSource.Factory) : Da
 
 class CatchingDataSourceFactory(
     private val parent: DataSource.Factory,
-    private val onError: ((Throwable) -> Unit)?
+    private val onError: ((Throwable, DataSpec?) -> Unit)?
 ) : DataSource.Factory {
     inner class Source(private val parent: DataSource) : DataSource by parent {
+        private var spec: DataSpec? = null
+
         private fun report(ex: Exception): Nothing {
-            onError?.invoke(ex)
+            onError?.invoke(ex, spec)
             // Preserve I/O errors so Media3 can apply its network retry policy.
             if (ex is IOException || ex is PlaybackException) throw ex
             throw PlaybackException(
@@ -69,7 +71,10 @@ class CatchingDataSourceFactory(
             )
         }
 
-        override fun open(dataSpec: DataSpec): Long = try { parent.open(dataSpec) } catch (ex: Exception) { report(ex) }
+        override fun open(dataSpec: DataSpec): Long {
+            spec = dataSpec
+            return try { parent.open(dataSpec) } catch (ex: Exception) { report(ex) }
+        }
         override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
             try { parent.read(buffer, offset, length) } catch (ex: Exception) { report(ex) }
 
@@ -81,7 +86,7 @@ class CatchingDataSourceFactory(
 
 fun DataSource.Factory.handleRangeErrors(): DataSource.Factory = RangeHandlerDataSourceFactory(this)
 fun DataSource.Factory.handleUnknownErrors(
-    onError: ((Throwable) -> Unit)? = null
+    onError: ((Throwable, DataSpec?) -> Unit)? = null
 ): DataSource.Factory = CatchingDataSourceFactory(
     parent = this,
     onError = onError
@@ -163,7 +168,7 @@ class RetryingDataSourceFactory(
                         /* tr = */ ex
                     )
                     if (predicate(ex) && retries + 1 < maxRetries) {
-                        val time = if (exponential) 1000L * 2.0.pow(retries).toLong() else 2500L
+                        val time = if (exponential) 150L * 2.0.pow(retries).toLong() else 300L
                         Log.d(TAG, "Retry policy accepted retry, sleeping for $time milliseconds")
                         Thread.sleep(time)
                         retries++

@@ -18,7 +18,7 @@ class DataSourceRecoveryTest {
     }
     @Test fun `stream read errors invalidate resolution without hiding network exception`() {
         var reported: Throwable? = null
-        val source = CatchingDataSourceFactory(DataSource.Factory { FailingSource() }) { reported = it }.createDataSource()
+        val source = CatchingDataSourceFactory(DataSource.Factory { FailingSource() }) { error, _ -> reported = error }.createDataSource()
         try { source.read(ByteArray(1), 0, 1); fail("Expected network error") } catch (error: IOException) {
             assertSame(error, reported)
             assertEquals("connection lost", error.message)

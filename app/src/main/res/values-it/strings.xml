@@ -398,10 +398,6 @@
     <string name="weekly">Settimanale</string>
     <string name="version_check">Controlla automaticamente gli aggiornamenti</string>
 
-    <string name="skip_on_error">Salto automatico</string>
-    <string name="skip_on_error_description">Salta la canzone corrente in caso di errore.</string>
-    <string name="skip_on_error_notification">Saltata %s a causa di un errore</string>
-    <string name="skip_on_error_notification_unknown_song">Saltata la canzone corrente a causa di un errore</string>
 
     <string name="reverb_small_room">Stanza piccola</string>
     <string name="reverb_medium_room">Stanza media</string>

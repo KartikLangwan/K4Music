@@ -10,6 +10,7 @@ import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.plugins.timeout
 import io.ktor.util.generateNonceSuspend
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
@@ -34,6 +35,8 @@ private suspend fun Innertube.tryContexts(
                 )
 
                 context.apply()
+                // Four clients are tried in turn; one stalled client must not eat a minute.
+                timeout { requestTimeoutMillis = 5_000L }
 
                 parameter("t", generateNonceSuspend(12))
                 header("X-Goog-Api-Format-Version", "2")
@@ -53,9 +56,10 @@ private suspend fun Innertube.tryContexts(
     return null
 }
 
+// A ciphered-only answer is useless here (deciphering is yt-dlp's job): keep trying clients.
 private val PlayerResponse.isValid
     get() = playabilityStatus?.status == "OK" &&
-        streamingData?.adaptiveFormats?.any { it.url != null || it.signatureCipher != null } == true
+        streamingData?.adaptiveFormats?.any { it.mimeType.startsWith("audio/") && !it.url.isNullOrBlank() } == true
 
 suspend fun Innertube.player(
     body: PlayerBody,

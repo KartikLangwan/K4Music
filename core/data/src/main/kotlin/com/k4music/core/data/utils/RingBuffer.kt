@@ -56,5 +56,8 @@ class UriCache<Key : Any, Meta>(size: Int = 16, private val ttlMs: Long = 15 * 6
     }
 
     @Synchronized
+    fun remove(key: Key) = entries.remove(key)
+
+    @Synchronized
     fun clear() = entries.clear()
 }

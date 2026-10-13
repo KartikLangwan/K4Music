@@ -263,6 +263,14 @@
     <string name="show_logs">डिबग लॉग देखें</string>
     <string name="logs">लॉग्स</string>
     <string name="show_troubleshoot_section">समस्या निवारण अनुभाग दिखाएँ</string>
+    <string name="smart_fallback">स्मार्ट फ़ॉलबैक</string>
+    <string name="smart_fallback_description">अगर YouTube कोई गाना नहीं चला पाता, तो रुकने के बजाय वही गाना JioSaavn से चलाएँ</string>
+    <string name="settings_section_sound">आवाज़ और प्लेबैक</string>
+    <string name="settings_section_look">लुक और फ़ील</string>
+    <string name="settings_section_library">लाइब्रेरी और स्टोरेज</string>
+    <string name="settings_section_more">और</string>
+    <string name="settings_fallback_on">स्मार्ट फ़ॉलबैक चालू</string>
+    <string name="settings_fallback_off">स्मार्ट फ़ॉलबैक बंद</string>
     <string name="persistent_queue">लगातार कतार</string>
     <string name="persistent_queue_description">चल रहे गानों को सहेजें और पुनर्स्थापित करें</string>
     <string name="resume_playback">प्लेबैक वापस चालू करें</string>
@@ -345,10 +353,6 @@
     <string name="daily">रोज़ाना</string>
     <string name="weekly">साप्ताहिक</string>
     <string name="version_check">अद्यतन के लिए स्वचालित रूप से जाँच करें</string>
-    <string name="skip_on_error">स्वचालित छोड़ें</string>
-    <string name="skip_on_error_description">जब कोई दोष होता है तो वर्तमान गीत को छोड़ देता है।</string>
-    <string name="skip_on_error_notification">दोष के कारण %s छोड़ा गया</string>
-    <string name="skip_on_error_notification_unknown_song">किसी दोष के कारण वर्तमान गीत को छोड़ दिया गया</string>
     <string name="reverb_small_room">छोटा कमरा</string>
     <string name="reverb_medium_room">मध्यम कमरा</string>
     <string name="reverb_large_room">बड़ा कमरा</string>

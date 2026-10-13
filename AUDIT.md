@@ -4,6 +4,47 @@ Creator: **Kartik Langwan**
 Instagram: **K4RTIK.nvm** — https://www.instagram.com/K4RTIK.nvm/  
 Website: https://kartiklangwan.vercel.app
 
+## v2.12.14 — playback reliability, faster start, living player (13 October 2026)
+
+Version name `2.12.14`, version code `2121400`.
+
+### Playback errors
+
+| Defect | Fix |
+| --- | --- |
+| Any stream error (even a dropped socket) wiped the stream-url cache of **every** song, so the next 512 KB chunk re-resolved mid-song (often through yt-dlp) and stalled. | Only an HTTP refusal invalidates a url, and only that song's (`UriCache.remove`). |
+| A ciphered-only Innertube answer counted as valid, ending the client search early; each of the four clients could take 15 s. | Valid = has a directly playable audio url; 5 s per client. |
+| yt-dlp had no deadline. | 15 s deadline; past it the song goes to the fallback. |
+| Errors ended playback or (with Autoskip) skipped the song. | **Autoskip removed.** Recovery in `chooseRecovery`: a lost connection retries the same source (300 ms); a broken source switches to the **same song on JioSaavn** (title + artist/duration match), then plain retries. The song is never skipped. |
+| Fallback switches could mix bytes from two sources under one cache key. | The old cached bytes are purged first, and the YouTube-id → JioSaavn mapping is persisted (`StreamFallback`) so later plays go straight to the working source. |
+| JioSaavn: three sequential 8 s CDN probes; an unrecognised url name failed outright. | 3 s probes; the url itself is used when its name has no quality suffix. |
+| Retry waits of 1–2 s. | 150–300 ms. |
+| The error card flashed during automatic recovery. | Shown only if a failure outlives 1.2 s. |
+
+### Start-up
+
+- The restored queue is no longer prepared at launch (that resolved a stream, sometimes starting Python, while Home loaded). It prepares on the first play from any entry point (`onPlayWhenReadyChanged`).
+- yt-dlp is imported in the background 8 s after the service starts, so the first fallback stream does not pay Python's start-up.
+- Home "For you" no longer recomputes (and re-fetches the popular shelf) on every play-time tick.
+
+### UI
+
+- Settings home redesigned: a hero card (app, version, live Smart-fallback status that opens Player settings) and grouped sections — Sound & playback, Look & feel, Library & storage, More.
+- New **Smart fallback** switch (Settings → Player, on by default). Off = YouTube only; turning it off also forgets saved JioSaavn copies and their cached audio, so no source mixing.
+- Full player: a "living backdrop" — two soft glows in the song's accent colour (and a hue-shifted partner) that drift while music plays and settle when paused. Draw-phase only; frozen when system animations are off.
+
+### Compatibility note
+
+Python 3.13+ (used by Chaquopy for yt-dlp) ships 64-bit Android builds only, so the APK targets `arm64-v8a` and `x86_64`. 32-bit `armeabi-v7a` phones would need Python 3.12 and a rebuild of the runtime.
+
+### Validation
+
+- Unit tests: 105 run, 0 failures (2 live-network tests skipped), including new recovery-sequence tests.
+- Release build (R8, resource shrinking, lint-vital): passed. `K4Music-v2.12.14-RELEASE.apk`, version code 2121400, 36,407,890 bytes, arm64-v8a + x86_64, minSdk 24 / targetSdk 37.
+- SHA256: `45D0CD5C5147690CDD483DC4F044EC9265FA10082F9422E09B4CE76995C18C85`.
+- Full `lintDebug` did not finish within an hour on this machine and was stopped; the release build's lint-vital (fatal checks) passed.
+- Not yet verified on a device: the JioSaavn switch and the backdrop need a phone run.
+
 ## Playlist import (Spotify + YouTube Music)
 
 `Playlists -> Import` takes a Spotify or YouTube Music playlist link, shows progress, saves one playlist in a single database transaction and reports `Imported X / Total Y` with duplicates, failures and shortfalls named. Code: `app/.../playlistimport/`; each provider implements `PlaylistSource`.
