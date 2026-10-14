@@ -236,13 +236,25 @@ fun ArtistScreen(browseId: String) {
         when {
             artist != null -> {
                 CollectionHeader(artist.name.orEmpty(), artist.subscribersCountText, artist.thumbnail?.size(544), circle = true, description = artist.description) {
-                    // Android's artist Shuffle / Radio: YouTube Music's mixes for the artist, not just the top 5.
+                    // Play: the artist's songs in YouTube Music's order (the full Songs list when it loads,
+                    // else the top songs), autoplay continuing after. Shuffle / Radio: YouTube Music's mixes.
                     val player = LocalPlayer.current
                     val shuffle = artist.shuffleEndpoint
                     val radio = artist.radioEndpoint
                     if (shuffle != null || radio != null) {
+                        K4Button(enabled = songs.isNotEmpty(), onClick = {
+                            scope.launch {
+                                val all = artist.songsEndpoint?.browseId?.let { id ->
+                                    runCatching {
+                                        Innertube.playlistPage(BrowseBody(browseId = id, params = artist.songsEndpoint?.params))
+                                            ?.getOrNull()?.songsPage?.items.orEmpty().mapNotNull { it.toTrack() }
+                                    }.getOrNull()
+                                }
+                                player.play(all?.takeIf { it.isNotEmpty() } ?: songs, 0)
+                            }
+                        }) { Text(stringResource(Res.string.play)) }
                         shuffle?.let { e ->
-                            K4Button(onClick = { player.playRadio(RadioSeed(e.videoId, e.playlistId, e.params, e.playlistSetVideoId)) }) {
+                            FilledTonalButton(onClick = { player.playRadio(RadioSeed(e.videoId, e.playlistId, e.params, e.playlistSetVideoId)) }) {
                                 Text(stringResource(Res.string.shuffle))
                             }
                         }

@@ -89,9 +89,18 @@ class StreamResolver {
                 ?: throw UnplayableException("JioSaavn stream unavailable")
             fallbackOn && StreamFallback.url(track.id) != null ->
                 Stream(StreamFallback.url(track.id)!!, StreamSource.Saavn)
-            else -> (if (fallbackOn) youtubeOrQuickFallback(track) else ytDlp(track.id))
-                ?: (if (fallbackOn) saavnFallback(track) else null)
-                ?: throw UnplayableException("No playable stream")
+            else -> {
+                val youtube = when {
+                    youtubeBlocked() -> null // don't keep knocking while YouTube is blocking this network
+                    fallbackOn -> youtubeOrQuickFallback(track)
+                    else -> ytDlp(track.id)
+                }
+                // A blocked network is not this song's fault: play JioSaavn for now, YouTube again later.
+                val blocked = youtubeBlocked()
+                youtube
+                    ?: (if (fallbackOn) saavnFallback(track, remember = !blocked)?.let { if (blocked) it.copy(temporary = true) else it } else null)
+                    ?: throw UnplayableException(if (blocked) "YouTube is blocking this network for now" else "No playable stream")
+            }
         }
         if (!stream.temporary) cache[track.id] = Cached(stream, System.currentTimeMillis())
         stream
@@ -130,18 +139,24 @@ class StreamResolver {
             // yt-dlp unpacks itself into TEMP; keep that inside K4 Music's own folder.
             environment()["TEMP"] = temp.absolutePath
             environment()["TMP"] = temp.absolutePath
-            redirectError(ProcessBuilder.Redirect.DISCARD)
         }.start()
         try {
             val output = StringBuilder()
+            val errors = StringBuilder()
             val reader = Thread { output.append(process.inputStream.bufferedReader().readText()) }.apply { start() }
+            val errorReader = Thread { errors.append(process.errorStream.bufferedReader().readText().takeLast(2_000)) }.apply { start() }
             if (!process.waitFor(YT_DLP_TIMEOUT_S, TimeUnit.SECONDS)) {
                 AppLog.w(TAG, "yt-dlp timed out for $videoId")
                 return@runInterruptible null
             }
             reader.join(2_000)
+            errorReader.join(1_000)
             val info = runCatching { json.decodeFromString(YtDlpInfo.serializer(), output.toString()) }
-                .onFailure { AppLog.w(TAG, "yt-dlp gave no usable answer for $videoId (exit ${process.exitValue()})") }
+                .onFailure {
+                    val error = errors.lines().lastOrNull { it.startsWith("ERROR") }.orEmpty().take(200)
+                    AppLog.w(TAG, "yt-dlp gave no usable answer for $videoId (exit ${process.exitValue()}): $error")
+                    if (BLOCKED_SIGNS.any { it in error }) onYoutubeBlocked()
+                }
                 .getOrNull() ?: return@runInterruptible null
             if (info.id != videoId) return@runInterruptible null
             val url = info.url?.takeIf { it.isNotBlank() }
@@ -150,6 +165,24 @@ class StreamResolver {
             Stream(url, StreamSource.YtDlp, info.httpHeaders)
         } finally {
             if (process.isAlive) process.destroyForcibly()
+        }
+    }
+
+    /**
+     * YouTube sometimes refuses every request from a network for a while ("Sign in to confirm you're
+     * not a bot", HTTP 429). Then yt-dlp rests for [BLOCK_PAUSE_MS] and songs play from JioSaavn
+     * without being pinned to it.
+     */
+    @Volatile private var blockedUntil = 0L
+    /** Called (from a background thread) when YouTube starts blocking this network. */
+    var onBlocked: () -> Unit = {}
+    private fun youtubeBlocked() = System.currentTimeMillis() < blockedUntil
+    private fun onYoutubeBlocked() {
+        val wasBlocked = youtubeBlocked()
+        blockedUntil = System.currentTimeMillis() + BLOCK_PAUSE_MS
+        if (!wasBlocked) {
+            AppLog.w(TAG, "YouTube is blocking this network; JioSaavn for the next ${BLOCK_PAUSE_MS / 60_000} minutes")
+            onBlocked()
         }
     }
 
@@ -184,6 +217,9 @@ class StreamResolver {
         const val TTL_MS = 15 * 60 * 1000L
         const val SLOW_YOUTUBE_MS = 10_000L
         const val YT_DLP_TIMEOUT_S = 15L
+        const val BLOCK_PAUSE_MS = 10 * 60 * 1000L
+        /** yt-dlp errors that mean "YouTube is refusing this network", not "this song is unavailable". */
+        val BLOCKED_SIGNS = listOf("not a bot", "HTTP Error 429", "LOGIN_REQUIRED", "page needs to be reloaded")
         val json = Json { ignoreUnknownKeys = true; isLenient = true }
     }
 }

@@ -27,7 +27,8 @@ object Updater {
 
     /** The newest release if it is newer than this app; null when up to date. Throws when offline. */
     suspend fun check(): Update? = withContext(Dispatchers.IO) {
-        val releases = GitHub.releases(owner = "KartikLangwan", repo = "K4Music")?.getOrThrow().orEmpty()
+        // The public releases repo (the source repo is private, so its releases are not downloadable).
+        val releases = GitHub.releases(owner = "KartikLangwan", repo = "K4Music-releases")?.getOrThrow().orEmpty()
         val latest = releases.filter { !it.draft && !it.preRelease }
             .maxWithOrNull { a, b -> compareVersions(a.tag.trimStart('v', 'V'), b.tag.trimStart('v', 'V')) }
             ?: return@withContext null

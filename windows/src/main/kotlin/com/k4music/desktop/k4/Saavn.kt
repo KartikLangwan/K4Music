@@ -50,8 +50,12 @@ suspend fun findSaavnStream(title: String, artist: String, durationMs: Long?, qu
  */
 object StreamFallback {
     private const val LIMIT = 1000
-    private val file get() = AppPaths.data.resolve("stream-fallback.properties")
-    private val props by lazy { Properties().also { p -> runCatching { file.inputStream().use(p::load) } } }
+    // v2: v1 also pinned songs while YouTube was blocking the whole network; those pins are dropped.
+    private val file get() = AppPaths.data.resolve("stream-fallback-v2.properties")
+    private val props by lazy {
+        AppPaths.data.resolve("stream-fallback.properties").delete()
+        Properties().also { p -> runCatching { file.inputStream().use(p::load) } }
+    }
     private val forced = ConcurrentHashMap.newKeySet<String>()
 
     @Synchronized fun url(id: String): String? = props.getProperty(id)

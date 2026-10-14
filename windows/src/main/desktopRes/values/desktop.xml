@@ -96,6 +96,7 @@ Esc  Close player / go back</string>
     <string name="desktop_audio_output">Audio output</string>
     <string name="desktop_output_default">Windows default</string>
     <string name="desktop_output_default_hint">Follows the output chosen in Windows sound settings</string>
+    <string name="desktop_youtube_blocked">YouTube is limiting this network for a while. Songs play from JioSaavn until it lifts.</string>
     <string name="desktop_output_lost">That audio device is not available. Playing through the Windows default.</string>
     <string name="desktop_output_hint">Speakers, headphones and Bluetooth devices. Connect a device, then reopen this list.</string>
     <string name="desktop_refresh_devices">Refresh devices</string>

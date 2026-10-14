@@ -31,6 +31,7 @@ import com.k4music.desktop.prefs.ThemeMode
 import com.k4music.desktop.res.Res
 import com.k4music.desktop.res.app_name
 import com.k4music.desktop.res.desktop_output_lost
+import com.k4music.desktop.res.desktop_youtube_blocked
 import com.k4music.desktop.res.desktop_quit
 import com.k4music.desktop.res.desktop_show_window
 import com.k4music.desktop.res.k4_logo
@@ -81,6 +82,11 @@ fun main(args: Array<String>) {
     player.onAudioDeviceLost = {
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
             com.k4music.desktop.ui.AppDialogs.show(org.jetbrains.compose.resources.getString(com.k4music.desktop.res.Res.string.desktop_output_lost))
+        }
+    }
+    resolver.onBlocked = {
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
+            com.k4music.desktop.ui.AppDialogs.show(org.jetbrains.compose.resources.getString(com.k4music.desktop.res.Res.string.desktop_youtube_blocked))
         }
     }
     devMode(args, player)
