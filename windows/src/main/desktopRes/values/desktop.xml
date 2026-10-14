@@ -108,5 +108,5 @@ Esc  Close player / go back</string>
     <string name="desktop_update_website">Open website</string>
     <string name="desktop_update_error">Could not update. Try again, or get it from the website.</string>
     <string name="desktop_discord">Show on Discord</string>
-    <string name="desktop_discord_hint">Shows the song you are listening to on your Discord profile (needs the Discord desktop app)</string>
+    <string name="desktop_discord_hint">Shows K4 Music and the song you are playing on your Discord profile and in voice channels (needs the Discord desktop app)</string>
 </resources>

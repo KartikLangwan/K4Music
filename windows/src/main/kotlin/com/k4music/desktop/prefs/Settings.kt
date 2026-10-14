@@ -122,7 +122,7 @@ object Settings : SettingsStore({ AppPaths.settings }) {
     var muted by boolean(false)
     /** Sound output: "auto" follows the Windows default, else mpv's device id (speakers, Bluetooth…). */
     var audioDevice by string("auto")
-    /** "Listening to K4 Music" on Discord (see DiscordPresence). */
+    /** "Playing K4 Music" on Discord (see DiscordPresence). */
     var discordPresence by boolean(true)
     /** Daily update check: when it last ran, and the version already offered (asked once). */
     var updateCheckedAt by long(0L)

@@ -21,9 +21,9 @@ import java.nio.ByteOrder
 import java.util.UUID
 
 /**
- * "Listening to K4 Music" on the user's Discord profile: song, artist, cover, a time bar and a
- * link to the song. Talks to the Discord desktop app over its local IPC pipe (no account, no
- * token, nothing leaves the PC except to Discord itself). Paused or stopped: the status clears.
+ * "Playing K4 Music" on the user's Discord profile: song, artist, cover, a time bar and two
+ * links. Talks to the Discord desktop app over its local IPC pipe (no account, no
+ * token, nothing leaves the PC except to Discord itself). Shown until the app quits.
  */
 object DiscordPresence {
     /**
@@ -52,17 +52,24 @@ object DiscordPresence {
         }
     }
 
-    /** Sends the current song when it changed (or was seeked); Discord allows ~5 updates per 20 s. */
+    /** Sends the status when it changed (song, play / pause, a seek); Discord allows ~5 updates per 20 s. */
     private fun update(player: PlayerController) {
         val state = player.state.value
-        val track = state.current?.takeIf { state.playing && Settings.discordPresence }
+        val track = state.current
+        val playing = track != null && state.playing
         // Start time moves with seeks; round it so normal playback does not count as a change.
-        val start = track?.let { System.currentTimeMillis() - (player.position.value * 1000).toLong() }
-        val key = track?.let { "${it.id}|${(start ?: 0) / 4_000}" } ?: "none"
+        val start = System.currentTimeMillis() - (player.position.value * 1000).toLong()
+        val key = when {
+            !Settings.discordPresence -> "off"
+            track == null -> "idle"
+            playing -> "play|${track.id}|${start / 4_000}"
+            else -> "pause|${track.id}"
+        }
         if (key == sent) return
+        if (key == "off" && pipe == null) { sent = key; return } // nothing shown, nothing to clear
         if (System.currentTimeMillis() - sentAt < 4_000) return
         val p = pipe ?: connect() ?: return
-        val activity = track?.let { activity(it, start!!, state.durationSeconds) }
+        val activity = if (key == "off") null else activity(track, playing, start, state.durationSeconds)
         val payload = buildJsonObject {
             put("cmd", "SET_ACTIVITY")
             put("nonce", UUID.randomUUID().toString())
@@ -81,20 +88,32 @@ object DiscordPresence {
         sentAt = System.currentTimeMillis()
     }
 
-    private fun activity(track: Track, start: Long, durationSeconds: Double): JsonObject = buildJsonObject {
-        put("type", 2) // "Listening to"
-        put("details", fit(track.title))
-        put("state", fit(track.artists ?: "K4 Music"))
-        if (durationSeconds > 0) putJsonObject("timestamps") {
-            put("start", start)
-            put("end", start + (durationSeconds * 1000).toLong())
+    /**
+     * "Playing K4 Music" for as long as the app runs (window, tray, paused or not). Only the
+     * "Playing" type puts K4 Music's icon next to the name in voice channels; "Listening to" does not.
+     */
+    private fun activity(track: Track?, playing: Boolean, start: Long, durationSeconds: Double): JsonObject = buildJsonObject {
+        put("type", 0)
+        if (track == null) {
+            put("details", "Browsing music")
+            put("state", "Your music. Every screen.")
+        } else {
+            put("details", fit(track.title))
+            val artists = track.artists ?: "K4 Music"
+            put("state", fit(if (playing) artists else "Paused · $artists"))
+            if (playing && durationSeconds > 0) putJsonObject("timestamps") {
+                put("start", start)
+                put("end", start + (durationSeconds * 1000).toLong())
+            }
         }
         putJsonObject("assets") {
-            val cover = track.thumbnailUrl?.takeIf { it.startsWith("https://") && it.length <= 256 }
+            val cover = track?.thumbnailUrl?.takeIf { it.startsWith("https://") && it.length <= 256 }
             put("large_image", cover ?: LOGO)
-            put("large_text", fit(track.album ?: track.title))
-            put("small_image", LOGO)
-            put("small_text", "K4 Music")
+            put("large_text", fit(track?.album ?: track?.title ?: "K4 Music"))
+            if (cover != null) {
+                put("small_image", LOGO)
+                put("small_text", if (playing) "K4 Music" else "Paused")
+            }
         }
         // Discord allows two: the app's website and the developer's.
         putJsonArray("buttons") {
