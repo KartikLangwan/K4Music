@@ -1,43 +1,46 @@
 <div align="center">
     <img src="./app/src/main/ic_launcher-playstore.png" width="128" height="128" alt="K4 Music icon"/>
     <h1>K4 Music</h1>
-    <p><b>Clean. Fast. Yours.</b><br/>A free, ad-free music player for Android by Kartik Langwan</p>
+    <p><b>Your music. Every screen.</b><br/>A free, ad-free music player for Android and Windows by Kartik Langwan</p>
 
-<a href="https://github.com/KartikLangwan/K4Music/releases/download/v2.12.14/K4Music-v2.12.14-RELEASE.apk"><img src="https://img.shields.io/badge/Download%20APK-v2.12.14-7C4DFF?style=for-the-badge&logo=android&logoColor=white" alt="Download APK v2.12.14"/></a>
-<a href="https://github.com/KartikLangwan/K4Music/releases"><img src="https://img.shields.io/badge/All%20releases-555?style=for-the-badge&logo=github" alt="All releases"/></a>
+<a href="https://k4music.vercel.app/download"><img src="https://img.shields.io/badge/Android-Download%20APK-7C4DFF?style=for-the-badge&logo=android&logoColor=white" alt="Download for Android"/></a>
+<a href="https://k4music.vercel.app/download/windows"><img src="https://img.shields.io/badge/Windows-Download%20installer-7C4DFF?style=for-the-badge&logo=windows&logoColor=white" alt="Download for Windows"/></a>
+<a href="https://github.com/KartikLangwan/K4Music-releases/releases"><img src="https://img.shields.io/badge/All%20releases-555?style=for-the-badge&logo=github" alt="All releases"/></a>
 
 <p>
 <img src="https://img.shields.io/badge/Android-7.0%2B-3DDC84?logo=android&logoColor=white" alt="Android 7.0+"/>
-<img src="https://img.shields.io/badge/ABI-arm64--v8a%20%7C%20x86__64-informational" alt="ABIs"/>
-<img src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin, Jetpack Compose"/>
+<img src="https://img.shields.io/badge/Windows-10%20%7C%2011%20(64--bit)-0078D4?logo=windows&logoColor=white" alt="Windows 10 and 11"/>
+<img src="https://img.shields.io/badge/Kotlin-Compose-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin, Compose"/>
 <img src="https://img.shields.io/badge/ads-none-success" alt="No ads"/>
 </p>
 
-<p><a href="https://www.instagram.com/K4RTIK.nvm/">Instagram: K4RTIK.nvm</a> · <a href="https://kartiklangwan.vercel.app">kartiklangwan.vercel.app</a></p>
+<p><a href="https://k4music.vercel.app">k4music.vercel.app</a> · <a href="https://www.instagram.com/K4RTIK.nvm/">Instagram: K4RTIK.nvm</a> · <a href="https://kartiklangwan.vercel.app">kartiklangwan.vercel.app</a></p>
 </div>
 
 ---
 
 ## Download
 
-| | |
-| --- | --- |
-| **Latest** | [**K4Music-v2.12.14-RELEASE.apk**](https://github.com/KartikLangwan/K4Music/releases/download/v2.12.14/K4Music-v2.12.14-RELEASE.apk) |
-| **Checksum** | [SHA256](https://github.com/KartikLangwan/K4Music/releases/download/v2.12.14/K4Music-v2.12.14-RELEASE.apk.sha256) · `7CC80335AEB36B9B36E02760235D88761C9288FF28535FD9BBC07D9C44DA42BB` |
-| **Requires** | Android 7.0 (API 24) or newer, 64-bit phone (arm64-v8a) or x86_64 |
-| **Size** | about 35 MB |
+Public downloads live in [**K4Music-releases**](https://github.com/KartikLangwan/K4Music-releases/releases) (this source repository is private) and on [k4music.vercel.app](https://k4music.vercel.app).
 
-**Install:** download the APK on your phone, open it, and allow *Install unknown apps* for your browser or file manager when Android asks. Updating from an older K4 Music build signed with a different key? Uninstall that build first.
+| | Android | Windows |
+| --- | --- | --- |
+| **File** | [K4Music-v2.12.14-RELEASE.apk](https://github.com/KartikLangwan/K4Music-releases/releases/download/v2.12.14/K4Music-v2.12.14-RELEASE.apk) | [K4Music-Setup-2.12.14.exe](https://github.com/KartikLangwan/K4Music-releases/releases/download/v2.12.14/K4Music-Setup-2.12.14.exe) |
+| **Requires** | Android 7.0+, arm64-v8a or x86_64 | Windows 10 / 11, 64-bit |
+| **Size** | 34.9 MB | 116.3 MB |
+| **SHA-256** | `23499F16CBAC0C2A181D36964A9B631D185477E412E5507133777FCFB9650036` | `56386037CFBE3803A09B1F6A2A58EFAD209B7F62DDE40FD19FDADD0F7E410BE1` |
 
-> The repository is private, so the download links work for signed-in collaborators only.
+**Android:** open the APK on your phone and allow *Install unknown apps* for your browser when Android asks. Updating from a build signed with a different key? Uninstall that build first.
+
+**Windows:** run the installer (no admin rights needed). It isn't code-signed yet, so on *Windows protected your PC* click **More info → Run anyway**. Later updates: Settings → Check for updates → **Update now**, or run a newer installer; it closes K4 Music, updates it and keeps your library.
 
 ## What's new in 2.12.14
 
-- **Songs no longer stop on errors.** Auto-skip is gone. A failing stream is retried within milliseconds, and if YouTube cannot play a song, K4 Music plays **the same song from JioSaavn** instead. This is *Smart fallback* (Settings → Player, on by default).
-- **Fewer mid-song stalls.** One failing song no longer forces every other song to reload its stream.
-- **Faster start.** Your saved queue loads when you press play, not at launch, and the YouTube extractor warms up in the background.
-- **Living player.** A soft glow in the song's own colours drifts behind the artwork while music plays and rests when paused.
-- **New Settings home** with grouped sections, a status card and the FAQ.
+- **K4 Music for Windows.** The whole app on PC: glass panels over the song's colours, a vinyl full player, media keys and Bluetooth headphone buttons, taskbar controls, audio output switching (Bluetooth, headphones, speakers), a Discord status, autoplay radio, resizable panels, full screen and in-app updates.
+- **A new look on Android**, matching the PC: logo header, a soft violet glow behind every screen, round covers, a capsule mini player with a progress ring and the K4 gradient play buttons.
+- **Songs keep playing.** If YouTube can't serve a song, the same song plays from JioSaavn (*Smart fallback*). When YouTube is limiting the whole network for a while, K4 Music now waits it out instead of retrying every song.
+- **Faster:** quicker downloads, the next song preloaded, the saved queue loaded only when you press play.
+- **Double-tap the artwork** to seek 10 seconds back or forward.
 
 Every fix and how it was verified: [AUDIT.md](AUDIT.md).
 
@@ -55,6 +58,14 @@ Every fix and how it was verified: [AUDIT.md](AUDIT.md).
 - 🔗 Opens YouTube / YouTube Music links (`watch`, `playlist`, `channel`, …)
 - 🚫 No ads, no account needed, lightweight
 
+### On Windows
+
+- 🎧 Pick the audio output (Bluetooth, headphones, speakers), even mid-song
+- ⌨️ Media keys and Bluetooth headphone buttons work in the background; Previous / Play-Pause / Next under the taskbar thumbnail
+- 💬 Discord status: *Playing K4 Music* with the song and cover, and an icon next to your name in voice channels
+- 🪟 Resizable, hideable panels, navigation left or bottom, full screen (F11), system tray
+- 🔄 In-app updates from the public releases
+
 ## Build from source
 
 Needs JDK 21+ and the Android SDK.
@@ -62,6 +73,14 @@ Needs JDK 21+ and the Android SDK.
 ```
 gradlew :app:assembleRelease
 ```
+
+Windows app (Compose Desktop). Put the native tools in `windows/downloads/` first: `mpv/libmpv-2.dll`, `yt-dlp_win.zip`, `qjs-windows-x86_64.exe` and a portable Inno Setup in `innosetup/`. Then:
+
+```
+gradlew -p windows packageInstaller
+```
+
+The installer lands in `windows/build/installer/`.
 
 The APK lands in `app/build/outputs/apk/release/`. Local release builds use the debug signing key; configure a private release keystore before distributing publicly.
 
