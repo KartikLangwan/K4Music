@@ -300,9 +300,12 @@ private fun UpdateDialog(update: com.k4music.desktop.Updater.Update) {
                 failed = false
                 progress = 0f
                 scope.launch {
-                    runCatching { com.k4music.desktop.Updater.download(update) { progress = it } }
-                        .onSuccess { file -> starting = true; com.k4music.desktop.Updater.install(file) }
-                        .onFailure { com.k4music.desktop.AppLog.w("Updater", "Update download failed", it); failed = true }
+                    // Starting the installer can fail too (Windows Smart App Control blocks unsigned installers).
+                    runCatching {
+                        val file = com.k4music.desktop.Updater.download(update) { progress = it }
+                        starting = true
+                        com.k4music.desktop.Updater.install(file)
+                    }.onFailure { com.k4music.desktop.AppLog.w("Updater", "Update failed", it); starting = false; failed = true }
                 }
             }) { Text(stringResource(Res.string.desktop_update_now)) }
             else K4Button(onClick = {

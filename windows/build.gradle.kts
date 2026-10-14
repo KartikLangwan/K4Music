@@ -198,6 +198,32 @@ val bakeCdsArchive by tasks.registering(Exec::class) {
     environment("JAVA_TOOL_OPTIONS", "-Xshare:dump")
 }
 
+// Smart App Control blocks a Setup.exe that is not code-signed, while the app itself is allowed:
+// this updates the K4 Music installed on this PC by copying the build over it (settings, library
+// and the uninstaller stay). ponytail: per-user install folder only; signed installers make it unnecessary.
+val installLocal by tasks.registering {
+    description = "Updates the K4 Music installed on this PC straight from the build, without Setup.exe"
+    group = "distribution"
+    dependsOn(bakeCdsArchive)
+    val appImage = layout.buildDirectory.dir("compose/binaries/main/app/K4 Music").get().asFile
+    doLast {
+        val target = File(System.getenv("LOCALAPPDATA"), "Programs/K4 Music")
+        val exe = target.resolve("K4 Music.exe")
+        check(exe.isFile) { "K4 Music is not installed in $target: install it once with Setup first" }
+        fun running() = ProcessBuilder("tasklist", "/FI", "IMAGENAME eq K4 Music.exe", "/NH").start()
+            .inputStream.bufferedReader().readText().contains("K4 Music.exe")
+        if (running()) {
+            // Close it properly (it saves the queue); older builds without --quit get ended after 10 s.
+            ProcessBuilder(exe.absolutePath, "--quit").start()
+            repeat(40) { if (running()) Thread.sleep(250) }
+            if (running()) ProcessBuilder("taskkill", "/F", "/T", "/IM", "K4 Music.exe").start().waitFor()
+            Thread.sleep(1000)
+        }
+        appImage.copyRecursively(target, overwrite = true)
+        logger.lifecycle("Updated $target")
+    }
+}
+
 val packageInstaller by tasks.registering(Exec::class) {
     description = "Builds K4Music-Setup-$appVersion.exe (installer + uninstaller) with portable Inno Setup"
     group = "distribution"

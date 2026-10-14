@@ -106,7 +106,7 @@ Esc  Close player / go back</string>
     <string name="desktop_update_downloading">Downloading the update…</string>
     <string name="desktop_update_starting">Opening the installer. K4 Music will close and reopen by itself.</string>
     <string name="desktop_update_website">Open website</string>
-    <string name="desktop_update_error">Could not download the update. Try again, or get it from the website.</string>
+    <string name="desktop_update_error">Could not update. Try again, or get it from the website.</string>
     <string name="desktop_discord">Show on Discord</string>
     <string name="desktop_discord_hint">Shows the song you are listening to on your Discord profile (needs the Discord desktop app)</string>
 </resources>
