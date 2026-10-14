@@ -98,7 +98,7 @@ enum class RepeatMode { Off, All, One;
 enum class AudioQuality(val saavn: String, val youtubeItags: List<Int>) {
     DataSaver("96", listOf(250, 249, 139)),
     Balanced("160", listOf(140, 251)),
-    High("320", listOf(251, 140))
+    High("320", listOf(774, 251, 140)) // 774: 256 kbps Opus when YouTube offers it
 }
 
 enum class ThemeMode { System, Dark, Light }

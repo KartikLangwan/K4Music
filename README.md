@@ -28,7 +28,7 @@ Downloads are in this repository's [**Releases**](https://github.com/KartikLangw
 | **File** | [K4Music-v2.12.14-RELEASE.apk](https://github.com/KartikLangwan/K4Music/releases/download/v2.12.14/K4Music-v2.12.14-RELEASE.apk) | [K4Music-Setup-2.12.14.exe](https://github.com/KartikLangwan/K4Music/releases/download/v2.12.14/K4Music-Setup-2.12.14.exe) |
 | **Requires** | Android 7.0+, arm64-v8a or x86_64 | Windows 10 / 11, 64-bit |
 | **Size** | 34.9 MB | 116.3 MB |
-| **SHA-256** | `3CB8B0FCB01714D0C135C600B2EA95219A76C913E2FEB1817C4DF5FFD4F67E31` | `88AEB91B7EAF621E571F848EBC309675FB5F36723E8E5A727361721F276227B1` |
+| **SHA-256** | `F832E9EE6A5AD13BE0889D22F75650653088EB796742BB3C3DAF9C75CB2C012C` | `E8C6A7E0676121E5B75D5F502DCD4F37FE00BA1BFDF9874B37C1A6C2ECDE5C65` |
 
 **Android:** open the APK on your phone and allow *Install unknown apps* for your browser when Android asks. Updating from a build signed with a different key? Uninstall that build first.
 

@@ -58,6 +58,12 @@ object StreamFallback {
 
     fun url(id: String): String? = prefs.getString(id, null)
 
+    /**
+     * YouTube first, always: a song pinned to JioSaavn tries YouTube again a day later (pins
+     * from before this have no time and count as old).
+     */
+    fun isStale(id: String) = System.currentTimeMillis() - prefs.getLong("t:$id", 0L) > PIN_TTL_MS
+
     /** Next resolve of [id] skips YouTube and looks the song up on JioSaavn afresh. */
     fun force(id: String) {
         drop(id)
@@ -65,15 +71,17 @@ object StreamFallback {
     }
     fun isForced(id: String) = id in forced
 
-    fun drop(id: String) = prefs.edit().remove(id).apply()
+    fun drop(id: String) = prefs.edit().remove(id).remove("t:$id").apply()
 
     fun resolved(id: String, url: String?) {
         forced.remove(id)
         if (url == null) return
-        // ponytail: wholesale reset at 1000 entries; a dropped song just re-resolves via YouTube.
-        if (prefs.all.size >= 1000) prefs.edit().clear().apply()
-        prefs.edit().putString(id, url).apply()
+        // ponytail: wholesale reset at 1000 pins (2 keys each); a dropped song just re-resolves via YouTube.
+        if (prefs.all.size >= 2000) prefs.edit().clear().apply()
+        prefs.edit().putString(id, url).putLong("t:$id", System.currentTimeMillis()).apply()
     }
+
+    private const val PIN_TTL_MS = 24 * 60 * 60 * 1000L
 }
 
 /** Saavn search results with unplayable (blank) entries dropped. Never throws. */

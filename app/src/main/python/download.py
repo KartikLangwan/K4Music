@@ -2,9 +2,10 @@ import yt_dlp
 import json
 
 
-def download(quickjs_bin: str, video_id: str) -> str:
+# fmt: the itags of the chosen streaming quality, then any audio (same as the PC app).
+def download(quickjs_bin: str, video_id: str, fmt: str = "bestaudio/best") -> str:
     opts = {
-        "format": "bestaudio/best",
+        "format": fmt,
         "js_runtimes": {"quickjs": {"path": quickjs_bin}},
         "socket_timeout": 12,
         "retries": 2,

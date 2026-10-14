@@ -736,8 +736,8 @@ object Dependencies {
         module
     }
 
-    fun runDownload(id: String): String = module
-        .callAttr("download", quickjsPath.absolutePath, id)
+    fun runDownload(id: String, format: String = "bestaudio/best"): String = module
+        .callAttr("download", quickjsPath.absolutePath, id, format)
         .toString()
 
     fun upgradeYoutubeDl(packageName: String = "yt-dlp"): Boolean {

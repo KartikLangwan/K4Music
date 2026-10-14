@@ -105,7 +105,8 @@ object PlayerPreferences : GlobalPreferencesHolder() {
     ) {
         DataSaver("96", listOf(250, 249, 139), { stringResource(R.string.audio_quality_data_saver) }),
         Balanced("160", listOf(140, 251), { stringResource(R.string.audio_quality_balanced) }),
-        High("320", listOf(251, 140), { stringResource(R.string.audio_quality_high) })
+        // 774: 256 kbps Opus when YouTube offers it, then 160 kbps Opus, then 128 kbps AAC.
+        High("320", listOf(774, 251, 140), { stringResource(R.string.audio_quality_high) })
     }
 
     enum class SeekBarStyle(val displayName: @Composable () -> String) {

@@ -50,6 +50,7 @@ suspend fun findSaavnStream(title: String, artist: String, durationMs: Long?, qu
  */
 object StreamFallback {
     private const val LIMIT = 1000
+    private const val PIN_TTL_MS = 24 * 60 * 60 * 1000L
     // v2: v1 also pinned songs while YouTube was blocking the whole network; those pins are dropped.
     private val file get() = AppPaths.data.resolve("stream-fallback-v2.properties")
     private val props by lazy {
@@ -58,8 +59,14 @@ object StreamFallback {
     }
     private val forced = ConcurrentHashMap.newKeySet<String>()
 
-    @Synchronized fun url(id: String): String? = props.getProperty(id)
-    @Synchronized fun drop(id: String) { if (props.remove(id) != null) save() }
+    /** YouTube first, always: a pin older than a day is dropped so the song tries YouTube again. */
+    @Synchronized fun url(id: String): String? {
+        val url = props.getProperty(id) ?: return null
+        val at = props.getProperty("t.$id")?.toLongOrNull() ?: 0L
+        if (System.currentTimeMillis() - at > PIN_TTL_MS) { drop(id); return null }
+        return url
+    }
+    @Synchronized fun drop(id: String) { if (props.remove(id) != null) { props.remove("t.$id"); save() } }
 
     /** Next resolve of [id] skips YouTube and looks the song up on JioSaavn afresh. */
     fun force(id: String) {
@@ -73,8 +80,9 @@ object StreamFallback {
         forced.remove(id)
         if (url == null) return
         // ponytail: wholesale reset at LIMIT entries; a dropped song just re-resolves via YouTube.
-        if (props.size >= LIMIT) props.clear()
+        if (props.size >= LIMIT * 2) props.clear()
         props.setProperty(id, url)
+        props.setProperty("t.$id", System.currentTimeMillis().toString())
         save()
     }
 

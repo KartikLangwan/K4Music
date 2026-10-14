@@ -212,7 +212,7 @@ class PrecacheService : DownloadService(
             ),
             /* executor = */ executor
         ).apply {
-            maxParallelDownloads = 3
+            maxParallelDownloads = 4
             minRetryCount = 3
             requirements = Requirements(Requirements.NETWORK)
 

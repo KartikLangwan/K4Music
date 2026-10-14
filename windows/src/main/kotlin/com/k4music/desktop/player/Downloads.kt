@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit
  * fallbacks), writes to `<id>.part` and renames on success; a broken download never shows as done.
  */
 object Downloads {
-    private const val PARALLEL = 3
+    private const val PARALLEL = 4
     private val dir get() = AppPaths.downloads
     private val indexFile get() = dir.resolve("downloads.properties")
     private val index by lazy { Properties().also { p -> runCatching { indexFile.inputStream().use(p::load) } } }
@@ -83,7 +83,12 @@ object Downloads {
     private suspend fun fetch(track: Track) {
         Db.library.insert(track)
         val stream = resolver.resolve(track)
-        val request = Request.Builder().url(stream.url).apply { stream.headers.forEach { (k, v) -> header(k, v) } }.build()
+        val request = Request.Builder().url(stream.url).apply {
+            stream.headers.forEach { (k, v) -> header(k, v) }
+            // YouTube throttles a request without a Range header to ~30 KB/s; an open range comes at
+            // full speed (measured: 31 KB/s vs 14.8 MB/s).
+            if (stream.url.contains("googlevideo.com")) header("Range", "bytes=0-")
+        }.build()
         http.newCall(request).execute().use { response ->
             check(response.isSuccessful) { "HTTP ${response.code}" }
             val body = response.body ?: error("Empty response")

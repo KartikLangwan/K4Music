@@ -1483,8 +1483,12 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
             }
 
             val fallbackOn = PlayerPreferences.smartFallback
-            if (!fallbackOn && StreamFallback.url(mediaId) != null) {
-                // Fallback turned off: forget the JioSaavn copy and its cached bytes, back to YouTube.
+            if (StreamFallback.url(mediaId) != null &&
+                (!fallbackOn || (dataSpec.position == 0L && StreamFallback.isStale(mediaId)))
+            ) {
+                // Fallback turned off, or the pin is a day old (YouTube first, always): forget the
+                // JioSaavn copy and its cached bytes, back to YouTube. Only at the start of a song,
+                // so one playback never mixes two sources.
                 StreamFallback.drop(mediaId)
                 uriCache.remove(mediaId)
                 runCatching { cache.removeResource(mediaId) }
@@ -1546,7 +1550,9 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                         // yt-dlp can hang on a slow network; past the deadline JioSaavn takes over.
                         // While YouTube is blocking this network ("confirm you're not a bot", 429) it rests.
                         val info = if (youtubeBlocked()) null else runCatching {
-                            val job = ytDlpScope.async { Dependencies.runDownload(mediaId) }
+                            // The chosen streaming quality's itags first, so YouTube songs keep one steady quality.
+                            val format = (PlayerPreferences.audioQuality.youtubeItags.map { it.toString() } + "bestaudio" + "best").joinToString("/")
+                            val job = ytDlpScope.async { Dependencies.runDownload(mediaId, format) }
                             runBlocking { withTimeoutOrNull(YT_DLP_TIMEOUT_MS) { job.await() } }
                                 ?: error("yt-dlp timed out for $mediaId")
                         }.mapCatching {
