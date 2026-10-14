@@ -1,0 +1,421 @@
+package com.k4music.desktop.player
+
+import com.k4music.desktop.AppLog
+import com.k4music.desktop.k4.StreamFallback
+import com.k4music.desktop.prefs.RepeatMode
+import com.k4music.desktop.prefs.Settings
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import com.k4music.providers.sponsorblock.requests.segments
+import java.io.IOException
+import java.net.InetSocketAddress
+import java.net.Socket
+
+/** What the UI shows about playback. Position lives in its own flow so ticks redraw only the seek bar. */
+data class PlayerState(
+    /** Wall-clock time (ms) when playback pauses for the sleep timer, or null. */
+    val sleepAt: Long? = null,
+    val queue: List<Track> = emptyList(),
+    val index: Int = -1,
+    val playing: Boolean = false,
+    val buffering: Boolean = false,
+    val durationSeconds: Double = 0.0,
+    val error: String? = null,
+    val source: StreamSource? = null
+) {
+    val current get() = queue.getOrNull(index)
+    val hasNext get() = index + 1 < queue.size
+}
+
+/**
+ * The single owner of playback. Every change runs on one serial dispatcher, so queue edits,
+ * loads and mpv events never race. Failures follow [chooseRecovery]: retry or switch source,
+ * never skip.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+class PlayerController(private val mpv: Mpv, private val resolver: StreamResolver = StreamResolver()) {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default.limitedParallelism(1))
+    private val _state = MutableStateFlow(PlayerState())
+    val state: StateFlow<PlayerState> = _state.asStateFlow()
+    private val _position = MutableStateFlow(0.0)
+    val position: StateFlow<Double> = _position.asStateFlow()
+
+    /** Insertion order before shuffling, by track id, so turning shuffle off restores it. */
+    private var unshuffled: List<Track>? = null
+    private var loadJob: Job? = null
+    @Volatile private var currentStream: Stream? = null
+    @Volatile private var skipSegments: List<Pair<Double, Double>> = emptyList()
+    private var sleepJob: Job? = null
+    private val retries = PlaybackRetryBudget()
+    private val fallbacks = PlaybackRetryBudget(limit = 1)
+    // Listening time of the current song: only forward steps under 1.5 s count (seeks do not).
+    @Volatile private var listenedTrack: Track? = null
+    @Volatile private var listenedMs = 0L
+    @Volatile private var lastPosition = 0.0
+
+    /** Called when the queue changes (for persistence) and when a song starts (for history). */
+    var onQueueChanged: (List<Track>, Int, Double) -> Unit = { _, _, _ -> }
+    var onTrackStarted: (Track) -> Unit = {}
+    /** A song stopped being current after [Long] ms of real listening (history, play time). */
+    var onPlayed: (Track, Long) -> Unit = { _, _ -> }
+    /** Asked for more songs when the queue runs out with repeat off (radio). */
+    var onQueueEnding: suspend (Track) -> List<Track> = { emptyList() }
+
+    init {
+        // Volume 0 while not muted is almost always an accident and makes the app seem broken.
+        if (Settings.volume == 0 && !Settings.muted) Settings.volume = 50
+        mpv.setVolume(Settings.volume)
+        mpv.setMuted(Settings.muted)
+        applyEffects()
+        mpv.setListener(object : Mpv.Listener {
+            override fun onPosition(seconds: Double) {
+                if (currentStream == null) return // a late tick from the song being replaced
+                // SponsorBlock: jump over a non-music segment the moment playback enters it.
+                skipSegments.firstOrNull { seconds >= it.first && seconds < it.second - 0.5 }?.let { (_, end) ->
+                    mpv.seek(end)
+                    return
+                }
+                val step = seconds - lastPosition
+                if (step > 0 && step < 1.5 && _state.value.playing) listenedMs += (step * 1000).toLong()
+                lastPosition = seconds
+                _position.value = seconds
+            }
+            override fun onDuration(seconds: Double) = run { _state.update { it.copy(durationSeconds = seconds) } }
+            override fun onPaused(paused: Boolean) = run { _state.update { it.copy(playing = !paused) } }
+            override fun onBuffering(buffering: Boolean) = run { _state.update { it.copy(buffering = buffering) } }
+            override fun onLoaded() {
+                if (currentStream?.source == StreamSource.Direct) resolver.directPlayed()
+                _state.update { it.copy(buffering = false, error = null) }
+                _state.value.current?.let { track -> scope.launch { onTrackStarted(track); prefetchNext() } }
+            }
+            override fun onEnded(error: String?) {
+                scope.launch { if (error == null) onTrackFinished() else onFailure(Failure.Source, error) }
+            }
+        })
+    }
+
+    // ---- Queue ----
+
+    fun play(tracks: List<Track>, startIndex: Int = 0, startSeconds: Double = 0.0, autoPlay: Boolean = true) =
+        scope.launch {
+            if (tracks.isEmpty()) return@launch
+            var queue = tracks
+            var index = startIndex.coerceIn(0, tracks.lastIndex)
+            unshuffled = null
+            if (Settings.shuffleEnabled) {
+                unshuffled = queue
+                queue = shuffledFrom(queue, index)
+                index = 0
+            }
+            _state.update { it.copy(queue = queue, index = index) }
+            load(startSeconds, autoPlay)
+        }
+
+    /** Puts back a saved queue without touching the network; the first play loads it. */
+    fun restore(tracks: List<Track>, index: Int, positionSeconds: Double) = scope.launch {
+        if (tracks.isEmpty()) return@launch
+        val i = index.coerceIn(0, tracks.lastIndex)
+        _state.update { it.copy(queue = tracks, index = i, durationSeconds = tracks[i].durationMs?.div(1000.0) ?: 0.0) }
+        _position.value = positionSeconds
+    }
+
+    fun playAt(index: Int) = scope.launch {
+        if (index !in _state.value.queue.indices) return@launch
+        _state.update { it.copy(index = index) }
+        load()
+    }
+
+    /** "Play next": right after the current song; never replaces a non-empty queue. */
+    fun playNext(track: Track) = scope.launch {
+        val s = _state.value
+        if (s.queue.isEmpty()) return@launch play(listOf(track)).join()
+        val queue = s.queue.toMutableList().apply { add(s.index + 1, track) }
+        unshuffled = unshuffled?.plus(track)
+        _state.update { it.copy(queue = queue) }
+        changed()
+    }
+
+    fun addToQueue(tracks: List<Track>) = scope.launch {
+        if (_state.value.queue.isEmpty()) return@launch play(tracks).join()
+        unshuffled = unshuffled?.plus(tracks)
+        _state.update { it.copy(queue = it.queue + tracks) }
+        changed()
+    }
+
+    fun removeAt(index: Int) = scope.launch {
+        val s = _state.value
+        if (index !in s.queue.indices || index == s.index) return@launch
+        val removed = s.queue[index]
+        unshuffled = unshuffled?.minus(removed)
+        _state.update { it.copy(queue = it.queue - removed, index = if (index < it.index) it.index - 1 else it.index) }
+        changed()
+    }
+
+    fun move(from: Int, to: Int) = scope.launch {
+        val s = _state.value
+        if (from !in s.queue.indices || to !in s.queue.indices || from == to) return@launch
+        val queue = s.queue.toMutableList().apply { add(to, removeAt(from)) }
+        val index = when (s.index) {
+            from -> to
+            in (from + 1)..to -> s.index - 1
+            in to until from -> s.index + 1
+            else -> s.index
+        }
+        _state.update { it.copy(queue = queue, index = index) }
+        changed()
+    }
+
+    fun clearQueue() = scope.launch {
+        loadJob?.cancel()
+        mpv.stop()
+        currentStream = null
+        unshuffled = null
+        _state.value = PlayerState()
+        _position.value = 0.0
+        changed()
+    }
+
+    // ---- Transport ----
+
+    fun togglePlay() = scope.launch {
+        val s = _state.value
+        when {
+            s.current == null -> Unit
+            loadJob?.isActive == true -> Unit // still resolving: a second press must not restart it
+            s.error != null || currentStream == null -> load(_position.value)
+            else -> setPaused(!mpv.isPaused())
+        }
+    }
+
+    fun pause() = scope.launch { if (currentStream != null) setPaused(true) }
+
+    private fun setPaused(paused: Boolean) {
+        mpv.setPaused(paused)
+        _state.update { it.copy(playing = !paused) }
+    }
+
+    fun next() = scope.launch {
+        val s = _state.value
+        when {
+            s.hasNext -> { _state.update { it.copy(index = it.index + 1) }; load() }
+            Settings.repeatMode == RepeatMode.All && s.queue.isNotEmpty() -> { _state.update { it.copy(index = 0) }; load() }
+        }
+    }
+
+    /** Restarts the song when past 3 s, otherwise goes back (wrapping only with Repeat all). */
+    fun previous() = scope.launch {
+        val s = _state.value
+        when {
+            _position.value > 3 || s.queue.isEmpty() -> mpv.seek(0.0)
+            s.index > 0 -> { _state.update { it.copy(index = it.index - 1) }; load() }
+            Settings.repeatMode == RepeatMode.All -> { _state.update { it.copy(index = it.queue.lastIndex) }; load() }
+            else -> mpv.seek(0.0)
+        }
+    }
+
+    /** "Stats for nerds": codec, bitrate and sample rate of what is playing now. */
+    fun stats(): String? {
+        val codec = mpv.getString("audio-codec-name") ?: return null
+        val bitrate = mpv.getString("audio-bitrate")?.toDoubleOrNull()?.let { "${(it / 1000).toInt()} kbps" }
+        val rate = mpv.getString("audio-params/samplerate")?.let { "$it Hz" }
+        return listOfNotNull(codec, bitrate, rate).joinToString(" · ")
+    }
+
+    fun seek(seconds: Double) { _position.value = seconds; mpv.seek(seconds) }
+    fun setVolume(percent: Int) { Settings.volume = percent.coerceIn(0, 100); mpv.setVolume(Settings.volume) }
+    fun setMuted(muted: Boolean) { Settings.muted = muted; mpv.setMuted(muted) }
+    fun cycleRepeat() { Settings.repeatMode = Settings.repeatMode.next }
+
+    fun setShuffle(enabled: Boolean) = scope.launch {
+        if (Settings.shuffleEnabled == enabled) return@launch
+        Settings.shuffleEnabled = enabled
+        val s = _state.value
+        val current = s.current ?: return@launch
+        if (enabled) {
+            unshuffled = s.queue
+            _state.update { it.copy(queue = shuffledFrom(s.queue, s.index), index = 0) }
+        } else {
+            val restored = unshuffled?.filter { it in s.queue }.orEmpty() + s.queue.filterNot { it in unshuffled.orEmpty() }
+            unshuffled = null
+            _state.update { it.copy(queue = restored, index = restored.indexOf(current).coerceAtLeast(0)) }
+        }
+        changed()
+    }
+
+    private fun shuffledFrom(queue: List<Track>, index: Int): List<Track> {
+        val current = queue[index]
+        return listOf(current) + (queue - current).shuffled()
+    }
+
+    // ---- Effects, sleep timer ----
+
+    /** Re-applies speed and the audio filter chain (equalizer, effects, normalization, skip silence). */
+    fun applyEffects() {
+        mpv.setSpeed(Settings.speed.coerceIn(0.25f, 3f))
+        mpv.setAudioFilters(AudioEffects.chain())
+    }
+
+    /** Pauses playback after [minutes]; null cancels the timer. */
+    fun setSleepTimer(minutes: Int?) = scope.launch {
+        sleepJob?.cancel()
+        if (minutes == null) {
+            _state.update { it.copy(sleepAt = null) }
+            return@launch
+        }
+        val at = System.currentTimeMillis() + minutes * 60_000L
+        _state.update { it.copy(sleepAt = at) }
+        sleepJob = scope.launch {
+            delay(minutes * 60_000L)
+            setPaused(true)
+            _state.update { it.copy(sleepAt = null) }
+        }
+    }
+
+    private fun loadSponsorSegments(track: Track) {
+        skipSegments = emptyList()
+        if (!Settings.sponsorBlockEnabled || track.isLocal || track.isSaavn) return
+        val wanted = Settings.sponsorBlockCategories.split(',').map { it.trim() }.toSet()
+        scope.launch(Dispatchers.IO) {
+            val segments = com.k4music.providers.sponsorblock.SponsorBlock.segments(
+                videoId = track.id,
+                categories = com.k4music.providers.sponsorblock.models.Category.entries.filter { it.serialName in wanted },
+                actions = listOf(com.k4music.providers.sponsorblock.models.Action.Skip)
+            )?.getOrNull().orEmpty()
+            if (_state.value.current?.id == track.id) {
+                skipSegments = segments.map { it.start.inWholeMilliseconds / 1000.0 to it.end.inWholeMilliseconds / 1000.0 }
+            }
+        }
+    }
+
+    // ---- Loading and recovery ----
+
+    private fun flushListening() {
+        val track = listenedTrack ?: return
+        val ms = listenedMs
+        listenedTrack = null
+        listenedMs = 0
+        if (ms > 0) onPlayed(track, ms)
+    }
+
+    private fun load(startSeconds: Double = 0.0, autoPlay: Boolean = true) {
+        val track = _state.value.current ?: return
+        if (listenedTrack?.id != track.id) {
+            flushListening()
+            listenedTrack = track
+        }
+        lastPosition = startSeconds
+        loadJob?.cancel()
+        // The old song must go silent now, not after the new one resolves (yt-dlp can take seconds),
+        // or its position ticks would show against the new song.
+        if (currentStream != null) mpv.stop()
+        retries.onMediaTransition(track.id)
+        fallbacks.onMediaTransition(track.id)
+        currentStream = null
+        _position.value = startSeconds
+        _state.update { it.copy(buffering = true, error = null, durationSeconds = track.durationMs?.div(1000.0) ?: 0.0) }
+        changed()
+        loadJob = scope.launch {
+            try {
+                val stream = resolver.resolve(track)
+                if (_state.value.current?.id != track.id) return@launch
+                currentStream = stream
+                _state.update { it.copy(source = stream.source) }
+                if (stream.source != StreamSource.Saavn) loadSponsorSegments(track) else skipSegments = emptyList()
+                mpv.load(stream.url, startSeconds, stream.headers)
+                setPaused(!autoPlay)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                AppLog.w(TAG, "Could not resolve ${track.id}", e)
+                onFailure(if (e is IOException || !online()) Failure.Network else Failure.Source, e.message)
+            }
+        }
+    }
+
+    private suspend fun onFailure(failure: Failure, message: String?) {
+        val track = _state.value.current ?: return
+        val stream = currentStream
+        // A refused direct YouTube url goes to yt-dlp first, as Android's data source retry does.
+        if (failure == Failure.Source && stream?.source == StreamSource.Direct) {
+            AppLog.w(TAG, "Direct YouTube url refused for ${track.id} ($message); trying yt-dlp")
+            resolver.reject(track, stream)
+            return load(_position.value)
+        }
+        if (stream != null) resolver.reject(track, stream)
+        val recovery = chooseRecovery(
+            failure = failure,
+            id = track.id,
+            fallbackAllowed = !track.isSaavn && !track.isLocal && Settings.smartFallback,
+            retries = retries,
+            fallbacks = fallbacks
+        )
+        AppLog.w(TAG, "Playback failure for ${track.id} ($failure: $message) -> $recovery")
+        when (recovery) {
+            Recovery.Retry -> { delay(RECOVERY_DELAY_MS); load(_position.value) }
+            Recovery.Fallback -> { StreamFallback.force(track.id); delay(RECOVERY_DELAY_MS); load(_position.value) }
+            Recovery.None -> _state.update { it.copy(buffering = false, playing = false, error = message ?: "Playback failed") }
+        }
+    }
+
+    private suspend fun onTrackFinished() {
+        val s = _state.value
+        when {
+            Settings.repeatMode == RepeatMode.One -> load()
+            s.hasNext -> { _state.update { it.copy(index = it.index + 1) }; load() }
+            Settings.repeatMode == RepeatMode.All && s.queue.isNotEmpty() -> { _state.update { it.copy(index = 0) }; load() }
+            else -> {
+                val more = s.current?.let { runCatching { onQueueEnding(it) }.getOrNull() }.orEmpty()
+                    .filter { candidate -> s.queue.none { it.id == candidate.id } }
+                if (more.isNotEmpty()) {
+                    _state.update { it.copy(queue = it.queue + more, index = it.index + 1) }
+                    load()
+                } else {
+                    // End of the queue: rewind to the first song and pause (Android behaviour).
+                    _state.update { it.copy(index = 0) }
+                    load(autoPlay = false)
+                }
+            }
+        }
+    }
+
+    /** Resolves the next two songs ahead of time so changing song is instant. */
+    private fun prefetchNext() {
+        val s = _state.value
+        val upcoming = (1..2).mapNotNull { s.queue.getOrNull(s.index + it) }
+        scope.launch(Dispatchers.IO) { upcoming.forEach { runCatching { resolver.resolve(it) } } }
+    }
+
+    private fun changed() {
+        val s = _state.value
+        onQueueChanged(s.queue, s.index, _position.value)
+    }
+
+    private suspend fun online(): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            Socket().use { it.connect(InetSocketAddress("music.youtube.com", 443), 3_000) }
+            true
+        }.getOrDefault(false)
+    }
+
+    fun close() {
+        flushListening()
+        changed()
+        mpv.close()
+    }
+
+    private companion object {
+        const val TAG = "Player"
+        const val RECOVERY_DELAY_MS = 300L
+    }
+}

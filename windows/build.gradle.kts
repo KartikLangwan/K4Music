@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
     id("org.jetbrains.compose") version "1.12.1"
 }
 
@@ -17,8 +18,36 @@ subprojects {
     layout.buildDirectory.set(rootProject.layout.buildDirectory.dir("shared/${path.trim(':').replace(':', '-')}"))
 }
 
+// Android source files that are plain Kotlin compile here unchanged: the Room models, the
+// recommender, the JioSaavn client and branding. Copied at build time, never duplicated in git.
+val appSources = layout.projectDirectory.dir("../app/src/main/kotlin")
+val syncSharedSources by tasks.registering(Sync::class) {
+    description = "Copies the Android app's platform-neutral Kotlin sources into the desktop build"
+    into(layout.buildDirectory.dir("generated/sharedSrc"))
+    from(appSources) {
+        include(
+            "com/k4music/android/Brand.kt",
+            "com/k4music/android/k4/K4Models.kt",
+            "com/k4music/android/k4/K4Recommend.kt",
+            "com/k4music/android/k4/JioSaavnApi.kt",
+            "com/k4music/android/models/*.kt",
+            "com/k4music/android/playlistimport/PlaylistImport.kt",
+            "com/k4music/android/playlistimport/SpotifySource.kt",
+            "com/k4music/android/playlistimport/YouTubeMusicSource.kt"
+        )
+        exclude("com/k4music/android/models/Mood.kt", "com/k4music/android/models/QueuedMediaItem.kt")
+    }
+    from(layout.projectDirectory.dir("../core/data/src/main/kotlin")) {
+        include("com/k4music/core/data/enums/*.kt", "com/k4music/core/data/utils/Bytes.kt")
+    }
+}
+
+// Room writes Kotlin (its Java writer cannot delegate the DAO's interface default methods).
+ksp { arg("room.generateKotlin", "true") }
+
 kotlin {
     jvmToolchain(libs.versions.jvm.get().toInt())
+    sourceSets.main { kotlin.srcDir(syncSharedSources) }
 }
 
 dependencies {
@@ -43,6 +72,13 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.ktor)
     implementation("net.java.dev.jna:jna:5.17.0")
+    implementation(libs.okhttp)
+    implementation(libs.ktor.http)
+    implementation("org.json:json:20250517")
+    implementation("net.jthink:jaudiotagger:3.0.1")
+    implementation("androidx.room:room-runtime:${libs.versions.room.get()}")
+    implementation("androidx.sqlite:sqlite-bundled:2.6.2")
+    ksp("androidx.room:room-compiler:${libs.versions.room.get()}")
 
     testImplementation(kotlin("test"))
 }
@@ -62,8 +98,14 @@ val syncAndroidResources by tasks.registering(Sync::class) {
         include("*.xml", "*.png")
         exclude("splash_background.xml") // a layer-list, not a vector
         into("drawable")
+        // Desktop vectors take literal colours only.
+        filesMatching("**/*.xml") {
+            filter { line -> line.replace("@android:color/white", "#FFFFFFFF").replace("@android:color/black", "#FF000000") }
+        }
     }
     from(androidRes.dir("font")) { into("font") }
+    // Desktop-only strings sit beside the Android ones.
+    from(layout.projectDirectory.dir("src/main/desktopRes"))
 }
 
 compose.resources {
@@ -76,7 +118,8 @@ compose.resources {
 
 val toolsDir = layout.projectDirectory.dir("downloads")
 val pinnedTools = mapOf(
-    "yt-dlp.exe" to "66674953fe251b89f4d08c5f0e35e0728679bd67ab3d7d05c0562af101dd3e7a",
+    // yt-dlp's folder build: no self-unpacking on every call, so each lookup starts faster.
+    "yt-dlp_win.zip" to "30b4c14aafab6082becff7881e41b76df46dc43ea7633479410a91e29da492bf",
     "qjs-windows-x86_64.exe" to "2aeabf0092c3262d6b2609824418f7dd7ed1f1df939f73b2b15645230cac0d77"
 )
 
@@ -98,7 +141,7 @@ val stageNativeTools by tasks.registering(Sync::class) {
     dependsOn(verifyNativeTools)
     into(layout.buildDirectory.dir("appResources"))
     from(toolsDir.file("mpv/libmpv-2.dll")) { into("windows-x64") }
-    from(toolsDir.file("yt-dlp.exe")) { into("windows-x64") }
+    from(zipTree(toolsDir.file("yt-dlp_win.zip"))) { into("windows-x64/yt-dlp") }
     from(toolsDir.file("qjs-windows-x86_64.exe")) { into("windows-x64"); rename { "qjs.exe" } }
 }
 

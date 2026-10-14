@@ -97,7 +97,13 @@ fun K4Theme(accent: Color = K4Accent, dark: Boolean = true, content: @Composable
             small = RoundedCornerShape(8.dp),
             medium = RoundedCornerShape(12.dp),
             large = RoundedCornerShape(16.dp)
-        ),
-        content = content
-    )
+        )
+    ) {
+        // A surface gives every Text the right content colour for the theme.
+        androidx.compose.material3.Surface(
+            color = MaterialTheme.colorScheme.background,
+            contentColor = MaterialTheme.colorScheme.onBackground,
+            content = content
+        )
+    }
 }
