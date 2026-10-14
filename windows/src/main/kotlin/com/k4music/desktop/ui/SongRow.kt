@@ -63,6 +63,7 @@ fun SongRow(
     modifier: Modifier = Modifier,
     index: Int? = null,
     current: Boolean = false,
+    leading: @Composable (() -> Unit)? = null,
     trailing: @Composable (() -> Unit)? = null
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -100,13 +101,14 @@ fun SongRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            leading?.invoke()
             if (index != null) Text(
                 (index + 1).toString(),
                 style = MaterialTheme.typography.bodySmall,
                 color = if (current) colors.primary else colors.onSurfaceVariant,
                 modifier = Modifier.width(28.dp)
             )
-            Artwork(track.thumbnailUrl, 44.dp, Modifier.size(44.dp), corner = 6.dp)
+            Artwork(track.thumbnailUrl, 44.dp, Modifier.size(44.dp), corner = 22.dp)
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(

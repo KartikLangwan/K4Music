@@ -71,10 +71,14 @@ import com.k4music.desktop.ui.AppDialogs
 import com.k4music.desktop.ui.BuiltInKind
 import com.k4music.desktop.ui.LocalNavigator
 import com.k4music.desktop.ui.LocalPlayer
+import com.k4music.desktop.ui.K4Button
 import com.k4music.desktop.ui.MediaCard
 import com.k4music.desktop.ui.MenuAction
 import com.k4music.desktop.ui.Screen
 import com.k4music.desktop.ui.SongRow
+import com.k4music.desktop.ui.ReorderHandle
+import com.k4music.desktop.ui.reorderItem
+import com.k4music.desktop.ui.rememberReorderState
 import com.k4music.desktop.ui.songActions
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -123,13 +127,23 @@ private fun <E : Enum<E>> SortMenu(label: String, values: Array<E>, sortBy: E, o
 }
 
 @Composable
-fun SongList(tracks: List<Track>, header: @Composable () -> Unit = {}, extra: (Track) -> List<MenuAction> = { emptyList() }) {
+fun SongList(
+    tracks: List<Track>,
+    header: @Composable () -> Unit = {},
+    extra: (Track) -> List<MenuAction> = { emptyList() },
+    onMove: ((Int, Int) -> Unit)? = null
+) {
     val player = LocalPlayer.current
     val actions = songActions(extra)
+    val reorder = rememberReorderState { from, to -> onMove?.invoke(from, to) }
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
         item { header() }
         itemsIndexed(tracks, key = { i, t -> "$i-${t.id}" }) { i, track ->
-            SongRow(track, onPlay = { player.play(tracks, i) }, actions = { actions(track) }, index = i)
+            SongRow(
+                track, onPlay = { player.play(tracks, i) }, actions = { actions(track) }, index = i,
+                modifier = if (onMove != null) Modifier.reorderItem(reorder, i) else Modifier,
+                leading = onMove?.let { { ReorderHandle(reorder, i, tracks.size) } }
+            )
         }
     }
 }
@@ -150,7 +164,7 @@ private fun SongsTab(local: Boolean) {
                 OutlinedButton(onClick = { AppDialogs.pickFolder { LocalMusic.addFolder(it); scope.launch { LocalMusic.scan() } } }) {
                     Text(stringResource(Res.string.desktop_add_folder))
                 }
-                Button(onClick = { scope.launch { LocalMusic.scan() } }, enabled = !scanning) {
+                K4Button(onClick = { scope.launch { LocalMusic.scan() } }, enabled = !scanning) {
                     if (scanning) CircularProgressIndicator(Modifier.padding(end = 8.dp).size(16.dp), strokeWidth = 2.dp)
                     Text(stringResource(Res.string.desktop_scan))
                 }
@@ -180,7 +194,7 @@ private fun PlaylistsTab() {
     )
     Column {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { AppDialogs.newPlaylist() }) { Text(stringResource(Res.string.new_playlist)) }
+            K4Button(onClick = { AppDialogs.newPlaylist() }) { Text(stringResource(Res.string.new_playlist)) }
             OutlinedButton(onClick = { AppDialogs.importPlaylist() }) { Text(stringResource(Res.string.import_playlist)) }
             Box(Modifier.weight(1f))
             SortMenu(stringResource(Res.string.desktop_sort), PlaylistSortBy.entries.toTypedArray(), sortBy, order) { s, o -> sortBy = s; order = o }
@@ -299,7 +313,9 @@ fun LocalPlaylistScreen(id: Long) {
                 }) { Text(stringResource(Res.string.delete)) }
             }
         },
-        extra = { t -> listOf(MenuAction(removeLabel, Res.drawable.remove_circle_outline) { scope.launch { Db.library.removeFromPlaylist(id, t.id) } }) }
+        extra = { t -> listOf(MenuAction(removeLabel, Res.drawable.remove_circle_outline) { scope.launch { Db.library.removeFromPlaylist(id, t.id) } }) },
+        // Drag a song by its grip to reorder the playlist (saved at once, as on Android).
+        onMove = { from, to -> scope.launch { Db.library.move(id, from, to) } }
     )
 }
 

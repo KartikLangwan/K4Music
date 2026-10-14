@@ -24,6 +24,8 @@ import org.jetbrains.compose.resources.Font
 // Same design tokens as the Android app (app/.../ui/theme/K4Theme.kt).
 val K4Accent = Color(0xFF7B5CFF)
 val K4Error = Color(0xFFFF5A5F)
+/** Second colour of the K4 gradient (play button, active navigation, glow). */
+val K4Pink = Color(0xFFFF6BD6)
 
 fun isLightColor(c: Color): Boolean = 0.299 * c.red + 0.587 * c.green + 0.114 * c.blue > 0.62
 

@@ -61,6 +61,7 @@ import com.k4music.desktop.ui.Artwork
 import com.k4music.desktop.ui.ErrorState
 import com.k4music.desktop.ui.LocalNavigator
 import com.k4music.desktop.ui.LocalPlayer
+import com.k4music.desktop.ui.K4Button
 import com.k4music.desktop.ui.MediaCard
 import com.k4music.desktop.ui.Screen
 import com.k4music.desktop.ui.SectionHeader
@@ -199,7 +200,7 @@ private fun Featured(title: String, subtitle: String?, artwork: String?, onPlay:
             Text(stringResource(Res.string.trending).uppercase(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             Text(title, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Button(onClick = onPlay, modifier = Modifier.padding(top = 8.dp)) {
+            K4Button(onClick = onPlay, modifier = Modifier.padding(top = 8.dp)) {
                 Icon(painterResource(Res.drawable.play), null, Modifier.size(18.dp))
                 Text(stringResource(Res.string.play), modifier = Modifier.padding(start = 8.dp))
             }

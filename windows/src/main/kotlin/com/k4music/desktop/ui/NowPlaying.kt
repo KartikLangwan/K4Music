@@ -29,6 +29,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -70,12 +74,11 @@ fun NowPlaying(panel: SidePanel?, onClose: () -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Artwork(
+                Vinyl(
                     track?.thumbnailUrl,
-                    420.dp,
+                    state.playing,
                     // Shrinks on short windows so the controls below always fit.
-                    Modifier.weight(1f, fill = false).widthIn(max = 460.dp).fillMaxWidth(0.8f).aspectRatio(1f, matchHeightConstraintsFirst = true),
-                    corner = 20.dp
+                    Modifier.weight(1f, fill = false).widthIn(max = 460.dp).fillMaxWidth(0.8f).aspectRatio(1f, matchHeightConstraintsFirst = true)
                 )
                 Text(
                     track?.title.orEmpty(),
@@ -154,4 +157,35 @@ private fun com.k4music.desktop.player.StreamSource.label() = when (this) {
     com.k4music.desktop.player.StreamSource.Local -> "On this PC"
     com.k4music.desktop.player.StreamSource.YtDlp -> "YouTube Music"
     com.k4music.desktop.player.StreamSource.Saavn -> "JioSaavn"
+}
+
+/**
+ * The full player's cover as a spinning record (K4's own look): grooved vinyl, the art as its
+ * label, a spindle hole. It turns slowly while music plays and rests when paused; only the
+ * draw phase reads the angle.
+ */
+@Composable
+fun Vinyl(url: String?, playing: Boolean, modifier: Modifier = Modifier) {
+    val angle = remember { Animatable(0f) }
+    LaunchedEffect(playing) {
+        if (!playing) return@LaunchedEffect
+        while (true) angle.animateTo(angle.value + 360f, tween(16_000, easing = LinearEasing))
+    }
+    val vinyl = Color(0xFF141118)
+    Box(
+        modifier
+            .shadow(28.dp, CircleShape)
+            .graphicsLayer { rotationZ = angle.value % 360f }
+            .clip(CircleShape)
+            .background(vinyl)
+            .drawBehind {
+                val r = size.minDimension / 2
+                for (i in 0 until 28) drawCircle(Color.White.copy(alpha = if (i % 3 == 0) 0.06f else 0.03f), r * (0.6f + i * 0.0142f), style = androidx.compose.ui.graphics.drawscope.Stroke(1f))
+                drawRect(Brush.linearGradient(listOf(Color.White.copy(alpha = 0.07f), Color.Transparent, Color.White.copy(alpha = 0.05f))))
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Artwork(url, 260.dp, Modifier.fillMaxSize(0.58f), corner = 999.dp)
+        Box(Modifier.fillMaxSize(0.045f).clip(CircleShape).background(vinyl))
+    }
 }

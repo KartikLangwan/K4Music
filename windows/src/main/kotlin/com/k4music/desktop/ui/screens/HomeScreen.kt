@@ -137,7 +137,7 @@ fun HomeScreen() {
             SectionHeader(stringResource(Res.string.recently_played))
             Shelf {
                 items(tracks, key = { it.id }) { track ->
-                    MediaCard(track.title, track.artists, track.thumbnailUrl, Modifier.width(164.dp)) {
+                    MediaCard(track.title, track.artists, track.thumbnailUrl, Modifier.width(164.dp), disc = true) {
                         player.playRadio(track)
                     }
                 }
@@ -204,8 +204,16 @@ private fun QuickAccess(onOpen: (Screen) -> Unit) {
         Triple(Res.string.offline, Res.drawable.download, Screen.BuiltIn(BuiltInKind.Downloads)),
         Triple(Res.string.playlists, Res.drawable.playlist, Screen.Library)
     )
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        tiles.forEach { (title, icon, screen) -> QuickTile(title, icon, Modifier.weight(1f)) { onOpen(screen) } }
+    // Four across on wide pages, two by two when the page is narrow (labels never get cut).
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val perRow = if (maxWidth < 720.dp) 2 else 4
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            tiles.chunked(perRow).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    row.forEach { (title, icon, screen) -> QuickTile(title, icon, Modifier.weight(1f)) { onOpen(screen) } }
+                }
+            }
+        }
     }
 }
 

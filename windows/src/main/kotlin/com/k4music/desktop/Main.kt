@@ -82,19 +82,18 @@ fun main(args: Array<String>) {
         val panel = remember { mutableStateOf<SidePanel?>(null) }
         val playerOpen = remember { mutableStateOf(false) }
         val searchFocus = remember { FocusRequester() }
-        // F11: full screen, back to the placement it had before.
-        var beforeFullscreen by remember { mutableStateOf(WindowPlacement.Floating) }
-        fun toggleFullscreen() {
-            if (windowState.placement == WindowPlacement.Fullscreen) windowState.placement = beforeFullscreen
-            else { beforeFullscreen = windowState.placement; windowState.placement = WindowPlacement.Fullscreen }
-        }
+        // F11: borderless full screen (see Fullscreen), back to the window it was before.
+        var composeWindow: androidx.compose.ui.awt.ComposeWindow? = null
+        fun toggleFullscreen() { composeWindow?.let(Fullscreen::toggle) }
 
         fun quit() {
-            val placement = if (windowState.placement == WindowPlacement.Fullscreen) beforeFullscreen else windowState.placement
-            Settings.windowMaximized = placement == WindowPlacement.Maximized
-            if (!Settings.windowMaximized) {
-                Settings.windowWidth = windowState.size.width.value.toInt()
-                Settings.windowHeight = windowState.size.height.value.toInt()
+            // In full screen the window covers the monitor: keep the size it had before.
+            if (!Fullscreen.active) {
+                Settings.windowMaximized = windowState.placement == WindowPlacement.Maximized
+                if (!Settings.windowMaximized) {
+                    Settings.windowWidth = windowState.size.width.value.toInt()
+                    Settings.windowHeight = windowState.size.height.value.toInt()
+                }
             }
             player.close()
             Settings.flush()
@@ -132,7 +131,7 @@ fun main(args: Array<String>) {
                     event.isAltPressed && event.key == Key.DirectionLeft -> { navigator.back(); true }
                     event.isAltPressed && event.key == Key.DirectionRight -> { navigator.forward(); true }
                     event.key == Key.F11 -> { toggleFullscreen(); true }
-                    event.key == Key.Escape && windowState.placement == WindowPlacement.Fullscreen && !playerOpen.value -> { toggleFullscreen(); true }
+                    event.key == Key.Escape && Fullscreen.active && !playerOpen.value -> { toggleFullscreen(); true }
                     event.key == Key.MediaPlayPause -> { player.togglePlay(); true }
                     event.key == Key.MediaNext -> { player.next(); true }
                     event.key == Key.MediaPrevious -> { player.previous(); true }
@@ -147,6 +146,11 @@ fun main(args: Array<String>) {
             }
         ) {
             window.minimumSize = java.awt.Dimension(900, 600)
+            composeWindow = window
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                val ms = System.currentTimeMillis() - java.lang.management.ManagementFactory.getRuntimeMXBean().startTime
+                AppLog.i("App", "Window ready ${ms}ms after launch")
+            }
             val dark = when (Settings.themeMode) {
                 ThemeMode.Dark -> true
                 ThemeMode.Light -> false
@@ -160,7 +164,7 @@ fun main(args: Array<String>) {
                 CompositionLocalProvider(LocalNavigator provides navigator, LocalPlayer provides player) {
                     Shell(
                         panel, playerOpen, searchFocus,
-                        fullscreen = windowState.placement == WindowPlacement.Fullscreen,
+                        fullscreen = Fullscreen.active,
                         onToggleFullscreen = ::toggleFullscreen
                     )
                 }

@@ -53,6 +53,7 @@ fun QueuePanel(modifier: Modifier = Modifier) {
     }
 
     LaunchedEffect(state.index) { if (state.index >= 0) listState.animateScrollToItem(state.index) }
+    val reorder = rememberReorderState { from, to -> player.move(from, to) }
 
     Column(modifier.fillMaxSize().padding(12.dp)) {
         Row(Modifier.fillMaxWidth().padding(start = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -72,7 +73,9 @@ fun QueuePanel(modifier: Modifier = Modifier) {
                     track = track,
                     onPlay = { player.playAt(index) },
                     actions = { actions(track) },
-                    current = index == state.index
+                    current = index == state.index,
+                    modifier = Modifier.reorderItem(reorder, index),
+                    leading = { ReorderHandle(reorder, index, state.queue.size) }
                 )
             }
         }

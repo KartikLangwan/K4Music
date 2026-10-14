@@ -136,7 +136,7 @@ private fun Resizer(onDrag: (Float) -> Unit, onDragEnd: () -> Unit) {
         )
     }
 }
-private val PanelShape = RoundedCornerShape(12.dp)
+private val PanelShape = RoundedCornerShape(22.dp)
 
 /**
  * Window frame, desktop-music-app style: top bar (history, home, search), side panel
@@ -153,8 +153,9 @@ fun Shell(
     val navigator = LocalNavigator.current
     val colors = MaterialTheme.colorScheme
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(colors.background)) {
-        // Narrow windows get the icon-only side panel automatically.
-        val narrow = maxWidth < 1100.dp
+        // Narrow windows (or a queue/lyrics panel on a medium one) get the icon-only side panel,
+        // so the page itself never gets squeezed.
+        val narrow = maxWidth < 1100.dp || (panel.value != null && maxWidth < 1440.dp)
         Column(Modifier.fillMaxSize()) {
             TopBar(navigator, searchFocus, fullscreen, onToggleFullscreen)
             val ambient = rememberAmbientColor()
@@ -347,9 +348,21 @@ private fun SidePanelColumn(navigator: Navigator, collapsed: Boolean, width: Dp)
         verticalArrangement = Arrangement.spacedBy(Gap)
     ) {
         if (Settings.navPosition == NavPosition.Side) Surface(shape = PanelShape, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                // K4 mark: the brand sits where other players put nothing.
+                Row(
+                    Modifier.fillMaxWidth().padding(start = if (collapsed) 0.dp else 6.dp, top = 2.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = if (collapsed) Arrangement.Center else Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        Modifier.size(36.dp).clip(CircleShape).background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, K4Pink))),
+                        contentAlignment = Alignment.Center
+                    ) { Text("K4", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge) }
+                    if (!collapsed) Text(stringResource(Res.string.app_name), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
                 visibleDestinations().forEach { d ->
-                    SideItem(stringResource(d.title), collapsed, sameRoot(current, d.screen), icon = d.icon) { navigator.root(d.screen) }
+                    SideItem(stringResource(d.title), collapsed, sameRoot(current, d.screen), icon = d.icon, strong = true) { navigator.root(d.screen) }
                 }
             }
         }
@@ -418,20 +431,26 @@ private fun SideItem(
     subtitle: String? = null,
     artwork: String? = null,
     tile: Boolean = false,
+    strong: Boolean = false,
     onClick: () -> Unit
 ) {
     val colors = MaterialTheme.colorScheme
+    // Main navigation: the selected page is a violet-to-pink pill with white text.
+    val pill = selected && strong
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
     Tip(title, enabled = collapsed) {
         Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
-                .background(
-                    when {
-                        selected -> colors.primaryContainer
-                        hovered -> colors.surfaceContainer
-                        else -> Color.Transparent
-                    }
+            Modifier.fillMaxWidth().clip(if (strong) CircleShape else RoundedCornerShape(14.dp))
+                .then(
+                    if (pill) Modifier.background(Brush.linearGradient(listOf(colors.primary, K4Pink)))
+                    else Modifier.background(
+                        when {
+                            selected -> colors.primaryContainer
+                            hovered -> colors.surfaceContainer
+                            else -> Color.Transparent
+                        }
+                    )
                 )
                 .hoverable(interaction)
                 .clickable(onClick = onClick)
@@ -440,14 +459,14 @@ private fun SideItem(
             horizontalArrangement = if (collapsed) Arrangement.Center else Arrangement.spacedBy(14.dp)
         ) {
             when {
-                artwork != null -> Artwork(artwork.ifBlank { null }, 44.dp, Modifier.size(44.dp), corner = 6.dp)
+                artwork != null -> Artwork(artwork.ifBlank { null }, 44.dp, Modifier.size(44.dp), corner = 22.dp)
                 tile && icon != null -> Box(
-                    Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)).background(colors.primary.copy(alpha = 0.18f)),
+                    Modifier.size(44.dp).clip(CircleShape).background(colors.primary.copy(alpha = 0.18f)),
                     contentAlignment = Alignment.Center
                 ) { Icon(painterResource(icon), null, Modifier.size(20.dp), tint = colors.primary) }
                 icon != null -> Icon(
                     painterResource(icon), null, Modifier.size(24.dp),
-                    tint = if (selected) colors.primary else colors.onSurfaceVariant
+                    tint = if (pill) Color.White else if (selected) colors.primary else colors.onSurfaceVariant
                 )
             }
             if (!collapsed) Column(Modifier.weight(1f)) {
@@ -455,7 +474,7 @@ private fun SideItem(
                     title, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     style = if (artwork != null || tile) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
-                    color = if (selected) colors.onSurface else if (artwork != null || tile) colors.onSurface else colors.onSurfaceVariant
+                    color = if (pill) Color.White else if (selected) colors.onSurface else if (artwork != null || tile) colors.onSurface else colors.onSurfaceVariant
                 )
                 if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 1)
             }
@@ -475,16 +494,16 @@ private fun BottomNav(navigator: Navigator) {
                 val selected = sameRoot(current, d.screen)
                 Row(
                     Modifier.clip(CircleShape)
-                        .background(if (selected) colors.primaryContainer else Color.Transparent)
+                        .background(if (selected) Brush.linearGradient(listOf(colors.primary, K4Pink)) else SolidColor(Color.Transparent))
                         .clickable { navigator.root(d.screen) }
                         .padding(horizontal = 18.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(painterResource(d.icon), null, Modifier.size(20.dp), tint = if (selected) colors.primary else colors.onSurfaceVariant)
+                    Icon(painterResource(d.icon), null, Modifier.size(20.dp), tint = if (selected) Color.White else colors.onSurfaceVariant)
                     Text(
                         stringResource(d.title), style = MaterialTheme.typography.labelLarge,
-                        color = if (selected) colors.onSurface else colors.onSurfaceVariant
+                        color = if (selected) Color.White else colors.onSurfaceVariant
                     )
                 }
             }

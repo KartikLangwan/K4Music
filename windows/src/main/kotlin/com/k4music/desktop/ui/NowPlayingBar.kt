@@ -3,6 +3,9 @@ package com.k4music.desktop.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -81,7 +84,7 @@ import org.jetbrains.compose.resources.stringResource
 
 enum class SidePanel { Queue, Lyrics }
 
-/** The full-width player bar at the bottom of the window. */
+/** The player: a floating capsule along the bottom of the window, tinted by the song's colour. */
 @Composable
 fun NowPlayingBar(
     panel: SidePanel?,
@@ -96,23 +99,27 @@ fun NowPlayingBar(
     val track = state.current
     val colors = MaterialTheme.colorScheme
 
-    // The song's colour glows in from the left, as in desktop music apps.
+    Box(modifier.fillMaxWidth().height(96.dp).padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 10.dp)) {
+    // The capsule: the song's colour glows in from the left.
     Box(
-        modifier.fillMaxWidth().height(88.dp).background(colors.background)
+        Modifier.fillMaxSize()
+            .clip(RoundedCornerShape(39.dp))
+            .background(colors.surface)
             .background(
                 androidx.compose.ui.graphics.Brush.horizontalGradient(
-                    listOf(ambient.copy(alpha = if (track != null) 0.28f else 0f), ambient.copy(alpha = 0.06f), androidx.compose.ui.graphics.Color.Transparent)
+                    listOf(ambient.copy(alpha = if (track != null) 0.32f else 0f), ambient.copy(alpha = 0.08f), androidx.compose.ui.graphics.Color.Transparent)
                 )
             )
+            .border(1.dp, colors.outlineVariant, RoundedCornerShape(39.dp))
     ) {
-        Row(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxSize().padding(start = 9.dp, end = 18.dp), verticalAlignment = Alignment.CenterVertically) {
             // Left: what is playing
             Row(
                 Modifier.weight(0.3f),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Artwork(track?.thumbnailUrl, 56.dp, Modifier.size(56.dp).clickable(enabled = track != null, onClick = onOpenPlayer), corner = 6.dp)
+                DiscCover(track?.thumbnailUrl, player, state.durationSeconds, enabled = track != null, onClick = onOpenPlayer)
                 Column(Modifier.weight(1f, fill = false)) {
                     Text(
                         track?.title.orEmpty(),
@@ -171,6 +178,59 @@ fun NowPlayingBar(
             }
         }
     }
+    }
+}
+
+/**
+ * The cover as a small record: round art with a spindle hole, ringed by the song's progress.
+ * Only this reads the position flow, so ticks redraw nothing else in the bar.
+ */
+@Composable
+private fun DiscCover(url: String?, player: PlayerController, duration: Double, enabled: Boolean, onClick: () -> Unit) {
+    val position by player.position.collectAsState()
+    val progress = if (duration > 0) (position / duration).toFloat().coerceIn(0f, 1f) else 0f
+    val colors = MaterialTheme.colorScheme
+    Box(
+        Modifier.size(60.dp).clip(CircleShape).clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        androidx.compose.foundation.Canvas(Modifier.matchParentSize()) {
+            val stroke = 3.dp.toPx()
+            val inset = androidx.compose.ui.geometry.Offset(stroke / 2, stroke / 2)
+            val arc = androidx.compose.ui.geometry.Size(size.width - stroke, size.height - stroke)
+            drawArc(colors.outlineVariant, 0f, 360f, false, inset, arc, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke))
+            drawArc(
+                colors.primary, -90f, 360f * progress, false, inset, arc,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+            )
+        }
+        Artwork(url, 46.dp, Modifier.size(46.dp), corner = 23.dp)
+        Box(Modifier.size(7.dp).clip(CircleShape).background(colors.surface))
+    }
+}
+
+/** The K4 play button: a violet-to-pink disc (the app's signature, not a plain white circle). */
+@Composable
+fun PlayButton(playing: Boolean, buffering: Boolean, enabled: Boolean, size: androidx.compose.ui.unit.Dp, onClick: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Box(
+        Modifier.size(size)
+            .clip(CircleShape)
+            .background(
+                androidx.compose.ui.graphics.Brush.linearGradient(listOf(colors.primary, K4Pink)),
+                alpha = if (enabled) 1f else 0.4f
+            )
+            .clickable(enabled = enabled, role = androidx.compose.ui.semantics.Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        if (buffering) CircularProgressIndicator(Modifier.size(size * 0.45f), color = androidx.compose.ui.graphics.Color.White, strokeWidth = 2.dp)
+        else Icon(
+            painterResource(if (playing) Res.drawable.pause else Res.drawable.play),
+            stringResource(if (playing) Res.string.pause else Res.string.play),
+            Modifier.size(size * 0.46f),
+            tint = androidx.compose.ui.graphics.Color.White
+        )
+    }
 }
 
 @Composable
@@ -181,20 +241,7 @@ fun Transport(player: PlayerController, playing: Boolean, buffering: Boolean, en
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (large) 16.dp else 8.dp)) {
         ToggleIcon(Res.drawable.shuffle, stringResource(Res.string.shuffle), shuffle) { player.setShuffle(!shuffle) }
         PlainIcon(Res.drawable.play_skip_back, stringResource(Res.string.previous_track), enabled) { player.previous() }
-        FilledIconButton(
-            onClick = { player.togglePlay() },
-            enabled = enabled,
-            shape = CircleShape,
-            colors = IconButtonDefaults.filledIconButtonColors(containerColor = colors.onBackground, contentColor = colors.background),
-            modifier = Modifier.size(if (large) 64.dp else 40.dp)
-        ) {
-            if (buffering) CircularProgressIndicator(Modifier.size(if (large) 28.dp else 18.dp), color = colors.background, strokeWidth = 2.dp)
-            else Icon(
-                painterResource(if (playing) Res.drawable.pause else Res.drawable.play),
-                stringResource(if (playing) Res.string.pause else Res.string.play),
-                Modifier.size(if (large) 30.dp else 20.dp)
-            )
-        }
+        PlayButton(playing, buffering, enabled, if (large) 68.dp else 44.dp) { player.togglePlay() }
         PlainIcon(Res.drawable.play_skip_forward, stringResource(Res.string.next_track), enabled) { player.next() }
         ToggleIcon(
             when (repeat) {

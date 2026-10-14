@@ -83,7 +83,10 @@ fun <T : Any> rememberPage(key: String, ttlMs: Long = 30 * 60_000L, loader: susp
     LaunchedEffect(key, attempt) {
         if (attempt == 0 && value != null && PageCache.isFresh(key, ttlMs)) return@LaunchedEffect
         loading = true
-        val loaded = runCatching { loader() }.onFailure { AppLog.w("Page", "Could not load $key", it) }.getOrNull()
+        val loaded = runCatching { loader() }
+            // Leaving the screen cancels the load: that is not a failure.
+            .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; AppLog.w("Page", "Could not load $key", it) }
+            .getOrNull()
         if (loaded != null) {
             PageCache.put(key, loaded)
             value = loaded
@@ -173,4 +176,23 @@ fun ErrorState(onRetry: () -> Unit, modifier: Modifier = Modifier) {
         Text(stringResource(Res.string.connection_retry_message), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         FilledTonalButton(onClick = onRetry) { Text(stringResource(Res.string.retry)) }
     }
+}
+
+/** The app's primary button: a violet-to-pink pill (same gradient as the play button). */
+@Composable
+fun K4Button(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit) {
+    androidx.compose.material3.Button(
+        onClick = onClick,
+        enabled = enabled,
+        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+            contentColor = androidx.compose.ui.graphics.Color.White,
+            disabledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+            disabledContentColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.6f)
+        ),
+        modifier = modifier
+            .alpha(if (enabled) 1f else 0.45f)
+            .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, K4Pink)), CircleShape),
+        content = content
+    )
 }

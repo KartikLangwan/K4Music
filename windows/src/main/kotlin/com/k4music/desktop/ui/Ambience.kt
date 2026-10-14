@@ -19,6 +19,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -95,8 +96,23 @@ fun BoxScope.PageBackdrop(ambient: Color) {
         )
         Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(surface.copy(alpha = 0.35f), surface.copy(alpha = 0.92f)))))
     } else Box(
-        Modifier.fillMaxWidth().height(340.dp)
-            .background(Brush.verticalGradient(listOf(ambient.copy(alpha = 0.55f), ambient.copy(alpha = 0.12f), Color.Transparent)))
+        // The K4 aura: two soft glows (the song's colour and the brand pink) instead of a flat wash.
+        Modifier.fillMaxWidth().height(520.dp).drawBehind {
+            drawRect(
+                Brush.radialGradient(
+                    listOf(ambient.copy(alpha = 0.50f), Color.Transparent),
+                    center = androidx.compose.ui.geometry.Offset(size.width * 0.18f, 0f),
+                    radius = size.width * 0.55f
+                )
+            )
+            drawRect(
+                Brush.radialGradient(
+                    listOf(K4Pink.copy(alpha = 0.16f), Color.Transparent),
+                    center = androidx.compose.ui.geometry.Offset(size.width * 0.92f, size.height * 0.05f),
+                    radius = size.width * 0.38f
+                )
+            )
+        }
     )
 }
 

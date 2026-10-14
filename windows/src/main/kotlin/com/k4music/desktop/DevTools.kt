@@ -19,6 +19,7 @@ import com.k4music.desktop.ui.Shell
 import com.k4music.desktop.ui.SidePanel
 import com.k4music.desktop.ui.k4ImageLoader
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.skia.EncodedImageFormat
 import java.io.File
@@ -129,6 +130,33 @@ object DevTools {
                     }
                     "search" -> { navigator.go(Screen.Search(line.substringAfter(' '))); pump(4_000) }
                     "size", "theme" -> Unit
+                    // A fresh playlist of the current queue, opened (for reorder tests).
+                    "mkplaylist" -> {
+                        val tracks = player.state.value.queue.take(6)
+                        kotlinx.coroutines.runBlocking {
+                            com.k4music.desktop.data.Db.library.addToPlaylist(com.k4music.android.models.Playlist(name = "Reorder test"), tracks)
+                        }
+                        val id = kotlinx.coroutines.runBlocking {
+                            com.k4music.desktop.data.Db.library.playlistPreviews(
+                                com.k4music.core.data.enums.PlaylistSortBy.DateAdded, com.k4music.core.data.enums.SortOrder.Descending
+                            ).first().first().id
+                        }
+                        navigator.go(Screen.LocalPlaylist(id))
+                        pump(2_000)
+                    }
+                    "drag" -> {
+                        val from = androidx.compose.ui.geometry.Offset(parts[1].toFloat(), parts[2].toFloat())
+                        val to = androidx.compose.ui.geometry.Offset(parts[3].toFloat(), parts[4].toFloat())
+                        scene.sendPointerEvent(androidx.compose.ui.input.pointer.PointerEventType.Move, from)
+                        scene.sendPointerEvent(androidx.compose.ui.input.pointer.PointerEventType.Press, from)
+                        pump(50)
+                        for (step in 1..12) {
+                            scene.sendPointerEvent(androidx.compose.ui.input.pointer.PointerEventType.Move, from + (to - from) * (step / 12f))
+                            pump(30)
+                        }
+                        scene.sendPointerEvent(androidx.compose.ui.input.pointer.PointerEventType.Release, to)
+                        pump(1_200)
+                    }
                     "set" -> {
                         when (parts[1]) {
                             "nav" -> com.k4music.desktop.prefs.Settings.navPosition = com.k4music.desktop.prefs.NavPosition.valueOf(parts[2])

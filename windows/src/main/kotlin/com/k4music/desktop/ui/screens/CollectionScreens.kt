@@ -54,6 +54,7 @@ import com.k4music.desktop.ui.Artwork
 import com.k4music.desktop.ui.ErrorState
 import com.k4music.desktop.ui.LocalNavigator
 import com.k4music.desktop.ui.LocalPlayer
+import com.k4music.desktop.ui.K4Button
 import com.k4music.desktop.ui.MediaCard
 import com.k4music.desktop.ui.Screen
 import com.k4music.desktop.ui.SectionHeader
@@ -103,7 +104,7 @@ fun CollectionHeader(
 @Composable
 fun PlayButtons(tracks: List<Track>) {
     val player = LocalPlayer.current
-    Button(onClick = { player.play(tracks, 0) }, enabled = tracks.isNotEmpty()) { Text(stringResource(Res.string.play)) }
+    K4Button(onClick = { player.play(tracks, 0) }, enabled = tracks.isNotEmpty()) { Text(stringResource(Res.string.play)) }
     FilledTonalButton(onClick = { player.play(tracks.shuffled(), 0) }, enabled = tracks.isNotEmpty()) { Text(stringResource(Res.string.shuffle)) }
     OutlinedButton(onClick = { player.addToQueue(tracks) }, enabled = tracks.isNotEmpty()) { Text(stringResource(Res.string.enqueue)) }
 }
@@ -241,7 +242,7 @@ fun ArtistScreen(browseId: String) {
                     val radio = artist.radioEndpoint
                     if (shuffle != null || radio != null) {
                         shuffle?.let { e ->
-                            Button(onClick = { player.playRadio(RadioSeed(e.videoId, e.playlistId, e.params, e.playlistSetVideoId)) }) {
+                            K4Button(onClick = { player.playRadio(RadioSeed(e.videoId, e.playlistId, e.params, e.playlistSetVideoId)) }) {
                                 Text(stringResource(Res.string.shuffle))
                             }
                         }

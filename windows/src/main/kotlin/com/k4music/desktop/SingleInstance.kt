@@ -16,6 +16,8 @@ import kotlin.concurrent.thread
  */
 object SingleInstance {
     private const val MUTEX = "K4MusicAppMutex"
+    /** A copy run on its own data folder (-Dk4.dataDir, used for testing) does not collide with the installed app. */
+    private val mutexName get() = System.getProperty("k4.dataDir")?.let { "$MUTEX-${it.lowercase().hashCode().toUInt()}" } ?: MUTEX
     private const val ERROR_ALREADY_EXISTS = 183
 
     @Suppress("FunctionName")
@@ -28,7 +30,7 @@ object SingleInstance {
     /** True when this process is the only instance; otherwise forwards [args] and returns false. */
     fun acquire(args: Array<String>, onMessage: (List<String>) -> Unit): Boolean {
         val first = runCatching {
-            Native.load("kernel32", Kernel32::class.java).CreateMutexW(null, false, WString(MUTEX))
+            Native.load("kernel32", Kernel32::class.java).CreateMutexW(null, false, WString(mutexName))
             Native.getLastError() != ERROR_ALREADY_EXISTS
         }.getOrDefault(true) // no mutex (non-Windows/dev quirk): behave as the only instance
         if (!first) {

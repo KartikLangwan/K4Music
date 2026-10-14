@@ -23,6 +23,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.shape.CircleShape
 
 /** Album / playlist / artist tile. Artists are round; hovering lifts the art slightly. */
 @Composable
@@ -32,6 +36,7 @@ fun MediaCard(
     image: String?,
     modifier: Modifier = Modifier,
     circle: Boolean = false,
+    disc: Boolean = false,
     onClick: () -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -45,12 +50,11 @@ fun MediaCard(
             .padding(6.dp),
         horizontalAlignment = if (circle) Alignment.CenterHorizontally else Alignment.Start
     ) {
-        Artwork(
-            image,
-            160.dp,
-            Modifier.fillMaxWidth().aspectRatio(1f).graphicsLayer { scaleX = scale; scaleY = scale },
-            corner = if (circle) 999.dp else 10.dp
-        )
+        Box(Modifier.fillMaxWidth().aspectRatio(1f).graphicsLayer { scaleX = scale; scaleY = scale; if (disc) rotationZ = if (hovered) 12f else 0f }, contentAlignment = Alignment.Center) {
+            Artwork(image, 160.dp, Modifier.fillMaxSize(), corner = if (circle || disc) 999.dp else 14.dp)
+            // A song shows as a small record: round art with a spindle hole.
+            if (disc) Box(Modifier.fillMaxSize(0.13f).clip(CircleShape).background(MaterialTheme.colorScheme.surface))
+        }
         Text(
             title,
             style = MaterialTheme.typography.titleSmall,
