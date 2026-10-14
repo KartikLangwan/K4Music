@@ -118,8 +118,9 @@ begin
   Result := CheckForMutexes('{#AppMutexName}');
 end;
 
-{ Closes a running K4 Music: first asks it to quit (it saves the queue and settings), then,
-  for versions that do not know --quit, ends it. True once it is gone. }
+{ Asks a running K4 Music to quit (it saves the queue and settings). True once it is gone.
+  Never force-kill it (taskkill): Windows Smart App Control then blocks this whole installer.
+  A version that does not know --quit is left to Restart Manager (CloseApplications). }
 function CloseRunningApp(Exe: String): Boolean;
 var
   Code, I: Integer;
@@ -128,13 +129,7 @@ begin
   if not AppRunning() then exit;
   if FileExists(Exe) then
     Exec(Exe, '--quit', '', SW_HIDE, ewNoWait, Code);
-  for I := 1 to 40 do
-  begin
-    if not AppRunning() then exit;
-    Sleep(250);
-  end;
-  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /T /IM "{#AppExe}"', '', SW_HIDE, ewWaitUntilTerminated, Code);
-  for I := 1 to 20 do
+  for I := 1 to 60 do
   begin
     if not AppRunning() then exit;
     Sleep(250);
@@ -209,8 +204,8 @@ begin
       Result := 'Close {#AppName} and run Setup again.';
       exit;
     end;
-  if not CloseRunningApp(ExpandConstant('{app}\{#AppExe}')) then
-    Result := '{#AppName} could not be closed. Close it from the tray icon and run Setup again.';
+  { Still open (an old version): Setup then offers to close it (CloseApplications). }
+  CloseRunningApp(ExpandConstant('{app}\{#AppExe}'));
 end;
 
 function InitializeUninstall(): Boolean;
