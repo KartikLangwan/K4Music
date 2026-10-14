@@ -96,20 +96,15 @@ object DiscordPresence {
             put("small_image", LOGO)
             put("small_text", "K4 Music")
         }
-        // Discord allows two: the app, then the song (or the creator when the song has no public link).
+        // Discord allows two: the app's website and the developer's.
         putJsonArray("buttons") {
             addJsonObject {
                 put("label", "Get K4 Music")
                 put("url", "https://k4music.vercel.app")
             }
             addJsonObject {
-                if (!track.isLocal && !track.isSaavn) {
-                    put("label", "Play this song")
-                    put("url", "https://music.youtube.com/watch?v=${track.id}")
-                } else {
-                    put("label", "Made by Kartik")
-                    put("url", "https://kartiklangwan.vercel.app")
-                }
+                put("label", "Meet the Developer")
+                put("url", "https://kartiklangwan.vercel.app")
             }
         }
     }
