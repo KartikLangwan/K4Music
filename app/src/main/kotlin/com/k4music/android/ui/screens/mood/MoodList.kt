@@ -89,7 +89,6 @@ fun MoodList(
             state = lazyListState,
             contentPadding = contentPadding,
             modifier = Modifier
-                .background(colorPalette.background0)
                 .fillMaxSize()
         ) {
             item(

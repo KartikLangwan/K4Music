@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -34,6 +36,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -41,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.k4music.android.Brand
 import com.k4music.android.LocalPlayerAwareWindowInsets
+import com.k4music.android.ui.theme.k4Backdrop
 import com.k4music.app.R
 import com.k4music.core.ui.LocalAppearance
 
@@ -73,14 +77,14 @@ fun Scaffold(
     val insets = LocalPlayerAwareWindowInsets.current
     val isHome = key == "home"
 
-    Box(modifier.background(palette.background0).fillMaxSize()) {
+    Box(modifier.background(palette.background0).k4Backdrop(palette.accent, palette.isDark).fillMaxSize()) {
         Row(Modifier.fillMaxSize().padding(insets.only(WindowInsetsSides.Horizontal).asPaddingValues())) {
             Column(Modifier.weight(1f)) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(insets.only(WindowInsetsSides.Top).asPaddingValues())
-                        .height(if (isHome) 54.dp else 60.dp)
+                        .height(if (isHome) 64.dp else 60.dp)
                         .padding(horizontal = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -92,7 +96,33 @@ fun Scaffold(
                             tint = palette.text
                         )
                     }
-                    Text(
+                    // Home: the logo, name and tagline, like the PC app's side panel.
+                    if (isHome && selected == 0) {
+                        Image(
+                            painter = painterResource(R.drawable.k4_logo),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .padding(start = 8.dp)
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(11.dp))
+                        )
+                        Column(Modifier.weight(1f).padding(start = 8.dp)) {
+                            Text(
+                                text = Brand.APP_NAME,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = palette.text,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = stringResource(R.string.app_tagline),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = palette.textSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    } else Text(
                         text = when {
                             !isHome -> when (key) {
                                 "settings" -> if (selected == 0) stringResource(R.string.settings) else tabs[selected].title()

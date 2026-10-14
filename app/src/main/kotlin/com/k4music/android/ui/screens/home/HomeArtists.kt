@@ -87,7 +87,6 @@ fun HomeArtistList(
                 .asPaddingValues(),
             horizontalArrangement = Arrangement.Center,
             modifier = Modifier
-                .background(colorPalette.background0)
                 .fillMaxSize()
         ) {
             item(

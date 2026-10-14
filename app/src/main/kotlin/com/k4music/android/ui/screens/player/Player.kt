@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -55,6 +56,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -79,6 +82,7 @@ import com.k4music.android.transaction
 import com.k4music.android.ui.components.BottomSheet
 import com.k4music.android.ui.components.BottomSheetState
 import com.k4music.android.ui.components.LocalMenuState
+import com.k4music.android.ui.components.PlayerActionButton
 import com.k4music.android.ui.components.PressFeedbackIconButton
 import com.k4music.android.ui.components.rememberBottomSheetState
 import com.k4music.android.ui.components.themed.BaseMediaItemMenu
@@ -545,7 +549,8 @@ private fun MiniPlayer(
 ) {
     val palette = LocalAppearance.current.colorPalette
     val metadata = mediaItem.mediaMetadata
-    val shape = RoundedCornerShape(14.dp)
+    // The PC app's capsule player: a disc cover with a progress ring and the K4 gradient play button.
+    val shape = RoundedCornerShape(percent = 50)
 
     Box(
         modifier = Modifier
@@ -559,29 +564,33 @@ private fun MiniPlayer(
                 .fillMaxWidth()
                 .height(MiniPlayerHeight)
                 .clip(shape)
-                .background(palette.background2)
+                .background(lerp(palette.background2, palette.accent, 0.10f))
                 .then(modifier)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(start = 8.dp, end = 2.dp)
+                    .padding(start = 6.dp, end = 6.dp)
                     .let {
                         if (onSwipeOut != null) it.onSwipe(animateOffset = true, onSwipeOut = onSwipeOut)
                         else it
                     }
             ) {
-                AsyncImage(
-                    model = metadata.artworkUri?.thumbnail(Dimensions.thumbnails.song.px),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    error = painterResource(R.drawable.musical_notes),
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(palette.background1)
-                )
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp)) {
+                    MiniProgressRing(progress = progress, modifier = Modifier.matchParentSize())
+                    AsyncImage(
+                        model = metadata.artworkUri?.thumbnail(Dimensions.thumbnails.song.px),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        error = painterResource(R.drawable.musical_notes),
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(palette.background1)
+                    )
+                    Box(Modifier.size(6.dp).clip(CircleShape).background(palette.background2))
+                }
 
                 AnimatedContent(
                     targetState = metadata.title?.toString().orEmpty() to metadata.artist?.toString().orEmpty(),
@@ -629,23 +638,20 @@ private fun MiniPlayer(
                         modifier = Modifier.size(20.dp)
                     )
                 }
-                PressFeedbackIconButton(
+                PlayerActionButton(
+                    icon = if (shouldBePlaying) R.drawable.pause else R.drawable.play,
+                    label = stringResource(if (shouldBePlaying) R.string.pause else R.string.play),
                     onClick = {
-                        val player = binder?.player ?: return@PressFeedbackIconButton
+                        val player = binder?.player ?: return@PlayerActionButton
                         if (shouldBePlaying) player.pause() else {
                             if (player.playbackState == Player.STATE_IDLE) player.prepare()
                             player.play()
                         }
                     },
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(if (shouldBePlaying) R.drawable.pause else R.drawable.play),
-                        contentDescription = stringResource(if (shouldBePlaying) R.string.pause else R.string.play),
-                        tint = palette.text,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+                    filled = true,
+                    buttonSize = 42.dp,
+                    iconSize = 20.dp
+                )
                 PressFeedbackIconButton(
                     onClick = { binder?.player?.forceSeekToNext() },
                     modifier = Modifier.size(48.dp)
@@ -658,30 +664,23 @@ private fun MiniPlayer(
                     )
                 }
             }
-
-            MiniProgress(
-                progress = progress,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .padding(horizontal = 10.dp)
-                    .height(2.dp)
-            )
         }
     }
 }
 
-/** Draws in the draw phase only: progress ticks never trigger recomposition. */
+/** The ring around the mini player's disc. Draw phase only: progress ticks never recompose. */
 @Composable
-private fun MiniProgress(progress: State<Pair<Long, Long>>, modifier: Modifier = Modifier) {
+private fun MiniProgressRing(progress: State<Pair<Long, Long>>, modifier: Modifier = Modifier) {
     val palette = LocalAppearance.current.colorPalette
     Box(
         modifier.drawBehind {
             val (position, duration) = progress.value
-            val y = size.height / 2
-            drawLine(palette.text.copy(alpha = 0.10f), Offset(0f, y), Offset(size.width, y), size.height, StrokeCap.Round)
-            val end = size.width * playbackFraction(position, duration)
-            if (end > 0f) drawLine(palette.accent, Offset(0f, y), Offset(end, y), size.height, StrokeCap.Round)
+            val stroke = 2.5.dp.toPx()
+            val inset = Offset(stroke / 2, stroke / 2)
+            val arc = androidx.compose.ui.geometry.Size(size.width - stroke, size.height - stroke)
+            drawArc(palette.text.copy(alpha = 0.12f), 0f, 360f, false, inset, arc, style = Stroke(stroke))
+            val sweep = 360f * playbackFraction(position, duration)
+            if (sweep > 0f) drawArc(palette.accent, -90f, sweep, false, inset, arc, style = Stroke(stroke, cap = StrokeCap.Round))
         }
     )
 }

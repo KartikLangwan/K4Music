@@ -3,7 +3,10 @@ package com.k4music.android.ui.components
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.k4music.android.ui.components.themed.HorizontalDivider
+import com.k4music.android.ui.theme.brandBrush
 import com.k4music.app.R
 import com.k4music.core.ui.Dimensions
 import com.k4music.core.ui.LocalAppearance
@@ -58,7 +62,19 @@ fun BottomBar(
                 NavigationBarItem(
                     selected = isSelected,
                     onClick = { onSelect(destination) },
-                    icon = { Icon(painterResource(destination.icon), null, Modifier.size(22.dp)) },
+                    // The selected tab sits in the K4 ribbon gradient, like the PC app's navigation pill.
+                    icon = {
+                        Box(
+                            Modifier
+                                .then(if (isSelected) Modifier.background(brandBrush(palette.accent), CircleShape) else Modifier)
+                                .padding(horizontal = 18.dp, vertical = 5.dp)
+                        ) {
+                            Icon(
+                                painterResource(destination.icon), null, Modifier.size(22.dp),
+                                tint = if (isSelected) Color.White else palette.textSecondary
+                            )
+                        }
+                    },
                     label = {
                         Text(
                             text = stringResource(destination.title),
@@ -69,7 +85,7 @@ fun BottomBar(
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = palette.accent,
                         selectedTextColor = palette.text,
-                        indicatorColor = palette.accent.copy(alpha = 0.16f),
+                        indicatorColor = Color.Transparent,
                         unselectedIconColor = palette.textSecondary,
                         unselectedTextColor = palette.textSecondary
                     )

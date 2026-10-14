@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
@@ -17,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -24,6 +26,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.MediaItem
 import com.k4music.android.LocalPlayerServiceBinder
+import com.k4music.android.ui.theme.brandBrush
 import com.k4music.android.utils.forcePlayFromBeginning
 import com.k4music.android.utils.semiBold
 import com.k4music.app.R
@@ -42,10 +45,12 @@ fun BigPlayButton(
     Row(
         horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
+        // A centred pill like the PC app's Play button, clear of the screen's floating buttons.
         modifier = modifier
-            .padding(horizontal = 24.dp, vertical = 14.dp)
-            .widthIn(max = 420.dp)
+            .padding(vertical = 14.dp)
             .fillMaxWidth()
+            .wrapContentWidth(Alignment.CenterHorizontally)
+            .widthIn(min = 200.dp)
             .height(52.dp)
             // Soft accent glow: coloured shadow on Android 9+, a plain soft shadow below that.
             .shadow(
@@ -55,23 +60,25 @@ fun BigPlayButton(
                 spotColor = colorPalette.accent
             )
             .clip(CircleShape)
-            .background(if (enabled) colorPalette.accent else colorPalette.accent.copy(alpha = 0.35f))
+            // The K4 ribbon gradient, like the PC app's Play button.
+            .background(brandBrush(colorPalette.accent), alpha = if (enabled) 1f else 0.35f)
             .clickable(enabled = enabled, role = Role.Button) {
                 val list = items()
                 if (list.isEmpty()) return@clickable
                 binder?.stopRadio()
                 binder?.player?.forcePlayFromBeginning(list)
             }
+            .padding(horizontal = 40.dp)
     ) {
         Image(
             painter = painterResource(R.drawable.play),
             contentDescription = null,
-            colorFilter = ColorFilter.tint(colorPalette.onAccent),
+            colorFilter = ColorFilter.tint(Color.White),
             modifier = Modifier.size(20.dp)
         )
         BasicText(
             text = stringResource(R.string.play),
-            style = typography.s.semiBold.copy(color = colorPalette.onAccent)
+            style = typography.s.semiBold.copy(color = Color.White)
         )
     }
 }

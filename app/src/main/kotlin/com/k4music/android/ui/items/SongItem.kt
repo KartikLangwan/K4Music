@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -217,11 +218,14 @@ private fun SongItem(
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
+        // The playing-song highlight floats 8 dp inside the screen edges; the content stays at 16 dp.
         modifier = modifier.fillMaxWidth()
+            .padding(horizontal = 8.dp)
             .let { if (clip) it.clip(RoundedCornerShape(18.dp)) else it }
-            .background(backgroundColor).padding(horizontal = 16.dp, vertical = 10.dp)
+            .background(backgroundColor).padding(horizontal = 8.dp, vertical = 10.dp)
     ) {
-        Box(Modifier.size(thumbnailSize).clip(RoundedCornerShape(14.dp)), content = thumbnailContent)
+        // Round "disc" covers, as in the PC app.
+        Box(Modifier.size(thumbnailSize).clip(CircleShape), content = thumbnailContent)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             BasicText(
                 text = title.orEmpty(),

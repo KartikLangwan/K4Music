@@ -71,6 +71,7 @@ fun adaptiveThumbnailContent(
         ) else AsyncImage(
             model = url?.thumbnail(thumbnailSize.px),
             contentDescription = null,
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
             modifier = innerModifier.background(colorPalette.background1)
         )
     }

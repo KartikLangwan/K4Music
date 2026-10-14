@@ -158,7 +158,6 @@ fun LocalPlaylistSongs(
                     .only(WindowInsetsSides.Vertical + WindowInsetsSides.End)
                     .asPaddingValues(),
                 modifier = Modifier
-                    .background(colorPalette.background0)
                     .fillMaxSize()
             ) {
                 item(
@@ -330,7 +329,7 @@ fun LocalPlaylistSongs(
                                 reorderingState = reorderingState,
                                 index = index
                             )
-                            .background(colorPalette.background0),
+                            .then(if (reorderingState.isDragging) Modifier.background(colorPalette.background0) else Modifier),
                         song = song,
                         thumbnailSize = Dimensions.thumbnails.song,
                         trailingContent = {

@@ -159,7 +159,6 @@ fun HomeSongs(
 
     Box(
         modifier = Modifier
-            .background(colorPalette.background0)
             .fillMaxSize()
     ) {
         LazyColumn(

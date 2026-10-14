@@ -1,5 +1,6 @@
 package com.k4music.android.ui.components.themed
 
+import com.k4music.android.ui.theme.brandBrush
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -81,14 +82,14 @@ fun PromoMarquee(modifier: Modifier = Modifier) {
         )
         Text(
             text = stringResource(R.string.promo_visit),
-            color = palette.onAccent,
+            color = Color.White,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
             modifier = Modifier
                 .padding(start = 8.dp)
                 .clip(CircleShape)
                 .clickable { runCatching { uriHandler.openUri(Brand.WEBSITE_URL) } }
-                .background(palette.accent)
+                .background(brandBrush(palette.accent))
                 .padding(horizontal = 14.dp, vertical = 6.dp)
         )
     }

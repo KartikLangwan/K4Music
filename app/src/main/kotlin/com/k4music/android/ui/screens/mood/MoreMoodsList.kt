@@ -85,7 +85,6 @@ fun MoreMoodsList(
             .only(WindowInsetsSides.Vertical + WindowInsetsSides.End)
             .asPaddingValues(),
         modifier = modifier
-            .background(colorPalette.background0)
             .fillMaxSize()
     ) {
         item(

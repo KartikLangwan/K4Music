@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">K4 Music</string>
-    <string name="app_tagline">Clean. Fast. Yours.</string>
+    <string name="app_tagline">Your music. Every screen.</string>
     <string name="app_credit">Made by Kartik Langwan</string>
 
     <string name="format_minutes">%1$dm</string>

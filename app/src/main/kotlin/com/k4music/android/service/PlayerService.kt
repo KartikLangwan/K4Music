@@ -1386,6 +1386,12 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
         private const val PYTHON_WARM_UP_DELAY_MS = 8_000L
         private val ytDlpScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
+        /** yt-dlp errors that mean "YouTube is refusing this network", not "this song is unavailable". */
+        private val YOUTUBE_BLOCKED_SIGNS = listOf("not a bot", "HTTP Error 429", "LOGIN_REQUIRED", "page needs to be reloaded")
+        private const val YOUTUBE_BLOCK_PAUSE_MS = 10 * 60 * 1000L
+        @Volatile private var youtubeBlockedUntil = 0L
+        private fun youtubeBlocked() = System.currentTimeMillis() < youtubeBlockedUntil
+
         fun createDatabaseProvider(context: Context) = StandaloneDatabaseProvider(context)
         fun createCache(
             context: Context,
@@ -1538,13 +1544,20 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                         contentLength = youtubeFormat.contentLength
                     } else {
                         // yt-dlp can hang on a slow network; past the deadline JioSaavn takes over.
-                        val job = ytDlpScope.async { Dependencies.runDownload(mediaId) }
-                        val info = runCatching {
+                        // While YouTube is blocking this network ("confirm you're not a bot", 429) it rests.
+                        val info = if (youtubeBlocked()) null else runCatching {
+                            val job = ytDlpScope.async { Dependencies.runDownload(mediaId) }
                             runBlocking { withTimeoutOrNull(YT_DLP_TIMEOUT_MS) { job.await() } }
                                 ?: error("yt-dlp timed out for $mediaId")
                         }.mapCatching {
                             YouTubeDLResponse.fromString(it)
-                        }.onFailure { Log.w(TAG, "yt-dlp failed for $mediaId", it) }.getOrNull()
+                        }.onFailure {
+                            Log.w(TAG, "yt-dlp failed for $mediaId", it)
+                            if (YOUTUBE_BLOCKED_SIGNS.any { sign -> it.message?.contains(sign) == true }) {
+                                Log.w(TAG, "YouTube is blocking this network; JioSaavn for a while")
+                                youtubeBlockedUntil = System.currentTimeMillis() + YOUTUBE_BLOCK_PAUSE_MS
+                            }
+                        }.getOrNull()
                         if (info?.id != null && info.id != mediaId) throw VideoIdMismatchException()
                         val format = info?.formats?.firstOrNull { it.formatId == info.formatId }
                         uri = (info?.url?.takeIf { it.isNotBlank() } ?: format?.url?.takeIf { it.isNotBlank() })?.toUri()

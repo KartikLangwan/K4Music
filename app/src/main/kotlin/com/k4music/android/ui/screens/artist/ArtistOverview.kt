@@ -82,7 +82,6 @@ fun ArtistOverview(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
-                .background(colorPalette.background0)
                 .fillMaxSize()
                 .verticalScroll(scrollState)
                 .padding(

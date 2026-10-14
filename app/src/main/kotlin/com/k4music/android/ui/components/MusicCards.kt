@@ -1,5 +1,6 @@
 package com.k4music.android.ui.components
 
+import com.k4music.android.ui.theme.brandBrush
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -127,8 +128,10 @@ fun FeaturedMusicCard(
             Button(
                 onClick,
                 enabled = enabled,
-                colors = ButtonDefaults.buttonColors(containerColor = palette.accent, contentColor = palette.onAccent),
-                shape = CircleShape
+                // The K4 gradient behind a see-through button, like every Play button in the app.
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.White),
+                shape = CircleShape,
+                modifier = Modifier.background(brandBrush(palette.accent), CircleShape)
             ) {
                 Icon(painterResource(actionIcon), null, Modifier.size(18.dp))
                 Text(action, Modifier.padding(start = 6.dp), maxLines = 1)

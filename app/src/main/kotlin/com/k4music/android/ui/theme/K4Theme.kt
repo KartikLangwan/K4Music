@@ -7,7 +7,12 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.core.graphics.toColorInt
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -79,6 +84,26 @@ private fun lightScheme(accent: Color) = lightColorScheme(
 
 // ponytail: one-line luminance check; good enough for accent contrast decisions.
 fun isLightColor(c: Color): Boolean = 0.299 * c.red + 0.587 * c.green + 0.114 * c.blue > 0.62
+
+/** The K4 ribbon gradient from the logo, same as the PC app: lavender into the accent into a deep shade. */
+fun brandBrush(accent: Color) =
+    Brush.linearGradient(listOf(lerp(accent, Color.White, 0.40f), accent, lerp(accent, Color.Black, 0.25f)))
+
+/**
+ * The PC app's backdrop: the accent glowing from the top left and the K4 ribbon colour from the
+ * bottom right, behind a whole screen. Brushes are cached; drawing is two rects.
+ */
+fun Modifier.k4Backdrop(accent: Color, dark: Boolean) = drawWithCache {
+    val big = maxOf(size.width, size.height)
+    fun glow(color: Color, x: Float, y: Float, radius: Float) =
+        Brush.radialGradient(listOf(color, Color.Transparent), Offset(size.width * x, size.height * y), big * radius)
+    val top = glow(accent.copy(alpha = if (dark) 0.30f else 0.18f), 0.08f, 0.10f, 0.72f)
+    val bottom = glow(lerp(accent, Color.White, 0.35f).copy(alpha = if (dark) 0.16f else 0.10f), 1f, 0.92f, 0.62f)
+    onDrawBehind {
+        drawRect(top)
+        drawRect(bottom)
+    }
+}
 
 // ponytail: parseHexColor tolerates malformed input with a fallback; never throws.
 fun parseHexColor(hex: String, fallback: Color = K4Accent): Color {
