@@ -68,9 +68,12 @@ object DevTools {
         val report = StringBuilder()
         val start = System.nanoTime()
         fun now() = System.nanoTime() - start
-        ImageComposeScene(1440, 900, Density(1f)) {
+        // Optional first lines: `size W H` (window size) and `theme light`.
+        val size = script.firstOrNull { it.startsWith("size ") }?.split(' ')?.let { it[1].toInt() to it[2].toInt() } ?: (1440 to 900)
+        val dark = script.none { it.trim() == "theme light" }
+        ImageComposeScene(size.first, size.second, Density(1f)) {
             setSingletonImageLoaderFactory(::k4ImageLoader)
-            K4Theme {
+            K4Theme(dark = dark) {
                 CompositionLocalProvider(LocalNavigator provides navigator, LocalPlayer provides player) {
                     Shell(panel, playerOpen, FocusRequester())
                 }
@@ -94,7 +97,38 @@ object DevTools {
                         pump(400)
                     }
                     "wait" -> pump(parts[1].toLong())
+                    "scroll" -> {
+                        val at = androidx.compose.ui.geometry.Offset(parts[1].toFloat(), parts[2].toFloat())
+                        scene.sendPointerEvent(androidx.compose.ui.input.pointer.PointerEventType.Move, at)
+                        scene.sendPointerEvent(
+                            androidx.compose.ui.input.pointer.PointerEventType.Scroll, at,
+                            scrollDelta = androidx.compose.ui.geometry.Offset(0f, parts[3].toFloat())
+                        )
+                        pump(800)
+                    }
+                    "rightclick" -> {
+                        val at = androidx.compose.ui.geometry.Offset(parts[1].toFloat(), parts[2].toFloat())
+                        scene.sendPointerEvent(androidx.compose.ui.input.pointer.PointerEventType.Move, at)
+                        scene.sendPointerEvent(androidx.compose.ui.input.pointer.PointerEventType.Press, at, buttons = androidx.compose.ui.input.pointer.PointerButtons(isSecondaryPressed = true), button = androidx.compose.ui.input.pointer.PointerButton.Secondary)
+                        pump(60)
+                        scene.sendPointerEvent(androidx.compose.ui.input.pointer.PointerEventType.Release, at, button = androidx.compose.ui.input.pointer.PointerButton.Secondary)
+                        pump(500)
+                    }
+                    "go" -> {
+                        navigator.go(
+                            when (parts[1]) {
+                                "album" -> Screen.Album(parts[2])
+                                "artist" -> Screen.Artist(parts[2])
+                                "playlist" -> Screen.Playlist(parts[2])
+                                "favorites" -> Screen.BuiltIn(com.k4music.desktop.ui.BuiltInKind.Favorites)
+                                "history" -> Screen.BuiltIn(com.k4music.desktop.ui.BuiltInKind.History)
+                                else -> Screen.Home
+                            }
+                        )
+                        pump(5_000)
+                    }
                     "search" -> { navigator.go(Screen.Search(line.substringAfter(' '))); pump(4_000) }
+                    "size", "theme" -> Unit
                     "set" -> {
                         when (parts[1]) {
                             "nav" -> com.k4music.desktop.prefs.Settings.navPosition = com.k4music.desktop.prefs.NavPosition.valueOf(parts[2])
@@ -140,12 +174,36 @@ object DevTools {
                 }
                 true
             } ?: false
+            // Deep in the song: later parts of the stream must load too (cut-off streams failed here).
+            val duration = player.state.value.durationSeconds
+            val deepAt = duration * 0.8
+            if (advanced && duration > 30) player.seek(deepAt)
+            val deep = advanced && duration > 30 && withTimeoutOrNull(25_000) {
+                while (player.position.value < deepAt + 3 || player.state.value.current?.id != track.id) kotlinx.coroutines.delay(100)
+                true
+            } == true
             val line = "${track.id} '${track.title}': resolve=${stream.getOrNull()?.source ?: stream.exceptionOrNull()?.message} " +
-                "in ${resolvedIn}ms, firstSound=${firstSoundMs}ms, plays=$advanced (pos=${"%.1f".format(player.position.value)}s, " +
+                "in ${resolvedIn}ms, firstSound=${firstSoundMs}ms, plays=$advanced, deep=$deep (pos=${"%.1f".format(player.position.value)}s of ${duration.toInt()}s, " +
                 "source=${player.state.value.source}, error=${player.state.value.error})"
             AppLog.i("SelfTest", line)
             report.appendLine(line)
-            ok = ok && advanced
+            ok = ok && advanced && deep
+        }
+        // A song plays to its real end, then the next one starts (no early cut, no skip).
+        if (tracks.size >= 2) {
+            player.clearQueue().join()
+            player.play(tracks.take(2)).join()
+            withTimeoutOrNull(25_000) { while (player.position.value < 1.0) kotlinx.coroutines.delay(100) }
+            val duration = player.state.value.durationSeconds
+            player.seek(duration - 6)
+            val next = withTimeoutOrNull(40_000) {
+                while (player.state.value.index != 1 || player.position.value < 1.0) kotlinx.coroutines.delay(100)
+                true
+            } == true
+            val line = "end-of-song: '${tracks[0].title}' finished and '${tracks[1].title}' started = $next"
+            AppLog.i("SelfTest", line)
+            report.appendLine(line)
+            ok = ok && next
         }
         player.clearQueue().join()
         File(dir, "selftest.txt").writeText(report.toString() + if (ok) "PASS\n" else "FAIL\n")

@@ -124,9 +124,6 @@ object Settings : SettingsStore({ AppPaths.settings }) {
     var sponsorBlockEnabled by boolean(false)
     var sponsorBlockCategories by string("sponsor,selfpromo,intro,outro,music_offtopic")
     var resumeOnStart by boolean(false)
-    /** Direct YouTube urls refused in a row, and when (see StreamResolver). */
-    var directRefusals by int(0)
-    var directRefusedAt by long(0L)
 
     // Audio effects (mpv filter chain; same choices as Android's AudioScreen)
     var equalizerEnabled by boolean(false)

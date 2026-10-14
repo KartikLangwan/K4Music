@@ -91,8 +91,9 @@ private fun visibleDestinations(): List<NavDestination> {
     return navDestinations.filter { it.key == "Home" || it.key !in hidden }
 }
 
-/** Which navigation button to highlight: Search while searching, otherwise the stack's root. */
-private fun Navigator.section(): Screen = current.takeIf { it is Screen.Search } ?: stack.first()
+/** Which navigation button to highlight: the nearest navigation screen below the current page. */
+private fun Navigator.section(): Screen =
+    stack.lastOrNull { s -> navDestinations.any { sameRoot(s, it.screen) } } ?: stack.first()
 
 private fun sameRoot(a: Screen, b: Screen) = a == b || (a is Screen.Search && b is Screen.Search)
 
@@ -114,11 +115,13 @@ fun Shell(
 ) {
     val navigator = LocalNavigator.current
     val colors = MaterialTheme.colorScheme
-    Box(Modifier.fillMaxSize().background(colors.background)) {
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(colors.background)) {
+        // Narrow windows get the icon-only side panel automatically.
+        val narrow = maxWidth < 1100.dp
         Column(Modifier.fillMaxSize()) {
             TopBar(navigator, searchFocus, fullscreen, onToggleFullscreen)
             Row(Modifier.weight(1f).padding(horizontal = Gap), horizontalArrangement = Arrangement.spacedBy(Gap)) {
-                if (Settings.navPosition == NavPosition.Side || Settings.sidebarPlaylists) SidePanelColumn(navigator)
+                if (Settings.navPosition == NavPosition.Side || Settings.sidebarPlaylists) SidePanelColumn(navigator, narrow)
                 ContentPanel(navigator, Modifier.weight(1f))
                 panel.value?.let { which ->
                     Surface(shape = PanelShape, color = colors.surface, modifier = Modifier.widthIn(min = 320.dp, max = 380.dp).fillMaxHeight()) {
@@ -281,8 +284,8 @@ private fun Modifier.onPreviewKeyEventEnter(action: () -> Unit) = onPreviewKeyEv
 // ---- Side panel ----
 
 @Composable
-private fun SidePanelColumn(navigator: Navigator) {
-    val collapsed = Settings.sidebarCollapsed
+private fun SidePanelColumn(navigator: Navigator, narrow: Boolean) {
+    val collapsed = Settings.sidebarCollapsed || narrow
     val current = navigator.section()
     Column(
         Modifier.width(if (collapsed) 76.dp else 280.dp).fillMaxHeight().animateContentSize(),

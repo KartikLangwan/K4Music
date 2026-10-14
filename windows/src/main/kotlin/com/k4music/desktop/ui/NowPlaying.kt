@@ -71,7 +71,8 @@ fun NowPlaying(panel: SidePanel?, onClose: () -> Unit) {
                 Artwork(
                     track?.thumbnailUrl,
                     420.dp,
-                    Modifier.widthIn(max = 460.dp).fillMaxWidth(0.8f).aspectRatio(1f),
+                    // Shrinks on short windows so the controls below always fit.
+                    Modifier.weight(1f, fill = false).widthIn(max = 460.dp).fillMaxWidth(0.8f).aspectRatio(1f, matchHeightConstraintsFirst = true),
                     corner = 20.dp
                 )
                 Text(
@@ -149,6 +150,6 @@ fun Modifier.livingBackdrop(accent: Color, playing: Boolean): Modifier {
 
 private fun com.k4music.desktop.player.StreamSource.label() = when (this) {
     com.k4music.desktop.player.StreamSource.Local -> "On this PC"
-    com.k4music.desktop.player.StreamSource.Direct, com.k4music.desktop.player.StreamSource.YtDlp -> "YouTube Music"
+    com.k4music.desktop.player.StreamSource.YtDlp -> "YouTube Music"
     com.k4music.desktop.player.StreamSource.Saavn -> "JioSaavn"
 }

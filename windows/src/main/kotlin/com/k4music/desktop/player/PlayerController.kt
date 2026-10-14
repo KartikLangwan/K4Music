@@ -95,12 +95,22 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
             override fun onPaused(paused: Boolean) = run { _state.update { it.copy(playing = !paused) } }
             override fun onBuffering(buffering: Boolean) = run { _state.update { it.copy(buffering = buffering) } }
             override fun onLoaded() {
-                if (currentStream?.source == StreamSource.Direct) resolver.directPlayed()
                 _state.update { it.copy(buffering = false, error = null) }
                 _state.value.current?.let { track -> scope.launch { onTrackStarted(track); prefetchNext() } }
             }
             override fun onEnded(error: String?) {
-                scope.launch { if (error == null) onTrackFinished() else onFailure(Failure.Source, error) }
+                scope.launch {
+                    val duration = _state.value.durationSeconds
+                    when {
+                        error != null -> onFailure(Failure.Source, error)
+                        // A stream the server cut off reads as a normal end: resume it instead of moving on.
+                        duration > 0 && lastPosition < duration - EARLY_END_SECONDS -> {
+                            AppLog.w(TAG, "Stream ended early at ${lastPosition.toInt()}s of ${duration.toInt()}s; resuming")
+                            onFailure(Failure.Network, "Stream ended early")
+                        }
+                        else -> onTrackFinished()
+                    }
+                }
             }
         })
     }
@@ -349,12 +359,6 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
     private suspend fun onFailure(failure: Failure, message: String?) {
         val track = _state.value.current ?: return
         val stream = currentStream
-        // A refused direct YouTube url goes to yt-dlp first, as Android's data source retry does.
-        if (failure == Failure.Source && stream?.source == StreamSource.Direct) {
-            AppLog.w(TAG, "Direct YouTube url refused for ${track.id} ($message); trying yt-dlp")
-            resolver.reject(track, stream)
-            return load(_position.value)
-        }
         if (stream != null) resolver.reject(track, stream)
         val recovery = chooseRecovery(
             failure = failure,
@@ -420,5 +424,7 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
     private companion object {
         const val TAG = "Player"
         const val RECOVERY_DELAY_MS = 300L
+        /** An end this far before the song's length is a broken stream, not the song finishing. */
+        const val EARLY_END_SECONDS = 5.0
     }
 }

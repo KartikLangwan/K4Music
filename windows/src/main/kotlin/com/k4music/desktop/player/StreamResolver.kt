@@ -6,9 +6,6 @@ import com.k4music.desktop.k4.StreamFallback
 import com.k4music.desktop.k4.findSaavnStream
 import com.k4music.desktop.k4.resolveSaavnStream
 import com.k4music.desktop.prefs.Settings
-import com.k4music.providers.innertube.Innertube
-import com.k4music.providers.innertube.models.bodies.PlayerBody
-import com.k4music.providers.innertube.requests.player
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -19,12 +16,11 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
-import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 /** Where a resolved stream came from; decides how a later failure is handled. */
-enum class StreamSource { Local, Direct, YtDlp, Saavn }
+enum class StreamSource { Local, YtDlp, Saavn }
 
 /** [temporary]: a stand-in while YouTube was slow; not cached, so the next play tries YouTube again. */
 data class Stream(val url: String, val source: StreamSource, val headers: Map<String, String> = emptyMap(), val temporary: Boolean = false)
@@ -33,39 +29,21 @@ data class Stream(val url: String, val source: StreamSource, val headers: Map<St
 class UnplayableException(message: String) : Exception(message)
 
 /**
- * Same chain as the Android player (PlayerService.createYouTubeDataSourceResolverFactory):
- * YouTube direct audio url -> yt-dlp (15 s deadline) -> the same song on JioSaavn
- * (Smart fallback) -> unplayable. Resolved urls are cached per song for 15 minutes.
+ * yt-dlp (15 s deadline) -> the same song on JioSaavn (Smart fallback) -> unplayable.
+ * Resolved urls are cached per song for 15 minutes.
+ *
+ * No direct Innertube url step (Android's first step): on PC those urls play the first
+ * megabyte and are then refused (HTTP 403), which cut songs off half way.
  */
 class StreamResolver {
     private data class Cached(val stream: Stream, val at: Long)
     private val cache = ConcurrentHashMap<String, Cached>()
-    /** Songs whose direct Innertube url the CDN refused: go straight to yt-dlp. */
-    private val rejectedDirect = ConcurrentHashMap.newKeySet<String>()
-    /**
-     * Refusals of direct urls in a row. YouTube currently refuses them all (they need a token),
-     * so after two the dead step is skipped (remembered across restarts, retried once a day);
-     * a direct url that plays resets it.
-     */
-    private var directRefusals by Settings::directRefusals
-
-    fun directPlayed() { if (directRefusals != 0) directRefusals = 0 }
-
     fun forget(id: String) { cache.remove(id) }
 
     /** The current [Stream] of [track] was refused; the next resolve picks the next source. */
     fun reject(track: Track, stream: Stream) {
         forget(track.id)
-        when (stream.source) {
-            StreamSource.Direct -> {
-                if (rejectedDirect.size >= 64) rejectedDirect.clear()
-                rejectedDirect += track.id
-                directRefusals = (directRefusals + 1).coerceAtMost(2)
-                Settings.directRefusedAt = System.currentTimeMillis()
-            }
-            StreamSource.Saavn -> if (!track.isSaavn) StreamFallback.drop(track.id)
-            else -> Unit
-        }
+        if (stream.source == StreamSource.Saavn && !track.isSaavn) StreamFallback.drop(track.id)
     }
 
     /** Resolves running right now, by song: a hover prefetch and the click share one yt-dlp run. */
@@ -111,7 +89,7 @@ class StreamResolver {
                 ?: throw UnplayableException("JioSaavn stream unavailable")
             fallbackOn && StreamFallback.url(track.id) != null ->
                 Stream(StreamFallback.url(track.id)!!, StreamSource.Saavn)
-            else -> (if (fallbackOn) youtubeOrQuickFallback(track) else youtube(track))
+            else -> (if (fallbackOn) youtubeOrQuickFallback(track) else ytDlp(track.id))
                 ?: (if (fallbackOn) saavnFallback(track) else null)
                 ?: throw UnplayableException("No playable stream")
         }
@@ -125,29 +103,13 @@ class StreamResolver {
      * yt-dlp's full deadline.
      */
     private suspend fun youtubeOrQuickFallback(track: Track): Stream? = kotlinx.coroutines.coroutineScope {
-        val yt = async { youtube(track) }
+        val yt = async { ytDlp(track.id) }
         val quick = kotlinx.coroutines.withTimeoutOrNull(SLOW_YOUTUBE_MS) { yt.await() }
         if (quick != null || yt.isCompleted) return@coroutineScope quick ?: yt.await()
         AppLog.w(TAG, "YouTube is slow for ${track.id}; trying JioSaavn meanwhile")
         val saavn = saavnFallback(track, remember = false)
         if (saavn != null && !yt.isCompleted) { yt.cancel(); return@coroutineScope saavn.copy(temporary = true) }
         yt.await() ?: saavn?.copy(temporary = true)
-    }
-
-    private suspend fun youtube(track: Track): Stream? {
-        if (track.id !in rejectedDirect && (directRefusals < 2 || System.currentTimeMillis() - Settings.directRefusedAt > DAY_MS)) {
-            val body = Innertube.player(PlayerBody(videoId = track.id))?.let { result ->
-                result.exceptionOrNull()?.let { if (it is IOException) throw it }
-                result.getOrNull()
-            }
-            // A direct url only plays with the User-Agent of the client that asked for it (iOS, TV…).
-            val userAgent = body?.context?.client?.userAgent
-            AppLog.i(TAG, "Innertube client ${body?.context?.client?.clientName} for ${track.id}: format ${body?.streamingData?.audioFormat(Settings.audioQuality.youtubeItags)?.itag}")
-            body?.streamingData?.audioFormat(Settings.audioQuality.youtubeItags)?.url
-                ?.takeIf { it.isNotBlank() }
-                ?.let { return Stream(it, StreamSource.Direct, userAgent?.let { ua -> mapOf("User-Agent" to ua) }.orEmpty()) }
-        }
-        return ytDlp(track.id)
     }
 
     /** Runs the bundled yt-dlp.exe with QuickJS for YouTube's JS challenge. Null on failure/timeout. */
@@ -160,7 +122,8 @@ class StreamResolver {
             // The cache keeps YouTube's player script and solved challenges: later songs resolve much faster.
             exe.absolutePath, "-J", "--no-warnings", "--no-playlist",
             "--cache-dir", AppPaths.local.resolve("yt-dlp-cache").absolutePath,
-            "-f", "bestaudio/best", "--socket-timeout", "12", "--retries", "2",
+            // Streaming quality (Settings) picks the format; any audio if those are missing.
+            "-f", (Settings.audioQuality.youtubeItags.map { it.toString() } + "bestaudio" + "best").joinToString("/"), "--socket-timeout", "12", "--retries", "2",
             "--js-runtimes", "quickjs:${qjs.absolutePath}",
             "https://www.youtube.com/watch?v=$videoId"
         ).apply {
@@ -219,8 +182,7 @@ class StreamResolver {
     private companion object {
         const val TAG = "StreamResolver"
         const val TTL_MS = 15 * 60 * 1000L
-        const val DAY_MS = 24 * 60 * 60 * 1000L
-        const val SLOW_YOUTUBE_MS = 7_000L
+        const val SLOW_YOUTUBE_MS = 10_000L
         const val YT_DLP_TIMEOUT_S = 15L
         val json = Json { ignoreUnknownKeys = true; isLenient = true }
     }
