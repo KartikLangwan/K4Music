@@ -32,3 +32,6 @@ windows/downloads/
 windows/build/
 windows/.gradle/
 windows/.kotlin/
+
+# Design notes and drafts
+windows/design/

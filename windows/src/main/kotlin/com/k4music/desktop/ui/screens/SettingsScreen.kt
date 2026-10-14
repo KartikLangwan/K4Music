@@ -427,11 +427,13 @@ private fun AboutSection() = Section(Res.string.about) {
         }) { Text(stringResource(Res.string.desktop_check_updates)) }
         OutlinedButton(onClick = { browse(WEBSITE) }) { Text(stringResource(Res.string.desktop_website)) }
         OutlinedButton(onClick = { browse(CREATOR_SITE) }) { Text(CREATOR_SITE.removePrefix("https://")) }
+        OutlinedButton(onClick = { browse(GITHUB) }) { Text("GitHub") }
     }
     Text("GPL-3.0", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 const val WEBSITE = "https://k4music.vercel.app"
+private const val GITHUB = "https://github.com/KartikLangwan/K4Music"
 private const val CREATOR_SITE = "https://kartiklangwan.vercel.app"
 private val APP_VERSION get() = System.getProperty("jpackage.app-version") ?: "2.12.14"
 

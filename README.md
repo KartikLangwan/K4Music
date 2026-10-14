@@ -5,7 +5,7 @@
 
 <a href="https://k4music.vercel.app/download"><img src="https://img.shields.io/badge/Android-Download%20APK-7C4DFF?style=for-the-badge&logo=android&logoColor=white" alt="Download for Android"/></a>
 <a href="https://k4music.vercel.app/download/windows"><img src="https://img.shields.io/badge/Windows-Download%20installer-7C4DFF?style=for-the-badge&logo=windows&logoColor=white" alt="Download for Windows"/></a>
-<a href="https://github.com/KartikLangwan/K4Music-releases/releases"><img src="https://img.shields.io/badge/All%20releases-555?style=for-the-badge&logo=github" alt="All releases"/></a>
+<a href="https://github.com/KartikLangwan/K4Music/releases"><img src="https://img.shields.io/badge/All%20releases-555?style=for-the-badge&logo=github" alt="All releases"/></a>
 
 <p>
 <img src="https://img.shields.io/badge/Android-7.0%2B-3DDC84?logo=android&logoColor=white" alt="Android 7.0+"/>
@@ -21,11 +21,11 @@
 
 ## Download
 
-Public downloads live in [**K4Music-releases**](https://github.com/KartikLangwan/K4Music-releases/releases) (this source repository is private) and on [k4music.vercel.app](https://k4music.vercel.app).
+Downloads are in this repository's [**Releases**](https://github.com/KartikLangwan/K4Music/releases) and on [k4music.vercel.app](https://k4music.vercel.app).
 
 | | Android | Windows |
 | --- | --- | --- |
-| **File** | [K4Music-v2.12.14-RELEASE.apk](https://github.com/KartikLangwan/K4Music-releases/releases/download/v2.12.14/K4Music-v2.12.14-RELEASE.apk) | [K4Music-Setup-2.12.14.exe](https://github.com/KartikLangwan/K4Music-releases/releases/download/v2.12.14/K4Music-Setup-2.12.14.exe) |
+| **File** | [K4Music-v2.12.14-RELEASE.apk](https://github.com/KartikLangwan/K4Music/releases/download/v2.12.14/K4Music-v2.12.14-RELEASE.apk) | [K4Music-Setup-2.12.14.exe](https://github.com/KartikLangwan/K4Music/releases/download/v2.12.14/K4Music-Setup-2.12.14.exe) |
 | **Requires** | Android 7.0+, arm64-v8a or x86_64 | Windows 10 / 11, 64-bit |
 | **Size** | 34.9 MB | 116.3 MB |
 | **SHA-256** | `23499F16CBAC0C2A181D36964A9B631D185477E412E5507133777FCFB9650036` | `56386037CFBE3803A09B1F6A2A58EFAD209B7F62DDE40FD19FDADD0F7E410BE1` |
@@ -64,7 +64,7 @@ Every fix and how it was verified: [AUDIT.md](AUDIT.md).
 - ⌨️ Media keys and Bluetooth headphone buttons work in the background; Previous / Play-Pause / Next under the taskbar thumbnail
 - 💬 Discord status: *Playing K4 Music* with the song and cover, and an icon next to your name in voice channels
 - 🪟 Resizable, hideable panels, navigation left or bottom, full screen (F11), system tray
-- 🔄 In-app updates from the public releases
+- 🔄 In-app updates from this repository's releases
 
 ## Build from source
 

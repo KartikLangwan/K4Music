@@ -89,6 +89,11 @@ fun About() = SettingsCategoryScreen(
             text = "@${Brand.INSTAGRAM_HANDLE}",
             onClick = { openLink(Brand.INSTAGRAM_URL) }
         )
+        SettingsEntry(
+            title = "GitHub",
+            text = "KartikLangwan/K4Music",
+            onClick = { openLink(Brand.GITHUB_URL) }
+        )
     }
     var crashLogOpened by rememberSaveable { mutableStateOf(false) }
     SettingsGroup(title = stringResource(R.string.diagnostics)) {
