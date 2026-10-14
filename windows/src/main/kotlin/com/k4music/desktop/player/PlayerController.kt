@@ -79,6 +79,9 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
     var onPlayed: (Track, Long) -> Unit = { _, _ -> }
     /** Asked for more songs when the queue runs out with repeat off (radio). */
     var onQueueEnding: suspend (Track) -> List<Track> = { emptyList() }
+    /** The chosen sound output failed and playback moved to the Windows default (for a notice). */
+    var onAudioDeviceLost: () -> Unit = {}
+    @Volatile private var lastAudioRecovery = 0L
     /** Opens a radio for a seed; each call of the returned function gives the next page of songs. */
     var radioSource: (RadioSeed) -> (suspend () -> List<Track>) = { { emptyList() } }
     /** The radio feeding the queue, if the queue came from one (Android's YouTubeRadio). */
@@ -90,6 +93,7 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
         if (Settings.volume == 0 && !Settings.muted) Settings.volume = 50
         mpv.setVolume(Settings.volume)
         mpv.setMuted(Settings.muted)
+        mpv.setAudioDevice(Settings.audioDevice)
         applyEffects()
         mpv.setListener(object : Mpv.Listener {
             override fun onPosition(seconds: Double) {
@@ -112,6 +116,23 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
                 _state.value.current?.let { track -> scope.launch { onTrackStarted(track); prefetchNext() } }
                 // Keep a radio queue topped up, as Android does when three songs are left.
                 scope.launch { _state.value.let { if (it.queue.size - it.index <= 3) fillRadio() } }
+            }
+            override fun onAudioOutputFailed() {
+                // A device that went away (Bluetooth off, headphones unplugged): never leave the
+                // music silent. A chosen device falls back to the Windows default; the default
+                // itself is reopened once, as Windows may have just switched it.
+                val now = System.currentTimeMillis()
+                if (now - lastAudioRecovery < 5_000) return
+                lastAudioRecovery = now
+                if (Settings.audioDevice != "auto") {
+                    AppLog.w(TAG, "Audio output ${Settings.audioDevice} failed; using the Windows default")
+                    Settings.audioDevice = "auto"
+                    mpv.setAudioDevice("auto")
+                    onAudioDeviceLost()
+                } else {
+                    AppLog.w(TAG, "Default audio output failed; reopening it")
+                    mpv.reloadAudio()
+                }
             }
             override fun onEnded(error: String?) {
                 scope.launch {
@@ -306,6 +327,15 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
     fun seek(seconds: Double) { _position.value = seconds; mpv.seek(seconds) }
     fun setVolume(percent: Int) { Settings.volume = percent.coerceIn(0, 100); mpv.setVolume(Settings.volume) }
     fun setMuted(muted: Boolean) { Settings.muted = muted; mpv.setMuted(muted) }
+
+    /** Sound outputs Windows offers now (refresh when Bluetooth or headphones connect). */
+    fun audioDevices(): List<AudioDevice> = mpv.audioDevices()
+
+    /** Plays through [device] from now on ("auto" = follow the Windows default). */
+    fun setAudioDevice(device: String) {
+        Settings.audioDevice = device
+        mpv.setAudioDevice(device)
+    }
     fun cycleRepeat() { Settings.repeatMode = Settings.repeatMode.next }
 
     fun setShuffle(enabled: Boolean) = scope.launch {

@@ -30,11 +30,13 @@ import com.k4music.desktop.prefs.Settings
 import com.k4music.desktop.prefs.ThemeMode
 import com.k4music.desktop.res.Res
 import com.k4music.desktop.res.app_name
+import com.k4music.desktop.res.desktop_output_lost
 import com.k4music.desktop.res.desktop_quit
 import com.k4music.desktop.res.desktop_show_window
 import com.k4music.desktop.res.k4_logo
 import com.k4music.desktop.res.next_track
 import com.k4music.desktop.res.play
+import com.k4music.desktop.res.pause
 import com.k4music.desktop.res.previous_track
 import com.k4music.desktop.ui.K4Theme
 import com.k4music.desktop.ui.LocalNavigator
@@ -48,25 +50,52 @@ import com.k4music.desktop.ui.parseHexColor
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.system.exitProcess
+import kotlinx.coroutines.launch
 
 fun main(args: Array<String>) {
     Thread.setDefaultUncaughtExceptionHandler { thread, error -> AppLog.e("Crash", "Uncaught on ${thread.name}", error) }
+    // Before any window: Windows then names and groups the app as "K4 Music" everywhere
+    // (taskbar, pinned shortcut, notifications), not as the Java runtime.
+    TitleBar.setAppId()
     // A library restore staged in Settings is applied before anything opens the database.
     com.k4music.desktop.data.Maintenance.applyPendingRestore()
     val navigator = Navigator()
     var openLink: (String) -> Unit = {}
+    var requestQuit: () -> Unit = {}
     // Links from a second launch arrive on a socket thread; handle them on the UI thread.
-    val incoming = { lines: List<String> -> lines.forEach { line -> javax.swing.SwingUtilities.invokeLater { openLink(line) } } }
+    // "--quit" comes from the installer: close properly (save queue and settings) before an update.
+    val incoming = { lines: List<String> ->
+        lines.forEach { line -> javax.swing.SwingUtilities.invokeLater { if (line == QUIT_ARG) requestQuit() else openLink(line) } }
+    }
     val devCheck = args.any { it in setOf("--selftest", "--screenshots", "--uitest") }
     if (!devCheck && !SingleInstance.acquire(args) { incoming(it); Unit }) exitProcess(0)
+    // Nothing was running to close: do not start the app either.
+    if (QUIT_ARG in args) exitProcess(0)
     AppLog.i("App", "K4 Music ${System.getProperty("jpackage.app-version") ?: "dev"} starting")
 
     val resolver = com.k4music.desktop.player.StreamResolver()
     val player = PlayerController(Mpv(AppPaths.tools), resolver)
     com.k4music.desktop.player.Downloads.resolver = resolver
     com.k4music.desktop.data.LibraryHooks.attach(player)
+    if (!devCheck) DiscordPresence.attach(player)
+    player.onAudioDeviceLost = {
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
+            com.k4music.desktop.ui.AppDialogs.show(org.jetbrains.compose.resources.getString(com.k4music.desktop.res.Res.string.desktop_output_lost))
+        }
+    }
     devMode(args, player)
     QueueStore.attach(player)
+    // Once a day, a little after start: offer a new version (each version is offered once).
+    if (!devCheck) kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+        kotlinx.coroutines.delay(20_000)
+        if (System.currentTimeMillis() - Settings.updateCheckedAt < 20 * 60 * 60 * 1000L) return@launch
+        val update = runCatching { Updater.check() }.getOrNull()
+        Settings.updateCheckedAt = System.currentTimeMillis()
+        if (update != null && update.version != Settings.updateOfferedVersion && com.k4music.desktop.ui.AppDialogs.current == null) {
+            Settings.updateOfferedVersion = update.version
+            com.k4music.desktop.ui.AppDialogs.current = com.k4music.desktop.ui.AppDialogs.Dialog.Update(update)
+        }
+    }
     // Warm yt-dlp once (Windows scans a program on its first launch), so the first song starts faster.
     Thread({ Thread.sleep(5_000); com.k4music.desktop.data.Maintenance.ytDlpVersion() }, "k4-warmup").apply { isDaemon = true }.start()
     openLink = { Links.open(it, navigator, player) }
@@ -95,11 +124,13 @@ fun main(args: Array<String>) {
                     Settings.windowHeight = windowState.size.height.value.toInt()
                 }
             }
+            DiscordPresence.close()
             player.close()
             Settings.flush()
             com.k4music.desktop.data.Db.close()
             exitApplication()
         }
+        requestQuit = ::quit
 
         Tray(
             icon = painterResource(Res.drawable.k4_logo),
@@ -151,6 +182,22 @@ fun main(args: Array<String>) {
                 val ms = System.currentTimeMillis() - java.lang.management.ManagementFactory.getRuntimeMXBean().startTime
                 AppLog.i("App", "Window ready ${ms}ms after launch")
             }
+            // Previous / Play-Pause / Next under the taskbar thumbnail (Windows-native controls).
+            val taskbarLabels = Taskbar.Labels(
+                stringResource(Res.string.previous_track), stringResource(Res.string.play),
+                stringResource(Res.string.pause), stringResource(Res.string.next_track)
+            )
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                kotlinx.coroutines.delay(800) // the taskbar button exists once the window is shown
+                Taskbar.attach(window, taskbarLabels) { button ->
+                    when (button) {
+                        1 -> player.previous()
+                        2 -> player.togglePlay()
+                        3 -> player.next()
+                    }
+                }
+                player.state.collect { Taskbar.setPlaying(it.playing) }
+            }
             val dark = when (Settings.themeMode) {
                 ThemeMode.Dark -> true
                 ThemeMode.Light -> false
@@ -172,6 +219,9 @@ fun main(args: Array<String>) {
         }
     }
 }
+
+/** Sent by the installer to a running copy (see SingleInstance) so it closes before an update. */
+private const val QUIT_ARG = "--quit"
 
 /** Windows "Choose your app mode" (AppsUseLightTheme = 0 means dark), read once at start. */
 private val systemDark: Boolean by lazy { runCatching {

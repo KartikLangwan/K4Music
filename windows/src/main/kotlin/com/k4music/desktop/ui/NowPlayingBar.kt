@@ -173,6 +173,7 @@ fun NowPlayingBar(
                 ToggleIcon(Res.drawable.list, stringResource(Res.string.up_next), panel == SidePanel.Queue) {
                     onPanel(if (panel == SidePanel.Queue) null else SidePanel.Queue)
                 }
+                AudioOutputButton(player)
                 Volume(player)
                 ToggleIcon(Res.drawable.expand, stringResource(Res.string.desktop_open_player), false) { if (track != null) onOpenPlayer() }
             }

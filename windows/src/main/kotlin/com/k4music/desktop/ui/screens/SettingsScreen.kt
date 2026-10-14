@@ -262,6 +262,9 @@ private fun PlaybackSection() = Section(Res.string.player) {
     val player = LocalPlayer.current
     val state by player.state.collectAsState()
     SwitchRow(stringResource(Res.string.smart_fallback), stringResource(Res.string.smart_fallback_description), Settings.smartFallback) { Settings.smartFallback = it }
+    com.k4music.desktop.ui.AudioOutputSettings(player)
+    if (com.k4music.desktop.DiscordPresence.available)
+        SwitchRow(stringResource(Res.string.desktop_discord), stringResource(Res.string.desktop_discord_hint), Settings.discordPresence) { Settings.discordPresence = it }
     Label(stringResource(Res.string.audio_quality))
     Choices(
         listOf(
@@ -437,15 +440,11 @@ private val APP_VERSION get() = System.getProperty("jpackage.app-version") ?: "2
  * website. Offline or rate-limited: the website opens so the user can look there.
  */
 private suspend fun checkForUpdate() {
-    val latest = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-        com.k4music.providers.github.GitHub.releases(owner = "KartikLangwan", repo = "K4Music")
-            ?.getOrNull()?.filter { !it.draft && !it.preRelease }?.map { it.tag.trimStart('v', 'V') }
-            ?.maxWithOrNull(::compareVersions)
-    }
+    val result = runCatching { com.k4music.desktop.Updater.check() }
+    val update = result.getOrNull()
     when {
-        latest == null -> { AppDialogs.show(getString(Res.string.desktop_update_failed)); browse(WEBSITE) }
-        compareVersions(latest, APP_VERSION) > 0 ->
-            AppDialogs.confirm(getString(Res.string.desktop_update_found, latest), getString(Res.string.new_version_available)) { browse(WEBSITE) }
+        result.isFailure -> { AppDialogs.show(getString(Res.string.desktop_update_failed)); browse(WEBSITE) }
+        update != null -> AppDialogs.current = AppDialogs.Dialog.Update(update)
         else -> AppDialogs.show(getString(Res.string.desktop_up_to_date, APP_VERSION))
     }
 }

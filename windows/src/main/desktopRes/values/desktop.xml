@@ -93,4 +93,20 @@ Esc  Close player / go back</string>
     <string name="desktop_choose_picture">Choose picture</string>
     <string name="desktop_tagline">Your music. Every screen.</string>
     <string name="desktop_drag_reorder">Drag to reorder</string>
+    <string name="desktop_audio_output">Audio output</string>
+    <string name="desktop_output_default">Windows default</string>
+    <string name="desktop_output_default_hint">Follows the output chosen in Windows sound settings</string>
+    <string name="desktop_output_lost">That audio device is not available. Playing through the Windows default.</string>
+    <string name="desktop_output_hint">Speakers, headphones and Bluetooth devices. Connect a device, then reopen this list.</string>
+    <string name="desktop_refresh_devices">Refresh devices</string>
+    <string name="desktop_update_title">K4 Music %1$s is available</string>
+    <string name="desktop_update_body">You have %1$s. The update keeps your library, playlists, settings and downloads.</string>
+    <string name="desktop_update_now">Update now</string>
+    <string name="desktop_update_later">Later</string>
+    <string name="desktop_update_downloading">Downloading the update…</string>
+    <string name="desktop_update_starting">Opening the installer. K4 Music will close and reopen by itself.</string>
+    <string name="desktop_update_website">Open website</string>
+    <string name="desktop_update_error">Could not download the update. Try again, or get it from the website.</string>
+    <string name="desktop_discord">Show on Discord</string>
+    <string name="desktop_discord_hint">Shows the song you are listening to on your Discord profile (needs the Discord desktop app)</string>
 </resources>

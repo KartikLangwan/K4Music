@@ -7,6 +7,9 @@ import com.sun.jna.Structure
 import com.sun.jna.ptr.DoubleByReference
 import kotlin.concurrent.thread
 
+/** A sound output: mpv's id ("auto" or "wasapi/{…}") and the name Windows shows. */
+data class AudioDevice(val name: String, val description: String)
+
 /** The small slice of libmpv's client API that K4 Music uses (mpv/client.h). */
 @Suppress("FunctionName", "LocalVariableName")
 internal interface LibMpv : Library {
@@ -92,6 +95,8 @@ class Mpv(libraryDir: java.io.File) : AutoCloseable {
         fun onLoaded() {}
         /** The current file ended: [error] is null at a normal end, otherwise mpv's error text. */
         fun onEnded(error: String?) {}
+        /** The audio output could not be opened (device unplugged, Bluetooth gone, busy…). */
+        fun onAudioOutputFailed() {}
     }
 
     private val lib: LibMpv
@@ -151,6 +156,23 @@ class Mpv(libraryDir: java.io.File) : AutoCloseable {
 
     fun position(): Double? = getDouble("time-pos")
 
+    /** Windows sound outputs (speakers, headphones, Bluetooth…), plus "auto" = follow the Windows default. */
+    fun audioDevices(): List<AudioDevice> = runCatching {
+        val json = getString("audio-device-list") ?: return emptyList()
+        kotlinx.serialization.json.Json.parseToJsonElement(json).let { it as kotlinx.serialization.json.JsonArray }.mapNotNull { e ->
+            val o = e as kotlinx.serialization.json.JsonObject
+            val name = (o["name"] as? kotlinx.serialization.json.JsonPrimitive)?.content ?: return@mapNotNull null
+            if (name != "auto" && !name.startsWith("wasapi/")) return@mapNotNull null
+            AudioDevice(name, (o["description"] as? kotlinx.serialization.json.JsonPrimitive)?.content ?: name)
+        }
+    }.getOrDefault(emptyList())
+
+    /** Plays to [name] from now on (mpv reopens the output at once). */
+    fun setAudioDevice(name: String) = set("audio-device", name)
+
+    /** Reopens the audio output (after the device went away and came back). */
+    fun reloadAudio() = command("ao-reload")
+
     /** A property as text (e.g. "audio-codec-name"), or null when unavailable. */
     fun getString(name: String): String? {
         if (closed) return null
@@ -183,6 +205,7 @@ class Mpv(libraryDir: java.io.File) : AutoCloseable {
                 LibMpv.EVENT_SHUTDOWN -> return
                 LibMpv.EVENT_LOG_MESSAGE -> event.data?.let { MpvLogMessage(it) }?.let { m ->
                     com.k4music.desktop.AppLog.write(when (m.level) { "warn" -> "W"; "error", "fatal" -> "E"; else -> "I" }, "mpv/${m.prefix}", m.text.orEmpty().trimEnd(), null)
+                    if (m.level == "error" && m.text.orEmpty().contains("audio device", ignoreCase = true)) l?.onAudioOutputFailed()
                 }
                 LibMpv.EVENT_FILE_LOADED -> l?.onLoaded()
                 LibMpv.EVENT_PLAYBACK_RESTART -> l?.onBuffering(false)

@@ -14,6 +14,19 @@ import com.sun.jna.ptr.IntByReference
 /** Colours the native Windows title bar like the app (dark mode, caption and text colour). */
 object TitleBar {
     @Suppress("FunctionName")
+    private interface Shell32 : Library {
+        fun SetCurrentProcessExplicitAppUserModelID(appId: com.sun.jna.WString): Int
+    }
+
+    /** Same id as the installer's shortcuts, so the running window and the pinned shortcut are one app. */
+    const val APP_USER_MODEL_ID = "KartikLangwan.K4Music"
+
+    fun setAppId() {
+        runCatching { Native.load("shell32", Shell32::class.java).SetCurrentProcessExplicitAppUserModelID(com.sun.jna.WString(APP_USER_MODEL_ID)) }
+            .onFailure { AppLog.w("TitleBar", "Could not set the app id", it) }
+    }
+
+    @Suppress("FunctionName")
     private interface Dwm : Library {
         fun DwmSetWindowAttribute(hwnd: Pointer, attribute: Int, value: Pointer, size: Int): Int
     }

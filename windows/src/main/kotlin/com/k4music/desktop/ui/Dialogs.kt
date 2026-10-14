@@ -61,6 +61,14 @@ import com.k4music.desktop.res.new_playlist
 import com.k4music.desktop.res.rename
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.k4music.desktop.res.desktop_update_title
+import com.k4music.desktop.res.desktop_update_body
+import com.k4music.desktop.res.desktop_update_starting
+import com.k4music.desktop.res.desktop_update_downloading
+import com.k4music.desktop.res.desktop_update_error
+import com.k4music.desktop.res.desktop_update_now
+import com.k4music.desktop.res.desktop_update_website
+import com.k4music.desktop.res.desktop_update_later
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import java.io.File
@@ -74,6 +82,7 @@ object AppDialogs {
         data object Import : Dialog
         class Rename(val playlist: Playlist) : Dialog
         data object NewPlaylist : Dialog
+        class Update(val update: com.k4music.desktop.Updater.Update) : Dialog
     }
 
     var current by mutableStateOf<Dialog?>(null)
@@ -115,6 +124,7 @@ fun DialogHost() {
         )
         is AppDialogs.Dialog.AddToPlaylist -> AddToPlaylistDialog(dialog.tracks)
         is AppDialogs.Dialog.Import -> ImportDialog()
+        is AppDialogs.Dialog.Update -> UpdateDialog(dialog.update)
     }
     // Short confirmation message at the bottom of the window.
     AppDialogs.toast?.let { message ->
@@ -251,5 +261,57 @@ private fun ImportDialog() {
             }) { Text(stringResource(Res.string.import_playlist)) }
         },
         dismissButton = { TextButton(enabled = !working, onClick = { AppDialogs.current = null }) { Text(stringResource(Res.string.import_close)) } }
+    )
+}
+
+/**
+ * "K4 Music X is available": downloads the installer with a progress bar and starts it (the
+ * installer closes the app, updates it and opens it again). Without a Windows installer in the
+ * release, it offers the website instead.
+ */
+@Composable
+private fun UpdateDialog(update: com.k4music.desktop.Updater.Update) {
+    val scope = rememberCoroutineScope()
+    var progress by remember { mutableStateOf<Float?>(null) }
+    var failed by remember { mutableStateOf(false) }
+    var starting by remember { mutableStateOf(false) }
+    val busy = progress != null && !failed
+    AlertDialog(
+        onDismissRequest = { if (!busy) AppDialogs.current = null },
+        title = { Text(stringResource(Res.string.desktop_update_title, update.version)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(Res.string.desktop_update_body, com.k4music.desktop.Updater.currentVersion))
+                update.notes?.takeIf { it.isNotBlank() }?.let { notes ->
+                    Text(
+                        notes, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 12, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
+                progress?.let { p ->
+                    Text(stringResource(if (starting) Res.string.desktop_update_starting else Res.string.desktop_update_downloading), style = MaterialTheme.typography.bodySmall)
+                    androidx.compose.material3.LinearProgressIndicator(progress = { p }, modifier = Modifier.fillMaxWidth())
+                }
+                if (failed) Text(stringResource(Res.string.desktop_update_error), color = MaterialTheme.colorScheme.error)
+            }
+        },
+        confirmButton = {
+            if (update.installerUrl != null) K4Button(enabled = !busy, onClick = {
+                failed = false
+                progress = 0f
+                scope.launch {
+                    runCatching { com.k4music.desktop.Updater.download(update) { progress = it } }
+                        .onSuccess { file -> starting = true; com.k4music.desktop.Updater.install(file) }
+                        .onFailure { com.k4music.desktop.AppLog.w("Updater", "Update download failed", it); failed = true }
+                }
+            }) { Text(stringResource(Res.string.desktop_update_now)) }
+            else K4Button(onClick = {
+                AppDialogs.current = null
+                runCatching { java.awt.Desktop.getDesktop().browse(java.net.URI(com.k4music.desktop.ui.screens.WEBSITE)) }
+            }) { Text(stringResource(Res.string.desktop_update_website)) }
+        },
+        dismissButton = {
+            if (!busy) TextButton(onClick = { AppDialogs.current = null }) { Text(stringResource(Res.string.desktop_update_later)) }
+        }
     )
 }

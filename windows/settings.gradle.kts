@@ -23,7 +23,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "K4MusicWindows"
+rootProject.name = "K4Music"
 
 // Same project paths as the Android build, so the modules' `projects.*` accessors resolve unchanged.
 listOf(
