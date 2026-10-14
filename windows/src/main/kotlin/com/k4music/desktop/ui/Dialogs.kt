@@ -69,7 +69,7 @@ import java.io.File
 object AppDialogs {
     sealed interface Dialog {
         class Text(val title: String?, val initial: String, val multiline: Boolean = false, val onConfirm: (String) -> Unit) : Dialog
-        class Confirm(val subject: String, val onYes: () -> Unit) : Dialog
+        class Confirm(val subject: String, val title: String?, val onYes: () -> Unit) : Dialog
         class AddToPlaylist(val tracks: List<Track>) : Dialog
         data object Import : Dialog
         class Rename(val playlist: Playlist) : Dialog
@@ -81,7 +81,7 @@ object AppDialogs {
 
     fun newPlaylist() { current = Dialog.NewPlaylist }
     fun renamePlaylist(playlist: Playlist) { current = Dialog.Rename(playlist) }
-    fun confirm(subject: String, onYes: () -> Unit) { current = Dialog.Confirm(subject, onYes) }
+    fun confirm(subject: String, title: String? = null, onYes: () -> Unit) { current = Dialog.Confirm(subject, title, onYes) }
     fun addToPlaylist(tracks: List<Track>) { current = Dialog.AddToPlaylist(tracks) }
     fun importPlaylist() { current = Dialog.Import }
     fun show(message: String) { toast = message }
@@ -108,7 +108,7 @@ fun DialogHost() {
         }
         is AppDialogs.Dialog.Confirm -> AlertDialog(
             onDismissRequest = { AppDialogs.current = null },
-            title = { Text(stringResource(Res.string.delete)) },
+            title = { Text(dialog.title ?: stringResource(Res.string.delete)) },
             text = { Text(dialog.subject) },
             confirmButton = { TextButton(onClick = { AppDialogs.current = null; dialog.onYes() }) { Text(stringResource(Res.string.confirm)) } },
             dismissButton = { TextButton(onClick = { AppDialogs.current = null }) { Text(stringResource(Res.string.cancel)) } }

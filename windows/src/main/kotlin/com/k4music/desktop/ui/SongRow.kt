@@ -71,6 +71,9 @@ fun SongRow(
     var rowHeight by remember { mutableStateOf(0.dp) }
     val density = LocalDensity.current
     val colors = MaterialTheme.colorScheme
+    val player = LocalPlayer.current
+    // Resting the pointer on a song starts resolving it, so the click plays almost at once.
+    androidx.compose.runtime.LaunchedEffect(hovered) { if (hovered) { kotlinx.coroutines.delay(300); player.prefetch(track) } }
 
     Box(modifier) {
         Row(

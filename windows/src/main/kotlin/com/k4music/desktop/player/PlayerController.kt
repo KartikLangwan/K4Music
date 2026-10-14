@@ -232,6 +232,9 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
         return listOfNotNull(codec, bitrate, rate).joinToString(" · ")
     }
 
+    /** Gets a song's stream ready before it is clicked (hovered rows), so it starts at once. */
+    fun prefetch(track: Track) = resolver.prefetch(track)
+
     fun seek(seconds: Double) { _position.value = seconds; mpv.seek(seconds) }
     fun setVolume(percent: Int) { Settings.volume = percent.coerceIn(0, 100); mpv.setVolume(Settings.volume) }
     fun setMuted(muted: Boolean) { Settings.muted = muted; mpv.setMuted(muted) }

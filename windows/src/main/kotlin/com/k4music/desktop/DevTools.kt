@@ -94,6 +94,16 @@ object DevTools {
                         pump(400)
                     }
                     "wait" -> pump(parts[1].toLong())
+                    "search" -> { navigator.go(Screen.Search(line.substringAfter(' '))); pump(4_000) }
+                    "set" -> {
+                        when (parts[1]) {
+                            "nav" -> com.k4music.desktop.prefs.Settings.navPosition = com.k4music.desktop.prefs.NavPosition.valueOf(parts[2])
+                            "collapsed" -> com.k4music.desktop.prefs.Settings.sidebarCollapsed = parts[2].toBoolean()
+                            "playlists" -> com.k4music.desktop.prefs.Settings.sidebarPlaylists = parts[2].toBoolean()
+                            "hidden" -> com.k4music.desktop.prefs.Settings.hiddenNav = parts.getOrElse(2) { "" }
+                        }
+                        pump(600)
+                    }
                     "shot" -> File(dir, "${parts[1]}.png").writeBytes(scene.render(now()).encodeToData(EncodedImageFormat.PNG)!!.bytes)
                 }
                 val s = player.state.value

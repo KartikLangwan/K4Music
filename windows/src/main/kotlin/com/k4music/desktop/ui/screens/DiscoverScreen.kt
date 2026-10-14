@@ -128,7 +128,7 @@ fun DiscoverScreen() {
                     action = page.value?.trending?.endpoint?.browseId?.let { stringResource(Res.string.more) }
                 ) { page.value?.trending?.endpoint?.browseId?.let { navigator.go(Screen.Playlist(it)) } }
                 trending.drop(1).take(8).forEachIndexed { i, track ->
-                    SongRow(track, onPlay = { player.play(trending, i + 1) }, actions = { actions(track) }, index = i + 1)
+                    SongRow(track, onPlay = { player.play(trending, i + 1) }, actions = { actions(track) }, index = i)
                 }
             }
             page.failed -> ErrorState(page.retry)

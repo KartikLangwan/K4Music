@@ -52,6 +52,8 @@ import com.k4music.desktop.prefs.AudioQuality
 import com.k4music.desktop.prefs.Reverb
 import com.k4music.desktop.prefs.Settings
 import com.k4music.desktop.prefs.ThemeMode
+import com.k4music.desktop.prefs.NavPosition
+import com.k4music.providers.github.requests.releases
 import com.k4music.desktop.res.*
 import com.k4music.desktop.ui.AppDialogs
 import com.k4music.desktop.ui.K4Slider
@@ -59,6 +61,8 @@ import com.k4music.desktop.ui.LocalPlayer
 import com.k4music.desktop.ui.parseHexColor
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import java.awt.Desktop
@@ -69,23 +73,104 @@ import java.util.Date
 
 private val accents = listOf("#7B5CFF", "#4472CF", "#E0559B", "#21B07A", "#F08A24", "#E54B4B", "#19A7B5", "#B98A2E")
 
+private enum class SettingsPage(val title: StringResource, val icon: DrawableResource) {
+    Appearance(Res.string.appearance, Res.drawable.color_palette),
+    Layout(Res.string.desktop_layout, Res.drawable.grid),
+    Player(Res.string.player, Res.drawable.play),
+    Effects(Res.string.audio_effects, Res.drawable.equalizer),
+    Library(Res.string.settings_section_library, Res.drawable.library),
+    Sync(Res.string.sync, Res.drawable.sync),
+    Advanced(Res.string.desktop_advanced, Res.drawable.server),
+    About(Res.string.about, Res.drawable.information)
+}
+
+/** Kept while the app runs, so Settings reopens on the page you were looking at. */
+private var lastPage by mutableStateOf(SettingsPage.Appearance)
+
 @Composable
 fun SettingsScreen() {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 32.dp)) {
-        Text(stringResource(Res.string.settings), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 8.dp))
-        Column(Modifier.widthIn(max = 920.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            AppearanceSection()
-            PlaybackSection()
-            EffectsSection()
-            LibrarySection()
-            Section(Res.string.sync) {
-                Text(stringResource(Res.string.sync_description), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                PipedAccounts()
+    val colors = MaterialTheme.colorScheme
+    Column(Modifier.fillMaxSize()) {
+        Text(stringResource(Res.string.settings), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 16.dp))
+        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            // Categories, like a desktop app's preferences window.
+            Column(Modifier.width(220.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                SettingsPage.entries.forEach { page ->
+                    val selected = page == lastPage
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                            .background(if (selected) colors.primaryContainer else Color.Transparent)
+                            .clickable { lastPage = page }
+                            .padding(horizontal = 14.dp, vertical = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        androidx.compose.material3.Icon(
+                            painterResource(page.icon), null, Modifier.size(20.dp),
+                            tint = if (selected) colors.primary else colors.onSurfaceVariant
+                        )
+                        Text(
+                            stringResource(page.title),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (selected) colors.onSurface else colors.onSurfaceVariant
+                        )
+                    }
+                }
             }
-            AdvancedSection()
-            AboutSection()
+            androidx.compose.runtime.key(lastPage) {
+                Column(
+                    Modifier.weight(1f).fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 32.dp, end = 8.dp)
+                ) {
+                    Column(Modifier.widthIn(max = 860.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        when (lastPage) {
+                            SettingsPage.Appearance -> AppearanceSection()
+                            SettingsPage.Layout -> LayoutSection()
+                            SettingsPage.Player -> PlaybackSection()
+                            SettingsPage.Effects -> EffectsSection()
+                            SettingsPage.Library -> LibrarySection()
+                            SettingsPage.Sync -> Section(Res.string.sync) {
+                                Text(stringResource(Res.string.sync_description), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                PipedAccounts()
+                            }
+                            SettingsPage.Advanced -> AdvancedSection()
+                            SettingsPage.About -> AboutSection()
+                        }
+                    }
+                }
+            }
         }
     }
+}
+
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun LayoutSection() = Section(Res.string.desktop_layout) {
+    Label(stringResource(Res.string.desktop_nav_position))
+    Choices(
+        listOf(
+            NavPosition.Side to stringResource(Res.string.desktop_nav_side),
+            NavPosition.Bottom to stringResource(Res.string.desktop_nav_bottom)
+        ),
+        Settings.navPosition
+    ) { Settings.navPosition = it }
+    Label(stringResource(Res.string.desktop_visible_buttons))
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        val hidden = Settings.hiddenNav.split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        com.k4music.desktop.ui.navDestinations.filter { it.key != "Home" }.forEach { d ->
+            FilterChip(
+                selected = d.key !in hidden,
+                onClick = { Settings.hiddenNav = (if (d.key in hidden) hidden - d.key else hidden + d.key).joinToString(",") },
+                label = { Text(stringResource(d.title)) },
+                leadingIcon = { androidx.compose.material3.Icon(painterResource(d.icon), null, Modifier.size(16.dp)) }
+            )
+        }
+    }
+    SwitchRow(stringResource(Res.string.desktop_compact_sidebar), stringResource(Res.string.desktop_compact_sidebar_description), Settings.sidebarCollapsed) { Settings.sidebarCollapsed = it }
+    SwitchRow(stringResource(Res.string.desktop_sidebar_playlists), stringResource(Res.string.desktop_sidebar_playlists_description), Settings.sidebarPlaylists) { Settings.sidebarPlaylists = it }
+    SwitchRow(stringResource(Res.string.desktop_tray_title), stringResource(Res.string.desktop_minimize_to_tray), Settings.minimizeToTray) { Settings.minimizeToTray = it }
+    Label(stringResource(Res.string.desktop_shortcuts))
+    Text(stringResource(Res.string.desktop_shortcuts_list), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable
@@ -178,7 +263,6 @@ private fun PlaybackSection() = Section(Res.string.player) {
         Settings.volumeNormalization = it; player.applyEffects()
     }
     SwitchRow(stringResource(Res.string.sponsor_block), stringResource(Res.string.sponsor_block_description), Settings.sponsorBlockEnabled) { Settings.sponsorBlockEnabled = it }
-    SwitchRow(stringResource(Res.string.desktop_tray_title), stringResource(Res.string.desktop_minimize_to_tray), Settings.minimizeToTray) { Settings.minimizeToTray = it }
 
     Label(stringResource(Res.string.desktop_speed), "%.2fx".format(Settings.speed))
     K4Slider((Settings.speed - 0.5f) / 1.5f, onChange = { Settings.speed = (0.5f + it * 1.5f).let { v -> (v * 20).toInt() / 20f } }, onCommit = { player.applyEffects() }, modifier = Modifier.fillMaxWidth())
@@ -306,16 +390,59 @@ private fun AdvancedSection() = Section(Res.string.desktop_advanced) {
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun AboutSection() = Section(Res.string.about) {
-    Text("${Brand.APP_NAME} ${System.getProperty("jpackage.app-version") ?: "2.12.14"}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-    Text(Brand.CREATOR, color = MaterialTheme.colorScheme.primary)
+    val scope = rememberCoroutineScope()
+    var checking by remember { mutableStateOf(false) }
+    Text("${Brand.APP_NAME} $APP_VERSION", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+    Text("${stringResource(Res.string.desktop_creator_site)}: ${Brand.CREATOR}", color = MaterialTheme.colorScheme.primary)
     Text("@${Brand.INSTAGRAM_HANDLE}", color = MaterialTheme.colorScheme.onSurfaceVariant)
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilledTonalButton(onClick = { browse("https://github.com/KartikLangwan/K4Music/releases") }) { Text(stringResource(Res.string.desktop_check_updates)) }
-        OutlinedButton(onClick = { browse("https://kartiklangwan.vercel.app") }) { Text("kartiklangwan.vercel.app") }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        FilledTonalButton(enabled = !checking, onClick = {
+            checking = true
+            scope.launch {
+                checkForUpdate()
+                checking = false
+            }
+        }) { Text(stringResource(Res.string.desktop_check_updates)) }
+        OutlinedButton(onClick = { browse(WEBSITE) }) { Text(stringResource(Res.string.desktop_website)) }
+        OutlinedButton(onClick = { browse(CREATOR_SITE) }) { Text(CREATOR_SITE.removePrefix("https://")) }
     }
     Text("GPL-3.0", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+const val WEBSITE = "https://k4music.vercel.app"
+private const val CREATOR_SITE = "https://kartiklangwan.vercel.app"
+private val APP_VERSION get() = System.getProperty("jpackage.app-version") ?: "2.12.14"
+
+/**
+ * Compares this version with the newest K4 Music release; downloads always go through the
+ * website. Offline or rate-limited: the website opens so the user can look there.
+ */
+private suspend fun checkForUpdate() {
+    val latest = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        com.k4music.providers.github.GitHub.releases(owner = "KartikLangwan", repo = "K4Music")
+            ?.getOrNull()?.filter { !it.draft && !it.preRelease }?.map { it.tag.trimStart('v', 'V') }
+            ?.maxWithOrNull(::compareVersions)
+    }
+    when {
+        latest == null -> { AppDialogs.show(getString(Res.string.desktop_update_failed)); browse(WEBSITE) }
+        compareVersions(latest, APP_VERSION) > 0 ->
+            AppDialogs.confirm(getString(Res.string.desktop_update_found, latest), getString(Res.string.new_version_available)) { browse(WEBSITE) }
+        else -> AppDialogs.show(getString(Res.string.desktop_up_to_date, APP_VERSION))
+    }
+}
+
+/** "2.12.14" vs "2.7.15": numeric, part by part. */
+internal fun compareVersions(a: String, b: String): Int {
+    val x = a.split('.', '-').map { it.toIntOrNull() ?: 0 }
+    val y = b.split('.', '-').map { it.toIntOrNull() ?: 0 }
+    for (i in 0 until maxOf(x.size, y.size)) {
+        val c = x.getOrElse(i) { 0 }.compareTo(y.getOrElse(i) { 0 })
+        if (c != 0) return c
+    }
+    return 0
 }
 
 private fun open(folder: File) = runCatching { Desktop.getDesktop().open(folder) }

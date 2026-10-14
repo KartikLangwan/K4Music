@@ -52,6 +52,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.collectAsState
 import com.k4music.desktop.res.artists
 import com.k4music.desktop.res.desktop_search_hint
+import com.k4music.desktop.res.desktop_search_empty
 import com.k4music.desktop.res.no_search_results
 import com.k4music.desktop.res.playlists
 import com.k4music.desktop.res.search
@@ -81,57 +82,31 @@ private enum class Tab(val title: StringResource) {
     Artists(Res.string.artists), Playlists(Res.string.playlists)
 }
 
+/** Runs a search typed in the top bar: links open directly, queries are remembered. */
+fun submitSearch(value: String, navigator: com.k4music.desktop.ui.Navigator, player: com.k4music.desktop.player.PlayerController): Boolean {
+    if (value.isBlank()) return false
+    if (com.k4music.desktop.Links.open(value, navigator, player)) return true
+    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+        runCatching { com.k4music.desktop.data.Db.library.insert(com.k4music.android.models.SearchQuery(query = value.trim())) }
+    }
+    val screen = Screen.Search(value.trim())
+    if (navigator.current is Screen.Search) navigator.replace(screen) else navigator.go(screen)
+    return false
+}
+
+/** Search results for [query] (typed in the top bar); with no query, the search history. */
 @Composable
-fun SearchScreen(initialQuery: String, focus: FocusRequester) {
+fun SearchScreen(query: String) {
     val navigator = LocalNavigator.current
-    var text by remember(initialQuery) { mutableStateOf(initialQuery) }
-    var query by remember(initialQuery) { mutableStateOf(initialQuery) }
-    var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
+    val player = LocalPlayer.current
     var tab by remember { mutableStateOf(Tab.Songs) }
 
-    // One suggestion request per pause in typing, not per keystroke (same 350 ms as Android).
-    LaunchedEffect(text) {
-        if (text.isBlank() || text == query) { suggestions = emptyList(); return@LaunchedEffect }
-        delay(350)
-        suggestions = Innertube.searchSuggestions(SearchSuggestionsBody(input = text))?.getOrNull().orEmpty().take(8)
-    }
-
-    val player = LocalPlayer.current
-    val scope = rememberCoroutineScope()
-    fun submit(value: String) {
-        if (value.isBlank()) return
-        if (com.k4music.desktop.Links.open(value, navigator, player)) { text = ""; return }
-        scope.launch { runCatching { com.k4music.desktop.data.Db.library.insert(com.k4music.android.models.SearchQuery(query = value.trim())) } }
-        text = value
-        query = value
-        suggestions = emptyList()
-        navigator.stack[navigator.stack.lastIndex] = Screen.Search(value)
-    }
-
     Column(Modifier.fillMaxSize()) {
-        Box {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                placeholder = { Text(stringResource(Res.string.desktop_search_hint)) },
-                leadingIcon = { Icon(painterResource(Res.drawable.search), null, Modifier.size(20.dp)) },
-                singleLine = true,
-                shape = RoundedCornerShape(28.dp),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { submit(text) }),
-                modifier = Modifier.fillMaxWidth().focusRequester(focus)
-            )
-            if (suggestions.isNotEmpty()) androidx.compose.material3.DropdownMenu(
-                expanded = true,
-                onDismissRequest = { suggestions = emptyList() },
-                properties = androidx.compose.ui.window.PopupProperties(focusable = false)
-            ) {
-                suggestions.forEach { s -> DropdownMenuItem(text = { Text(s) }, onClick = { submit(s) }) }
-            }
+        if (query.isBlank()) {
+            Text(stringResource(Res.string.search), style = MaterialTheme.typography.displaySmall, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+            Text(stringResource(Res.string.desktop_search_empty), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+            SearchHistory(onPick = { submitSearch(it, navigator, player) })
         }
-        LaunchedEffect(Unit) { focus.requestFocus() }
-
-        if (query.isBlank()) SearchHistory(onPick = { submit(it) })
         if (query.isNotBlank()) {
             Row(Modifier.padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Tab.entries.forEach { t ->

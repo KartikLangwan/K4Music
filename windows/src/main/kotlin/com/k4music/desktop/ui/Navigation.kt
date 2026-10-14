@@ -26,21 +26,33 @@ enum class BuiltInKind { Favorites, History, Downloads, Top, Local }
 @Stable
 class Navigator {
     val stack = mutableStateListOf<Screen>(Screen.Home)
+    /** Screens left with Back, for Forward (cleared by any new navigation). */
+    private val ahead = mutableStateListOf<Screen>()
     val current get() = stack.last()
     val canGoBack get() = stack.size > 1
+    val canGoForward get() = ahead.isNotEmpty()
 
     fun go(screen: Screen) {
-        if (current != screen) stack.add(screen)
+        if (current != screen) { stack.add(screen); ahead.clear() }
     }
 
     /** Sidebar destinations always land on their root, whatever is open. */
     fun root(screen: Screen) {
+        if (stack.size == 1 && current == screen) return
         stack.clear()
         stack.add(screen)
+        ahead.clear()
     }
 
+    /** Swaps the current screen in place (a new search query), keeping history intact. */
+    fun replace(screen: Screen) { stack[stack.lastIndex] = screen }
+
     fun back() {
-        if (canGoBack) stack.removeAt(stack.lastIndex)
+        if (canGoBack) ahead.add(stack.removeAt(stack.lastIndex))
+    }
+
+    fun forward() {
+        if (canGoForward) stack.add(ahead.removeAt(ahead.lastIndex))
     }
 }
 

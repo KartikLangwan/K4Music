@@ -111,12 +111,14 @@ class Mpv(libraryDir: java.io.File) : AutoCloseable {
             "idle" to "yes", "keep-open" to "no",
             "cache" to "yes", "demuxer-max-bytes" to "64MiB", "demuxer-readahead-secs" to "30",
             "network-timeout" to "15", "audio-client-name" to "K4 Music",
-            "volume-max" to "100", "gapless-audio" to "weak"
+            "volume-max" to "100", "gapless-audio" to "weak",
+            // YouTube throttles one long download; ranged requests (as ExoPlayer makes) arrive at full speed.
+            "curl-max-request-size" to "1MiB"
         ).forEach { (name, value) -> lib.mpv_set_option_string(ctx, name, value) }
         check(lib.mpv_initialize(ctx) >= 0) { "mpv_initialize failed" }
 
         // mpv's own warnings and errors go to the app log (why a stream failed, etc.).
-        lib.mpv_request_log_messages(ctx, "warn")
+        lib.mpv_request_log_messages(ctx, System.getProperty("k4.mpvLog") ?: "warn")
         lib.mpv_observe_property(ctx, 1, "time-pos", LibMpv.FORMAT_DOUBLE)
         lib.mpv_observe_property(ctx, 2, "duration", LibMpv.FORMAT_DOUBLE)
         lib.mpv_observe_property(ctx, 3, "pause", LibMpv.FORMAT_FLAG)
@@ -180,7 +182,7 @@ class Mpv(libraryDir: java.io.File) : AutoCloseable {
             when (event.event_id) {
                 LibMpv.EVENT_SHUTDOWN -> return
                 LibMpv.EVENT_LOG_MESSAGE -> event.data?.let { MpvLogMessage(it) }?.let { m ->
-                    com.k4music.desktop.AppLog.write(if (m.level == "warn") "W" else "E", "mpv/${m.prefix}", m.text.orEmpty().trimEnd(), null)
+                    com.k4music.desktop.AppLog.write(when (m.level) { "warn" -> "W"; "error", "fatal" -> "E"; else -> "I" }, "mpv/${m.prefix}", m.text.orEmpty().trimEnd(), null)
                 }
                 LibMpv.EVENT_FILE_LOADED -> l?.onLoaded()
                 LibMpv.EVENT_PLAYBACK_RESTART -> l?.onBuffering(false)

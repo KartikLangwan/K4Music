@@ -56,4 +56,34 @@
     <string name="desktop_piped_add">Add Piped account</string>
     <string name="desktop_username">Username</string>
     <string name="desktop_password">Password</string>
+    <string name="desktop_forward">Forward</string>
+    <string name="desktop_your_library">Your library</string>
+    <string name="desktop_collapse_sidebar">Collapse side panel</string>
+    <string name="desktop_expand_sidebar">Expand side panel</string>
+    <string name="desktop_fullscreen">Full screen</string>
+    <string name="desktop_exit_fullscreen">Exit full screen</string>
+    <string name="desktop_layout">Layout</string>
+    <string name="desktop_nav_position">Navigation buttons</string>
+    <string name="desktop_nav_side">Side panel</string>
+    <string name="desktop_nav_bottom">Bottom bar</string>
+    <string name="desktop_compact_sidebar">Compact side panel</string>
+    <string name="desktop_compact_sidebar_description">Show only icons in the side panel (Ctrl+B)</string>
+    <string name="desktop_sidebar_playlists">Playlists in side panel</string>
+    <string name="desktop_sidebar_playlists_description">List your playlists under the navigation buttons</string>
+    <string name="desktop_visible_buttons">Visible buttons</string>
+    <string name="desktop_website">K4 Music website</string>
+    <string name="desktop_creator_site">Creator</string>
+    <string name="desktop_up_to_date">You have the latest version (%1$s)</string>
+    <string name="desktop_update_found">Version %1$s is available. Open the website to download it?</string>
+    <string name="desktop_update_failed">Could not check for updates. Opening the website instead.</string>
+    <string name="desktop_shortcuts">Keyboard shortcuts</string>
+    <string name="desktop_shortcuts_list">Space  Play / pause
+Ctrl+→ / Ctrl+←  Next / previous
+Ctrl+F  Search
+Ctrl+B  Collapse side panel
+Alt+← / Alt+→  Back / forward
+F11  Full screen
+Esc  Close player / go back</string>
+    <string name="desktop_search_empty">Search for songs, artists, albums or paste a YouTube link</string>
+    <string name="desktop_general">General</string>
 </resources>

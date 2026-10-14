@@ -3,9 +3,12 @@ package com.k4music.desktop
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
 import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
@@ -79,9 +82,16 @@ fun main(args: Array<String>) {
         val panel = remember { mutableStateOf<SidePanel?>(null) }
         val playerOpen = remember { mutableStateOf(false) }
         val searchFocus = remember { FocusRequester() }
+        // F11: full screen, back to the placement it had before.
+        var beforeFullscreen by remember { mutableStateOf(WindowPlacement.Floating) }
+        fun toggleFullscreen() {
+            if (windowState.placement == WindowPlacement.Fullscreen) windowState.placement = beforeFullscreen
+            else { beforeFullscreen = windowState.placement; windowState.placement = WindowPlacement.Fullscreen }
+        }
 
         fun quit() {
-            Settings.windowMaximized = windowState.placement == WindowPlacement.Maximized
+            val placement = if (windowState.placement == WindowPlacement.Fullscreen) beforeFullscreen else windowState.placement
+            Settings.windowMaximized = placement == WindowPlacement.Maximized
             if (!Settings.windowMaximized) {
                 Settings.windowWidth = windowState.size.width.value.toInt()
                 Settings.windowHeight = windowState.size.height.value.toInt()
@@ -117,11 +127,12 @@ fun main(args: Array<String>) {
                 when {
                     event.isCtrlPressed && event.key == Key.DirectionRight -> { player.next(); true }
                     event.isCtrlPressed && event.key == Key.DirectionLeft -> { player.previous(); true }
-                    event.isCtrlPressed && event.key == Key.F -> {
-                        if (navigator.current !is Screen.Search) navigator.root(Screen.Search())
-                        runCatching { searchFocus.requestFocus() }
-                        true
-                    }
+                    event.isCtrlPressed && event.key == Key.F -> { runCatching { searchFocus.requestFocus() }; true }
+                    event.isCtrlPressed && event.key == Key.B -> { Settings.sidebarCollapsed = !Settings.sidebarCollapsed; true }
+                    event.isAltPressed && event.key == Key.DirectionLeft -> { navigator.back(); true }
+                    event.isAltPressed && event.key == Key.DirectionRight -> { navigator.forward(); true }
+                    event.key == Key.F11 -> { toggleFullscreen(); true }
+                    event.key == Key.Escape && windowState.placement == WindowPlacement.Fullscreen && !playerOpen.value -> { toggleFullscreen(); true }
                     event.key == Key.MediaPlayPause -> { player.togglePlay(); true }
                     event.key == Key.MediaNext -> { player.next(); true }
                     event.key == Key.MediaPrevious -> { player.previous(); true }
@@ -142,8 +153,16 @@ fun main(args: Array<String>) {
                 ThemeMode.System -> systemDark
             }
             K4Theme(accent = parseHexColor(Settings.accentColorHex), dark = dark) {
+                // The Windows title bar follows the app theme instead of staying white.
+                val background = androidx.compose.material3.MaterialTheme.colorScheme.background
+                val onBackground = androidx.compose.material3.MaterialTheme.colorScheme.onBackground
+                androidx.compose.runtime.LaunchedEffect(dark, background) { TitleBar.style(window, dark, background, onBackground) }
                 CompositionLocalProvider(LocalNavigator provides navigator, LocalPlayer provides player) {
-                    Shell(panel, playerOpen, searchFocus)
+                    Shell(
+                        panel, playerOpen, searchFocus,
+                        fullscreen = windowState.placement == WindowPlacement.Fullscreen,
+                        onToggleFullscreen = ::toggleFullscreen
+                    )
                 }
             }
         }

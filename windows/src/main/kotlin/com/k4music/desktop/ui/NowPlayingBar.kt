@@ -90,7 +90,7 @@ fun NowPlayingBar(
     val track = state.current
     val colors = MaterialTheme.colorScheme
 
-    Surface(color = colors.surface, modifier = modifier.fillMaxWidth().height(88.dp)) {
+    Surface(color = colors.background, modifier = modifier.fillMaxWidth().height(88.dp)) {
         Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             // Left: what is playing
             Row(

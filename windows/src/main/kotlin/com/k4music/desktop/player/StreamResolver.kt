@@ -10,6 +10,9 @@ import com.k4music.providers.innertube.Innertube
 import com.k4music.providers.innertube.models.bodies.PlayerBody
 import com.k4music.providers.innertube.requests.player
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
@@ -23,7 +26,8 @@ import java.util.concurrent.TimeUnit
 /** Where a resolved stream came from; decides how a later failure is handled. */
 enum class StreamSource { Local, Direct, YtDlp, Saavn }
 
-data class Stream(val url: String, val source: StreamSource, val headers: Map<String, String> = emptyMap())
+/** [temporary]: a stand-in while YouTube was slow; not cached, so the next play tries YouTube again. */
+data class Stream(val url: String, val source: StreamSource, val headers: Map<String, String> = emptyMap(), val temporary: Boolean = false)
 
 /** Nothing could serve this song (not a connection problem). */
 class UnplayableException(message: String) : Exception(message)
@@ -40,11 +44,12 @@ class StreamResolver {
     private val rejectedDirect = ConcurrentHashMap.newKeySet<String>()
     /**
      * Refusals of direct urls in a row. YouTube currently refuses them all (they need a token),
-     * so after two the session skips that dead step; a direct url that plays resets it.
+     * so after two the dead step is skipped (remembered across restarts, retried once a day);
+     * a direct url that plays resets it.
      */
-    @Volatile private var directRefusals = 0
+    private var directRefusals by Settings::directRefusals
 
-    fun directPlayed() { directRefusals = 0 }
+    fun directPlayed() { if (directRefusals != 0) directRefusals = 0 }
 
     fun forget(id: String) { cache.remove(id) }
 
@@ -55,14 +60,34 @@ class StreamResolver {
             StreamSource.Direct -> {
                 if (rejectedDirect.size >= 64) rejectedDirect.clear()
                 rejectedDirect += track.id
-                directRefusals++
+                directRefusals = (directRefusals + 1).coerceAtMost(2)
+                Settings.directRefusedAt = System.currentTimeMillis()
             }
             StreamSource.Saavn -> if (!track.isSaavn) StreamFallback.drop(track.id)
             else -> Unit
         }
     }
 
-    suspend fun resolve(track: Track): Stream = withContext(Dispatchers.IO) {
+    /** Resolves running right now, by song: a hover prefetch and the click share one yt-dlp run. */
+    private val inFlight = ConcurrentHashMap<String, kotlinx.coroutines.Deferred<Stream>>()
+    private val background = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
+    /** At most two speculative yt-dlp runs at once, so hovering a long list stays cheap. */
+    private val prefetchSlots = kotlinx.coroutines.sync.Semaphore(2)
+
+    suspend fun resolve(track: Track): Stream {
+        val job = inFlight.computeIfAbsent(track.id) { id ->
+            background.async { resolveNow(track) }.also { d -> d.invokeOnCompletion { inFlight.remove(id, d) } }
+        }
+        return try { job.await() } finally { if (job.isCompleted) inFlight.remove(track.id, job) }
+    }
+
+    /** Resolves [track] ahead of a likely click (hover, next in queue); errors are ignored. */
+    fun prefetch(track: Track) {
+        if (track.isLocal || cache[track.id]?.let { System.currentTimeMillis() - it.at < TTL_MS } == true || inFlight.containsKey(track.id)) return
+        background.launch { prefetchSlots.withPermit { runCatching { resolve(track) } } }
+    }
+
+    private suspend fun resolveNow(track: Track): Stream = withContext(Dispatchers.IO) {
         // A downloaded song always plays from disk: offline-safe and instant.
         Downloads.file(track.id)?.let { return@withContext Stream(it.absolutePath, StreamSource.Local) }
         if (track.isLocal) {
@@ -86,15 +111,31 @@ class StreamResolver {
                 ?: throw UnplayableException("JioSaavn stream unavailable")
             fallbackOn && StreamFallback.url(track.id) != null ->
                 Stream(StreamFallback.url(track.id)!!, StreamSource.Saavn)
-            else -> youtube(track) ?: (if (fallbackOn) saavnFallback(track) else null)
+            else -> (if (fallbackOn) youtubeOrQuickFallback(track) else youtube(track))
+                ?: (if (fallbackOn) saavnFallback(track) else null)
                 ?: throw UnplayableException("No playable stream")
         }
-        cache[track.id] = Cached(stream, System.currentTimeMillis())
+        if (!stream.temporary) cache[track.id] = Cached(stream, System.currentTimeMillis())
         stream
     }
 
+    /**
+     * YouTube normally answers in 2-3 s. When it is slow (bad network, YouTube busy), the same song
+     * is looked up on JioSaavn meanwhile and whichever is ready first plays, instead of waiting out
+     * yt-dlp's full deadline.
+     */
+    private suspend fun youtubeOrQuickFallback(track: Track): Stream? = kotlinx.coroutines.coroutineScope {
+        val yt = async { youtube(track) }
+        val quick = kotlinx.coroutines.withTimeoutOrNull(SLOW_YOUTUBE_MS) { yt.await() }
+        if (quick != null || yt.isCompleted) return@coroutineScope quick ?: yt.await()
+        AppLog.w(TAG, "YouTube is slow for ${track.id}; trying JioSaavn meanwhile")
+        val saavn = saavnFallback(track, remember = false)
+        if (saavn != null && !yt.isCompleted) { yt.cancel(); return@coroutineScope saavn.copy(temporary = true) }
+        yt.await() ?: saavn?.copy(temporary = true)
+    }
+
     private suspend fun youtube(track: Track): Stream? {
-        if (track.id !in rejectedDirect && directRefusals < 2) {
+        if (track.id !in rejectedDirect && (directRefusals < 2 || System.currentTimeMillis() - Settings.directRefusedAt > DAY_MS)) {
             val body = Innertube.player(PlayerBody(videoId = track.id))?.let { result ->
                 result.exceptionOrNull()?.let { if (it is IOException) throw it }
                 result.getOrNull()
@@ -149,11 +190,12 @@ class StreamResolver {
         }
     }
 
-    private suspend fun saavnFallback(track: Track): Stream? {
+    /** [remember]: save the match so later plays go straight to JioSaavn (YouTube refused the song). */
+    private suspend fun saavnFallback(track: Track, remember: Boolean = true): Stream? {
         val url = runCatching {
             findSaavnStream(track.title, track.artists.orEmpty(), track.durationMs, Settings.audioQuality.saavn)
         }.getOrNull()
-        StreamFallback.resolved(track.id, url)
+        if (remember) StreamFallback.resolved(track.id, url)
         if (url == null) {
             AppLog.w(TAG, "No JioSaavn fallback for ${track.id} (${track.title})")
             return null
@@ -177,6 +219,8 @@ class StreamResolver {
     private companion object {
         const val TAG = "StreamResolver"
         const val TTL_MS = 15 * 60 * 1000L
+        const val DAY_MS = 24 * 60 * 60 * 1000L
+        const val SLOW_YOUTUBE_MS = 7_000L
         const val YT_DLP_TIMEOUT_S = 15L
         val json = Json { ignoreUnknownKeys = true; isLenient = true }
     }

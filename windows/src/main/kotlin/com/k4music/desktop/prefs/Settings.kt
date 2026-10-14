@@ -103,6 +103,9 @@ enum class AudioQuality(val saavn: String, val youtubeItags: List<Int>) {
 
 enum class ThemeMode { System, Dark, Light }
 
+/** Where the Home / Discover / Search / Library buttons sit. */
+enum class NavPosition { Side, Bottom }
+
 enum class Reverb { None, SmallRoom, LargeHall }
 
 object Settings : SettingsStore({ AppPaths.settings }) {
@@ -121,6 +124,9 @@ object Settings : SettingsStore({ AppPaths.settings }) {
     var sponsorBlockEnabled by boolean(false)
     var sponsorBlockCategories by string("sponsor,selfpromo,intro,outro,music_offtopic")
     var resumeOnStart by boolean(false)
+    /** Direct YouTube urls refused in a row, and when (see StreamResolver). */
+    var directRefusals by int(0)
+    var directRefusedAt by long(0L)
 
     // Audio effects (mpv filter chain; same choices as Android's AudioScreen)
     var equalizerEnabled by boolean(false)
@@ -141,6 +147,13 @@ object Settings : SettingsStore({ AppPaths.settings }) {
     var themeMode by enum(ThemeMode.Dark)
     var accentColorHex by string("#7B5CFF")
     var minimizeToTray by boolean(false)
+    var navPosition by enum(NavPosition.Side)
+    /** Side panel shrunk to icons only (Ctrl+B). */
+    var sidebarCollapsed by boolean(false)
+    /** Comma-separated names of navigation buttons the user hid (Discover, Search, Library). */
+    var hiddenNav by string("")
+    /** Shows your playlists under the navigation buttons, like a music library. */
+    var sidebarPlaylists by boolean(true)
 
     // Window
     var windowWidth by int(1280)

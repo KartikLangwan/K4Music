@@ -1,9 +1,14 @@
 package com.k4music.desktop.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,72 +16,112 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.VerticalDivider
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.k4music.desktop.res.Res
-import com.k4music.desktop.res.app_name
-import com.k4music.desktop.res.chevron_back
-import com.k4music.desktop.res.desktop_back
-import com.k4music.desktop.res.discover
-import com.k4music.desktop.res.globe
-import com.k4music.desktop.res.home
-import com.k4music.desktop.res.library
-import com.k4music.desktop.res.search
-import com.k4music.desktop.res.settings
+import com.k4music.android.models.PlaylistPreview
+import com.k4music.core.data.enums.PlaylistSortBy
+import com.k4music.core.data.enums.SortOrder
+import com.k4music.desktop.data.Db
+import com.k4music.desktop.prefs.NavPosition
+import com.k4music.desktop.prefs.Settings
+import com.k4music.desktop.res.*
 import com.k4music.desktop.ui.screens.ScreenContent
+import com.k4music.desktop.ui.screens.submitSearch
+import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
-private class RootItem(val screen: Screen, val title: StringResource, val icon: DrawableResource)
+/** A navigation button: [key] names it in Settings.hiddenNav (Home cannot be hidden). */
+class NavDestination(val key: String, val screen: Screen, val title: StringResource, val icon: DrawableResource)
 
-private val roots = listOf(
-    RootItem(Screen.Home, Res.string.home, Res.drawable.home),
-    RootItem(Screen.Discover, Res.string.discover, Res.drawable.globe),
-    RootItem(Screen.Search(), Res.string.search, Res.drawable.search),
-    RootItem(Screen.Library, Res.string.library, Res.drawable.library)
+val navDestinations = listOf(
+    NavDestination("Home", Screen.Home, Res.string.home, Res.drawable.home),
+    NavDestination("Discover", Screen.Discover, Res.string.discover, Res.drawable.globe),
+    NavDestination("Search", Screen.Search(), Res.string.search, Res.drawable.search),
+    NavDestination("Library", Screen.Library, Res.string.library, Res.drawable.library)
 )
 
-/** Window frame: sidebar | content | optional queue/lyrics panel, player bar along the bottom. */
+private fun visibleDestinations(): List<NavDestination> {
+    val hidden = Settings.hiddenNav.split(',').map { it.trim() }.toSet()
+    return navDestinations.filter { it.key == "Home" || it.key !in hidden }
+}
+
+/** Which navigation button to highlight: Search while searching, otherwise the stack's root. */
+private fun Navigator.section(): Screen = current.takeIf { it is Screen.Search } ?: stack.first()
+
+private fun sameRoot(a: Screen, b: Screen) = a == b || (a is Screen.Search && b is Screen.Search)
+
+/** Spacing between the window's rounded panels. */
+private val Gap = 8.dp
+private val PanelShape = RoundedCornerShape(12.dp)
+
+/**
+ * Window frame, desktop-music-app style: top bar (history, home, search), side panel
+ * (navigation + your library, collapsible), content, optional queue/lyrics panel, player bar.
+ */
 @Composable
-fun Shell(panel: MutableState<SidePanel?>, playerOpen: MutableState<Boolean>, searchFocus: FocusRequester) {
+fun Shell(
+    panel: MutableState<SidePanel?>,
+    playerOpen: MutableState<Boolean>,
+    searchFocus: FocusRequester,
+    fullscreen: Boolean = false,
+    onToggleFullscreen: (() -> Unit)? = null
+) {
     val navigator = LocalNavigator.current
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    val colors = MaterialTheme.colorScheme
+    Box(Modifier.fillMaxSize().background(colors.background)) {
         Column(Modifier.fillMaxSize()) {
-            Row(Modifier.weight(1f)) {
-                Sidebar(navigator)
-                VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Column(Modifier.weight(1f).fillMaxHeight()) {
-                    if (navigator.canGoBack) IconButton(onClick = navigator::back, modifier = Modifier.padding(start = 12.dp, top = 8.dp)) {
-                        Icon(painterResource(Res.drawable.chevron_back), stringResource(Res.string.desktop_back))
-                    }
-                    Box(Modifier.weight(1f).padding(horizontal = 28.dp, vertical = 16.dp)) {
-                        ScreenContent(navigator.current, searchFocus)
-                    }
-                }
+            TopBar(navigator, searchFocus, fullscreen, onToggleFullscreen)
+            Row(Modifier.weight(1f).padding(horizontal = Gap), horizontalArrangement = Arrangement.spacedBy(Gap)) {
+                if (Settings.navPosition == NavPosition.Side || Settings.sidebarPlaylists) SidePanelColumn(navigator)
+                ContentPanel(navigator, Modifier.weight(1f))
                 panel.value?.let { which ->
-                    VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.widthIn(min = 320.dp, max = 380.dp).fillMaxHeight()) {
+                    Surface(shape = PanelShape, color = colors.surface, modifier = Modifier.widthIn(min = 320.dp, max = 380.dp).fillMaxHeight()) {
                         when (which) {
                             SidePanel.Queue -> QueuePanel()
                             SidePanel.Lyrics -> LyricsPanel()
@@ -84,53 +129,319 @@ fun Shell(panel: MutableState<SidePanel?>, playerOpen: MutableState<Boolean>, se
                     }
                 }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            if (Settings.navPosition == NavPosition.Bottom) BottomNav(navigator)
             NowPlayingBar(panel.value, { panel.value = it }, onOpenPlayer = { playerOpen.value = true })
         }
-        AnimatedVisibility(
-            playerOpen.value,
-            enter = slideInVertically { it },
-            exit = slideOutVertically { it }
-        ) {
+        AnimatedVisibility(playerOpen.value, enter = slideInVertically { it }, exit = slideOutVertically { it }) {
             NowPlaying(panel.value) { playerOpen.value = false }
         }
         DialogHost()
     }
 }
 
+/** The page itself: a rounded panel whose top glows softly in the accent colour. */
 @Composable
-private fun Sidebar(navigator: Navigator) {
-    val current = navigator.stack.first()
-    Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.width(232.dp).fillMaxHeight()) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                stringResource(Res.string.app_name),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 16.dp)
+private fun ContentPanel(navigator: Navigator, modifier: Modifier) {
+    val colors = MaterialTheme.colorScheme
+    Surface(shape = PanelShape, color = colors.surface, modifier = modifier.fillMaxHeight()) {
+        Box(Modifier.fillMaxSize()) {
+            Box(
+                Modifier.fillMaxWidth().height(300.dp)
+                    .background(Brush.verticalGradient(listOf(colors.primary.copy(alpha = 0.20f), Color.Transparent)))
             )
-            roots.forEach { item -> NavItem(item.title, item.icon, sameRoot(current, item.screen)) { navigator.root(item.screen) } }
-            Box(Modifier.weight(1f))
-            NavItem(Res.string.settings, Res.drawable.settings, current == Screen.Settings) { navigator.root(Screen.Settings) }
+            Box(Modifier.fillMaxSize().padding(start = 28.dp, end = 28.dp, top = 20.dp)) {
+                ScreenContent(navigator.current)
+            }
         }
     }
 }
 
-private fun sameRoot(a: Screen, b: Screen) = a == b || (a is Screen.Search && b is Screen.Search)
+// ---- Top bar ----
 
 @Composable
-private fun NavItem(title: StringResource, icon: DrawableResource, selected: Boolean, onClick: () -> Unit) {
-    NavigationDrawerItem(
-        label = { Text(stringResource(title)) },
-        icon = { Icon(painterResource(icon), null, Modifier.size(22.dp)) },
-        selected = selected,
-        onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        colors = NavigationDrawerItemDefaults.colors(
-            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-            unselectedContainerColor = MaterialTheme.colorScheme.surface
-        ),
-        modifier = Modifier.fillMaxWidth()
-    )
+private fun TopBar(navigator: Navigator, searchFocus: FocusRequester, fullscreen: Boolean, onToggleFullscreen: (() -> Unit)?) {
+    val colors = MaterialTheme.colorScheme
+    Box(Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 12.dp)) {
+        Row(Modifier.align(Alignment.CenterStart), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            RoundIcon(Res.drawable.chevron_back, stringResource(Res.string.desktop_back), navigator.canGoBack) { navigator.back() }
+            RoundIcon(Res.drawable.chevron_forward, stringResource(Res.string.desktop_forward), navigator.canGoForward) { navigator.forward() }
+        }
+        Row(
+            Modifier.align(Alignment.Center).width(520.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val home = navigator.current == Screen.Home
+            Tip(stringResource(Res.string.home)) {
+                IconButton(
+                    onClick = { navigator.root(Screen.Home) },
+                    colors = IconButtonDefaults.iconButtonColors(containerColor = colors.surfaceContainer),
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(painterResource(Res.drawable.home), null, Modifier.size(22.dp), tint = if (home) colors.onSurface else colors.onSurfaceVariant)
+                }
+            }
+            SearchField(navigator, searchFocus, Modifier.weight(1f))
+        }
+        Row(Modifier.align(Alignment.CenterEnd), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (onToggleFullscreen != null) RoundIcon(
+                Res.drawable.expand,
+                stringResource(if (fullscreen) Res.string.desktop_exit_fullscreen else Res.string.desktop_fullscreen),
+                true,
+                onClick = onToggleFullscreen
+            )
+            RoundIcon(Res.drawable.settings, stringResource(Res.string.settings), true, selected = navigator.current == Screen.Settings) {
+                navigator.root(Screen.Settings)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RoundIcon(icon: DrawableResource, label: String, enabled: Boolean, selected: Boolean = false, onClick: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Tip(label) {
+        IconButton(
+            onClick = onClick,
+            enabled = enabled,
+            colors = IconButtonDefaults.iconButtonColors(
+                containerColor = if (selected) colors.primaryContainer else colors.surfaceContainer,
+                disabledContainerColor = colors.surfaceContainer.copy(alpha = 0.5f)
+            ),
+            modifier = Modifier.size(36.dp)
+        ) { Icon(painterResource(icon), label, Modifier.size(18.dp), tint = if (selected) colors.primary else colors.onSurface.copy(alpha = if (enabled) 1f else 0.35f)) }
+    }
+}
+
+/**
+ * The search pill. Typing shows results live (after a short pause); Enter also saves the query
+ * to history and opens pasted YouTube links.
+ */
+@Composable
+private fun SearchField(navigator: Navigator, focus: FocusRequester, modifier: Modifier) {
+    val colors = MaterialTheme.colorScheme
+    val player = LocalPlayer.current
+    val currentQuery = (navigator.current as? Screen.Search)?.query.orEmpty()
+    var text by remember { mutableStateOf(currentQuery) }
+    var focused by remember { mutableStateOf(false) }
+    // Leaving search (or picking a history entry) updates the field.
+    LaunchedEffect(currentQuery, navigator.current is Screen.Search) {
+        if (!focused || navigator.current !is Screen.Search) text = currentQuery
+    }
+    LaunchedEffect(text) {
+        if (!focused || text.trim() == currentQuery || text.isBlank() || text.startsWith("http")) return@LaunchedEffect
+        delay(450)
+        val screen = Screen.Search(text.trim())
+        if (navigator.current is Screen.Search) navigator.replace(screen) else navigator.go(screen)
+    }
+    val interaction = remember { MutableInteractionSource() }
+    val hovered by interaction.collectIsHoveredAsState()
+    Row(
+        modifier.height(48.dp).clip(CircleShape)
+            .background(if (focused || hovered) colors.surfaceContainerHigh else colors.surfaceContainer)
+            .hoverable(interaction)
+            .clickable { runCatching { focus.requestFocus() } }
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Icon(painterResource(Res.drawable.search), null, Modifier.size(20.dp), tint = if (focused) colors.onSurface else colors.onSurfaceVariant)
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+            if (text.isEmpty()) Text(
+                stringResource(Res.string.desktop_search_hint),
+                color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis
+            )
+            BasicTextField(
+                value = text,
+                onValueChange = { text = it },
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = colors.onSurface),
+                cursorBrush = SolidColor(colors.primary),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { if (submitSearch(text, navigator, player)) text = "" }),
+                modifier = Modifier.fillMaxWidth().focusRequester(focus).onFocusChanged {
+                    focused = it.isFocused
+                    if (it.isFocused && navigator.current !is Screen.Search) navigator.go(Screen.Search(text.trim()))
+                }.onPreviewKeyEventEnter { if (submitSearch(text, navigator, player)) text = "" }
+            )
+        }
+        if (text.isNotEmpty()) Icon(
+            painterResource(Res.drawable.close), stringResource(Res.string.clear),
+            Modifier.size(18.dp).clip(CircleShape).clickable { text = ""; if (navigator.current is Screen.Search) navigator.replace(Screen.Search()) },
+            tint = colors.onSurfaceVariant
+        )
+    }
+}
+
+/** Desktop text fields do not always raise the IME search action: Enter submits too. */
+private fun Modifier.onPreviewKeyEventEnter(action: () -> Unit) = onPreviewKeyEvent { e ->
+    if (e.type == KeyEventType.KeyDown && (e.key == Key.Enter || e.key == Key.NumPadEnter)) { action(); true } else false
+}
+
+// ---- Side panel ----
+
+@Composable
+private fun SidePanelColumn(navigator: Navigator) {
+    val collapsed = Settings.sidebarCollapsed
+    val current = navigator.section()
+    Column(
+        Modifier.width(if (collapsed) 76.dp else 280.dp).fillMaxHeight().animateContentSize(),
+        verticalArrangement = Arrangement.spacedBy(Gap)
+    ) {
+        if (Settings.navPosition == NavPosition.Side) Surface(shape = PanelShape, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                visibleDestinations().forEach { d ->
+                    SideItem(stringResource(d.title), collapsed, sameRoot(current, d.screen), icon = d.icon) { navigator.root(d.screen) }
+                }
+            }
+        }
+        if (Settings.sidebarPlaylists) LibraryCard(navigator, collapsed, Modifier.weight(1f))
+        else if (Settings.navPosition == NavPosition.Side) Box(Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun LibraryCard(navigator: Navigator, collapsed: Boolean, modifier: Modifier) {
+    val colors = MaterialTheme.colorScheme
+    val playlists by remember { Db.library.playlistPreviews(PlaylistSortBy.DateAdded, SortOrder.Descending) }
+        .collectAsState(initial = emptyList<PlaylistPreview>())
+    val current = navigator.current
+    Surface(shape = PanelShape, color = colors.surface, modifier = modifier.fillMaxWidth()) {
+        Column(Modifier.padding(8.dp)) {
+            Row(Modifier.fillMaxWidth().padding(start = if (collapsed) 0.dp else 8.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (!collapsed) Text(
+                    stringResource(Res.string.desktop_your_library),
+                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f).clickable { navigator.root(Screen.Library) }
+                )
+                Box(Modifier.then(if (collapsed) Modifier.fillMaxWidth() else Modifier), contentAlignment = Alignment.Center) {
+                    Tip(stringResource(if (collapsed) Res.string.desktop_expand_sidebar else Res.string.desktop_collapse_sidebar)) {
+                        IconButton(onClick = { Settings.sidebarCollapsed = !collapsed }, modifier = Modifier.size(40.dp)) {
+                            Icon(painterResource(Res.drawable.library), null, Modifier.size(22.dp), tint = colors.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                item {
+                    SideItem(stringResource(Res.string.favorites), collapsed, current == Screen.BuiltIn(BuiltInKind.Favorites), icon = Res.drawable.heart, tile = true) {
+                        navigator.go(Screen.BuiltIn(BuiltInKind.Favorites))
+                    }
+                }
+                item {
+                    SideItem(stringResource(Res.string.offline), collapsed, current == Screen.BuiltIn(BuiltInKind.Downloads), icon = Res.drawable.download, tile = true) {
+                        navigator.go(Screen.BuiltIn(BuiltInKind.Downloads))
+                    }
+                }
+                item {
+                    SideItem(stringResource(Res.string.history), collapsed, current == Screen.BuiltIn(BuiltInKind.History), icon = Res.drawable.history, tile = true) {
+                        navigator.go(Screen.BuiltIn(BuiltInKind.History))
+                    }
+                }
+                items(playlists, key = { it.id }) { p ->
+                    SideItem(
+                        p.name, collapsed, current == Screen.LocalPlaylist(p.id),
+                        subtitle = stringResource(Res.string.desktop_song_count, p.songCount),
+                        artwork = p.thumbnail ?: ""
+                    ) { navigator.go(Screen.LocalPlaylist(p.id)) }
+                }
+            }
+        }
+    }
+}
+
+/** One row of the side panel; collapsed it shows only the icon or artwork, with a tooltip. */
+@Composable
+private fun SideItem(
+    title: String,
+    collapsed: Boolean,
+    selected: Boolean,
+    icon: DrawableResource? = null,
+    subtitle: String? = null,
+    artwork: String? = null,
+    tile: Boolean = false,
+    onClick: () -> Unit
+) {
+    val colors = MaterialTheme.colorScheme
+    val interaction = remember { MutableInteractionSource() }
+    val hovered by interaction.collectIsHoveredAsState()
+    Tip(title, enabled = collapsed) {
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+                .background(
+                    when {
+                        selected -> colors.primaryContainer
+                        hovered -> colors.surfaceContainer
+                        else -> Color.Transparent
+                    }
+                )
+                .hoverable(interaction)
+                .clickable(onClick = onClick)
+                .padding(horizontal = if (collapsed) 0.dp else 10.dp, vertical = if (artwork != null || tile) 6.dp else 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = if (collapsed) Arrangement.Center else Arrangement.spacedBy(14.dp)
+        ) {
+            when {
+                artwork != null -> Artwork(artwork.ifBlank { null }, 44.dp, Modifier.size(44.dp), corner = 6.dp)
+                tile && icon != null -> Box(
+                    Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)).background(colors.primary.copy(alpha = 0.18f)),
+                    contentAlignment = Alignment.Center
+                ) { Icon(painterResource(icon), null, Modifier.size(20.dp), tint = colors.primary) }
+                icon != null -> Icon(
+                    painterResource(icon), null, Modifier.size(24.dp),
+                    tint = if (selected) colors.primary else colors.onSurfaceVariant
+                )
+            }
+            if (!collapsed) Column(Modifier.weight(1f)) {
+                Text(
+                    title, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    style = if (artwork != null || tile) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                    color = if (selected) colors.onSurface else if (artwork != null || tile) colors.onSurface else colors.onSurfaceVariant
+                )
+                if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 1)
+            }
+        }
+    }
+}
+
+// ---- Bottom navigation (Settings → Layout) ----
+
+@Composable
+private fun BottomNav(navigator: Navigator) {
+    val colors = MaterialTheme.colorScheme
+    val current = navigator.section()
+    Surface(shape = PanelShape, color = colors.surface, modifier = Modifier.fillMaxWidth().padding(start = Gap, end = Gap, top = Gap)) {
+        Row(Modifier.fillMaxWidth().padding(6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)) {
+            visibleDestinations().forEach { d ->
+                val selected = sameRoot(current, d.screen)
+                Row(
+                    Modifier.clip(CircleShape)
+                        .background(if (selected) colors.primaryContainer else Color.Transparent)
+                        .clickable { navigator.root(d.screen) }
+                        .padding(horizontal = 18.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(painterResource(d.icon), null, Modifier.size(20.dp), tint = if (selected) colors.primary else colors.onSurfaceVariant)
+                    Text(
+                        stringResource(d.title), style = MaterialTheme.typography.labelLarge,
+                        color = if (selected) colors.onSurface else colors.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Plain tooltip on hover (desktop convention for icon-only controls). */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun Tip(label: String, enabled: Boolean = true, content: @Composable () -> Unit) {
+    if (!enabled) return content()
+    androidx.compose.material3.TooltipBox(
+        positionProvider = androidx.compose.material3.TooltipDefaults.rememberTooltipPositionProvider(),
+        tooltip = { PlainTooltip { Text(label) } },
+        state = androidx.compose.material3.rememberTooltipState()
+    ) { content() }
 }

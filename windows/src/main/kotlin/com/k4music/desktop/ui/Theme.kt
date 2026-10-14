@@ -42,7 +42,7 @@ fun k4ColorScheme(accent: Color, dark: Boolean): ColorScheme {
         primary = accent, onPrimary = onAccent,
         primaryContainer = accent.copy(alpha = 0.16f), onPrimaryContainer = Color.White,
         secondary = accent, tertiary = accent.copy(alpha = 0.8f),
-        background = Color(0xFF0B0C10), onBackground = Color(0xFFF2F4F8),
+        background = Color(0xFF060709), onBackground = Color(0xFFF2F4F8),
         surface = Color(0xFF131419), onSurface = Color(0xFFF2F4F8),
         surfaceVariant = Color(0xFF1B1D24), onSurfaceVariant = Color(0xFF9BA3B0),
         surfaceContainer = Color(0xFF22242C), surfaceContainerHigh = Color(0xFF2A2D36),
