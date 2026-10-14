@@ -30,7 +30,7 @@ object DiscordPresence {
      * The "K4 Music" application in the Discord Developer Portal (its name is what Discord shows).
      * Empty turns the feature off.
      */
-    const val APP_ID = ""
+    const val APP_ID = "1559966291790667868"
 
     val available get() = APP_ID.isNotBlank()
 
@@ -73,7 +73,10 @@ object DiscordPresence {
         }
         write(p, OP_FRAME, payload.toString())
         // Discord's reply; a CLOSE (wrong id, Discord logging out) drops the connection.
-        if (read(p).first != OP_FRAME) { disconnect(); return }
+        val (op, reply) = read(p)
+        if (op != OP_FRAME) { disconnect(); return }
+        // A rejected activity still comes back as a normal frame, with "evt":"ERROR".
+        if ("\"evt\":\"ERROR\"" in reply) AppLog.w("Discord", "Status rejected: ${reply.take(300)}")
         sent = key
         sentAt = System.currentTimeMillis()
     }
@@ -93,10 +96,20 @@ object DiscordPresence {
             put("small_image", LOGO)
             put("small_text", "K4 Music")
         }
-        if (!track.isLocal && !track.isSaavn) putJsonArray("buttons") {
+        // Discord allows two: the app, then the song (or the creator when the song has no public link).
+        putJsonArray("buttons") {
             addJsonObject {
-                put("label", "Play on YouTube Music")
-                put("url", "https://music.youtube.com/watch?v=${track.id}")
+                put("label", "Get K4 Music")
+                put("url", "https://k4music.vercel.app")
+            }
+            addJsonObject {
+                if (!track.isLocal && !track.isSaavn) {
+                    put("label", "Play this song")
+                    put("url", "https://music.youtube.com/watch?v=${track.id}")
+                } else {
+                    put("label", "Made by Kartik")
+                    put("url", "https://kartiklangwan.vercel.app")
+                }
             }
         }
     }
