@@ -61,6 +61,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import com.k4music.android.models.PlaylistPreview
 import com.k4music.core.data.enums.PlaylistSortBy
 import com.k4music.core.data.enums.SortOrder
@@ -99,6 +105,37 @@ private fun sameRoot(a: Screen, b: Screen) = a == b || (a is Screen.Search && b 
 
 /** Spacing between the window's rounded panels. */
 private val Gap = 8.dp
+private const val MIN_SIDEBAR = 220f
+private const val MAX_SIDEBAR = 420f
+
+/**
+ * The gap between two panels, draggable to resize them (resize cursor on hover, a thin
+ * accent line while hovered or dragged). [onDrag] gets the pointer movement in dp.
+ */
+@Composable
+private fun Resizer(onDrag: (Float) -> Unit, onDragEnd: () -> Unit) {
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val interaction = remember { MutableInteractionSource() }
+    val hovered by interaction.collectIsHoveredAsState()
+    var dragging by remember { mutableStateOf(false) }
+    Box(
+        Modifier.width(Gap).fillMaxHeight()
+            .hoverable(interaction)
+            .pointerHoverIcon(PointerIcon(java.awt.Cursor(java.awt.Cursor.E_RESIZE_CURSOR)))
+            .draggable(
+                rememberDraggableState { px -> onDrag(with(density) { px.toDp().value }) },
+                Orientation.Horizontal,
+                onDragStarted = { dragging = true },
+                onDragStopped = { dragging = false; onDragEnd() }
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (hovered || dragging) Box(
+            Modifier.width(2.dp).fillMaxHeight().padding(vertical = 12.dp)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.7f), CircleShape)
+        )
+    }
+}
 private val PanelShape = RoundedCornerShape(12.dp)
 
 /**
@@ -120,11 +157,33 @@ fun Shell(
         val narrow = maxWidth < 1100.dp
         Column(Modifier.fillMaxSize()) {
             TopBar(navigator, searchFocus, fullscreen, onToggleFullscreen)
-            Row(Modifier.weight(1f).padding(horizontal = Gap), horizontalArrangement = Arrangement.spacedBy(Gap)) {
-                if (Settings.navPosition == NavPosition.Side || Settings.sidebarPlaylists) SidePanelColumn(navigator, narrow)
-                ContentPanel(navigator, Modifier.weight(1f))
+            val ambient = rememberAmbientColor()
+            Row(Modifier.weight(1f).padding(horizontal = Gap)) {
+                if (Settings.navPosition == NavPosition.Side || Settings.sidebarPlaylists) {
+                    // Drag the edge to resize; drag it far left to shrink to icons (and back out to expand).
+                    var width by remember { mutableStateOf(Settings.sidebarWidth.toFloat()) }
+                    val collapsed = Settings.sidebarCollapsed || narrow
+                    SidePanelColumn(navigator, collapsed, if (collapsed) 76.dp else width.dp)
+                    Resizer(
+                        onDrag = { delta ->
+                            if (collapsed) {
+                                if (delta > 0 && !narrow) { Settings.sidebarCollapsed = false; width = MIN_SIDEBAR }
+                            } else {
+                                width = (width + delta).coerceAtMost(MAX_SIDEBAR)
+                                if (width < MIN_SIDEBAR - 60) { Settings.sidebarCollapsed = true; width = MIN_SIDEBAR }
+                            }
+                        },
+                        onDragEnd = { Settings.sidebarWidth = width.coerceIn(MIN_SIDEBAR, MAX_SIDEBAR).toInt(); width = Settings.sidebarWidth.toFloat() }
+                    )
+                }
+                ContentPanel(navigator, ambient, Modifier.weight(1f))
                 panel.value?.let { which ->
-                    Surface(shape = PanelShape, color = colors.surface, modifier = Modifier.widthIn(min = 320.dp, max = 380.dp).fillMaxHeight()) {
+                    var width by remember { mutableStateOf(Settings.sidePanelWidth.toFloat()) }
+                    Resizer(
+                        onDrag = { delta -> width = (width - delta).coerceIn(280f, 560f) },
+                        onDragEnd = { Settings.sidePanelWidth = width.toInt() }
+                    )
+                    Surface(shape = PanelShape, color = colors.surface, modifier = Modifier.width(width.dp).fillMaxHeight()) {
                         when (which) {
                             SidePanel.Queue -> QueuePanel()
                             SidePanel.Lyrics -> LyricsPanel()
@@ -133,7 +192,7 @@ fun Shell(
                 }
             }
             if (Settings.navPosition == NavPosition.Bottom) BottomNav(navigator)
-            NowPlayingBar(panel.value, { panel.value = it }, onOpenPlayer = { playerOpen.value = true })
+            NowPlayingBar(panel.value, { panel.value = it }, onOpenPlayer = { playerOpen.value = true }, ambient = ambient)
         }
         AnimatedVisibility(playerOpen.value, enter = slideInVertically { it }, exit = slideOutVertically { it }) {
             NowPlaying(panel.value) { playerOpen.value = false }
@@ -142,16 +201,13 @@ fun Shell(
     }
 }
 
-/** The page itself: a rounded panel whose top glows softly in the accent colour. */
+/** The page itself: a rounded panel tinted by the playing song's colours (or your picture). */
 @Composable
-private fun ContentPanel(navigator: Navigator, modifier: Modifier) {
+private fun ContentPanel(navigator: Navigator, ambient: Color, modifier: Modifier) {
     val colors = MaterialTheme.colorScheme
     Surface(shape = PanelShape, color = colors.surface, modifier = modifier.fillMaxHeight()) {
         Box(Modifier.fillMaxSize()) {
-            Box(
-                Modifier.fillMaxWidth().height(300.dp)
-                    .background(Brush.verticalGradient(listOf(colors.primary.copy(alpha = 0.20f), Color.Transparent)))
-            )
+            PageBackdrop(ambient)
             Box(Modifier.fillMaxSize().padding(start = 28.dp, end = 28.dp, top = 20.dp)) {
                 ScreenContent(navigator.current)
             }
@@ -284,11 +340,10 @@ private fun Modifier.onPreviewKeyEventEnter(action: () -> Unit) = onPreviewKeyEv
 // ---- Side panel ----
 
 @Composable
-private fun SidePanelColumn(navigator: Navigator, narrow: Boolean) {
-    val collapsed = Settings.sidebarCollapsed || narrow
+private fun SidePanelColumn(navigator: Navigator, collapsed: Boolean, width: Dp) {
     val current = navigator.section()
     Column(
-        Modifier.width(if (collapsed) 76.dp else 280.dp).fillMaxHeight().animateContentSize(),
+        Modifier.width(width).fillMaxHeight(),
         verticalArrangement = Arrangement.spacedBy(Gap)
     ) {
         if (Settings.navPosition == NavPosition.Side) Surface(shape = PanelShape, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {

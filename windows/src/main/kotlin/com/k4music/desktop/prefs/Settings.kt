@@ -103,6 +103,9 @@ enum class AudioQuality(val saavn: String, val youtubeItags: List<Int>) {
 
 enum class ThemeMode { System, Dark, Light }
 
+/** What sits behind pages: the playing song's colours, the accent, or the user's picture. */
+enum class BackgroundStyle { Artwork, Accent, Image }
+
 /** Where the Home / Discover / Search / Library buttons sit. */
 enum class NavPosition { Side, Bottom }
 
@@ -151,6 +154,12 @@ object Settings : SettingsStore({ AppPaths.settings }) {
     var hiddenNav by string("")
     /** Shows your playlists under the navigation buttons, like a music library. */
     var sidebarPlaylists by boolean(true)
+    var backgroundStyle by enum(BackgroundStyle.Artwork)
+    /** Picture file for BackgroundStyle.Image. */
+    var backgroundImage by string("")
+    /** Side panel and queue/lyrics panel widths (dp), set by dragging their edges. */
+    var sidebarWidth by int(280)
+    var sidePanelWidth by int(360)
 
     // Window
     var windowWidth by int(1280)

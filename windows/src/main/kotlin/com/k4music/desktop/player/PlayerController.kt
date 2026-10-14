@@ -22,6 +22,14 @@ import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Socket
 
+/** Where a YouTube Music radio starts: a song, or an artist's shuffle/radio endpoint. */
+data class RadioSeed(
+    val videoId: String? = null,
+    val playlistId: String? = null,
+    val params: String? = null,
+    val playlistSetVideoId: String? = null
+)
+
 /** What the UI shows about playback. Position lives in its own flow so ticks redraw only the seek bar. */
 data class PlayerState(
     /** Wall-clock time (ms) when playback pauses for the sleep timer, or null. */
@@ -71,6 +79,11 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
     var onPlayed: (Track, Long) -> Unit = { _, _ -> }
     /** Asked for more songs when the queue runs out with repeat off (radio). */
     var onQueueEnding: suspend (Track) -> List<Track> = { emptyList() }
+    /** Opens a radio for a seed; each call of the returned function gives the next page of songs. */
+    var radioSource: (RadioSeed) -> (suspend () -> List<Track>) = { { emptyList() } }
+    /** The radio feeding the queue, if the queue came from one (Android's YouTubeRadio). */
+    private var radio: (suspend () -> List<Track>)? = null
+    private var radioJob: Job? = null
 
     init {
         // Volume 0 while not muted is almost always an accident and makes the app seem broken.
@@ -97,6 +110,8 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
             override fun onLoaded() {
                 _state.update { it.copy(buffering = false, error = null) }
                 _state.value.current?.let { track -> scope.launch { onTrackStarted(track); prefetchNext() } }
+                // Keep a radio queue topped up, as Android does when three songs are left.
+                scope.launch { _state.value.let { if (it.queue.size - it.index <= 3) fillRadio() } }
             }
             override fun onEnded(error: String?) {
                 scope.launch {
@@ -118,19 +133,60 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
     // ---- Queue ----
 
     fun play(tracks: List<Track>, startIndex: Int = 0, startSeconds: Double = 0.0, autoPlay: Boolean = true) =
-        scope.launch {
-            if (tracks.isEmpty()) return@launch
-            var queue = tracks
-            var index = startIndex.coerceIn(0, tracks.lastIndex)
-            unshuffled = null
-            if (Settings.shuffleEnabled) {
-                unshuffled = queue
-                queue = shuffledFrom(queue, index)
-                index = 0
-            }
-            _state.update { it.copy(queue = queue, index = index) }
-            load(startSeconds, autoPlay)
+        scope.launch { playNow(tracks, startIndex, startSeconds, autoPlay) }
+
+    /**
+     * Plays [track] and fills the queue with related songs, as tapping a song does on Android:
+     * the queue follows the song's mood, not other results that merely share its name.
+     */
+    fun playRadio(track: Track) = scope.launch {
+        playNow(listOf(track))
+        if (!track.isLocal && !track.isSaavn) {
+            radio = radioSource(RadioSeed(videoId = track.id))
+            fillRadio()
         }
+    }
+
+    /** Plays a radio from [seed] (an artist's Shuffle or Radio button). */
+    fun playRadio(seed: RadioSeed) = scope.launch {
+        val source = radioSource(seed)
+        val first = withContext(Dispatchers.IO) { runCatching { source() }.getOrDefault(emptyList()) }
+        if (first.isEmpty()) return@launch
+        playNow(first)
+        radio = source
+    }
+
+    /** Appends the radio's next page, skipping songs already queued. */
+    private fun fillRadio() {
+        val source = radio ?: return
+        if (radioJob?.isActive == true) return
+        radioJob = scope.launch {
+            val more = withContext(Dispatchers.IO) { runCatching { source() }.getOrDefault(emptyList()) }
+            if (radio !== source) return@launch
+            val known = _state.value.queue.mapTo(HashSet()) { it.id }
+            val fresh = more.filter { known.add(it.id) }.let { if (Settings.shuffleEnabled) it.shuffled() else it }
+            if (fresh.isEmpty()) return@launch
+            unshuffled = unshuffled?.plus(fresh)
+            _state.update { it.copy(queue = it.queue + fresh) }
+            changed()
+        }
+    }
+
+    private fun playNow(tracks: List<Track>, startIndex: Int = 0, startSeconds: Double = 0.0, autoPlay: Boolean = true) {
+        if (tracks.isEmpty()) return
+        radio = null
+        radioJob?.cancel()
+        var queue = tracks
+        var index = startIndex.coerceIn(0, tracks.lastIndex)
+        unshuffled = null
+        if (Settings.shuffleEnabled) {
+            unshuffled = queue
+            queue = shuffledFrom(queue, index)
+            index = 0
+        }
+        _state.update { it.copy(queue = queue, index = index) }
+        load(startSeconds, autoPlay)
+    }
 
     /** Puts back a saved queue without touching the network; the first play loads it. */
     fun restore(tracks: List<Track>, index: Int, positionSeconds: Double) = scope.launch {
@@ -149,7 +205,7 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
     /** "Play next": right after the current song; never replaces a non-empty queue. */
     fun playNext(track: Track) = scope.launch {
         val s = _state.value
-        if (s.queue.isEmpty()) return@launch play(listOf(track)).join()
+        if (s.queue.isEmpty()) return@launch playNow(listOf(track))
         val queue = s.queue.toMutableList().apply { add(s.index + 1, track) }
         unshuffled = unshuffled?.plus(track)
         _state.update { it.copy(queue = queue) }
@@ -157,7 +213,7 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
     }
 
     fun addToQueue(tracks: List<Track>) = scope.launch {
-        if (_state.value.queue.isEmpty()) return@launch play(tracks).join()
+        if (_state.value.queue.isEmpty()) return@launch playNow(tracks)
         unshuffled = unshuffled?.plus(tracks)
         _state.update { it.copy(queue = it.queue + tracks) }
         changed()
@@ -188,6 +244,8 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
 
     fun clearQueue() = scope.launch {
         loadJob?.cancel()
+        radio = null
+        radioJob?.cancel()
         mpv.stop()
         currentStream = null
         unshuffled = null

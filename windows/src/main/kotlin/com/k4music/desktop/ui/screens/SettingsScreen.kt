@@ -53,6 +53,7 @@ import com.k4music.desktop.prefs.Reverb
 import com.k4music.desktop.prefs.Settings
 import com.k4music.desktop.prefs.ThemeMode
 import com.k4music.desktop.prefs.NavPosition
+import com.k4music.desktop.prefs.BackgroundStyle
 import com.k4music.providers.github.requests.releases
 import com.k4music.desktop.res.*
 import com.k4music.desktop.ui.AppDialogs
@@ -228,6 +229,21 @@ private fun AppearanceSection() = Section(Res.string.appearance) {
         ),
         Settings.themeMode
     ) { Settings.themeMode = it }
+    Label(stringResource(Res.string.desktop_background))
+    Choices(
+        listOf(
+            BackgroundStyle.Artwork to stringResource(Res.string.desktop_bg_artwork),
+            BackgroundStyle.Accent to stringResource(Res.string.desktop_bg_accent),
+            BackgroundStyle.Image to stringResource(Res.string.desktop_bg_image)
+        ),
+        Settings.backgroundStyle
+    ) { style ->
+        if (style == BackgroundStyle.Image && Settings.backgroundImage.isBlank()) pickPicture() else Settings.backgroundStyle = style
+    }
+    if (Settings.backgroundStyle == BackgroundStyle.Image) Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        OutlinedButton(onClick = { pickPicture() }) { Text(stringResource(Res.string.desktop_choose_picture)) }
+        Text(File(Settings.backgroundImage).name, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
     Label(stringResource(Res.string.desktop_accent))
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         accents.forEach { hex ->
@@ -443,6 +459,17 @@ internal fun compareVersions(a: String, b: String): Int {
         if (c != 0) return c
     }
     return 0
+}
+
+/** Lets the user pick a picture for the page background. */
+private fun pickPicture() = javax.swing.SwingUtilities.invokeLater {
+    val chooser = javax.swing.JFileChooser().apply {
+        fileFilter = javax.swing.filechooser.FileNameExtensionFilter("Pictures", "jpg", "jpeg", "png", "webp", "bmp")
+    }
+    if (chooser.showOpenDialog(null) == javax.swing.JFileChooser.APPROVE_OPTION) {
+        Settings.backgroundImage = chooser.selectedFile.absolutePath
+        Settings.backgroundStyle = BackgroundStyle.Image
+    }
 }
 
 private fun open(folder: File) = runCatching { Desktop.getDesktop().open(folder) }

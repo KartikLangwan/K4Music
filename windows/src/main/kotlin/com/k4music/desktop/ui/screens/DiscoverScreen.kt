@@ -122,13 +122,13 @@ fun DiscoverScreen() {
 
         when {
             trending.isNotEmpty() -> {
-                Featured(trending.first().title, trending.first().artists, trending.first().thumbnailUrl) { player.play(trending, 0) }
+                Featured(trending.first().title, trending.first().artists, trending.first().thumbnailUrl) { player.playRadio(trending.first()) }
                 SectionHeader(
                     stringResource(Res.string.trending),
                     action = page.value?.trending?.endpoint?.browseId?.let { stringResource(Res.string.more) }
                 ) { page.value?.trending?.endpoint?.browseId?.let { navigator.go(Screen.Playlist(it)) } }
                 trending.drop(1).take(8).forEachIndexed { i, track ->
-                    SongRow(track, onPlay = { player.play(trending, i + 1) }, actions = { actions(track) }, index = i)
+                    SongRow(track, onPlay = { player.playRadio(track) }, actions = { actions(track) }, index = i)
                 }
             }
             page.failed -> ErrorState(page.retry)

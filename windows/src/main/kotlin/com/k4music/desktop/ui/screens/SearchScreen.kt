@@ -197,7 +197,7 @@ private fun <I : Innertube.Item> SongResults(
         tracks.isEmpty() && !loading -> Empty()
         else -> LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
             itemsIndexed(tracks, key = { i, t -> "$i-${t.id}" }) { index, track ->
-                SongRow(track, onPlay = { player.play(tracks, index) }, actions = { actions(track) }, index = index)
+                SongRow(track, onPlay = { player.playRadio(track) }, actions = { actions(track) }, index = index)
             }
             // Reaching the end of the list loads the next page.
             item(key = "more") {

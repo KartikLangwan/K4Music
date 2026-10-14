@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -52,13 +53,14 @@ fun NowPlaying(panel: SidePanel?, onClose: () -> Unit) {
     val track = state.current
     val colors = MaterialTheme.colorScheme
 
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(colors.background)
-            .livingBackdrop(colors.primary, state.playing)
-            .background(Brush.verticalGradient(0f to Color.Transparent, 1f to colors.background.copy(alpha = 0.85f)))
-    ) {
+    val ambient = rememberAmbientColor()
+    // The player covers the window: it must take every click and scroll, or they fall through
+    // to the page underneath (playing a card that happens to sit behind an empty spot).
+    Box(Modifier.fillMaxSize().pointerInput(Unit) {
+        awaitPointerEventScope { while (true) awaitPointerEvent().changes.forEach { it.consume() } }
+    }) {
+        BlurredArtwork(track?.thumbnailUrl, ambient)
+        Box(Modifier.matchParentSize().livingBackdrop(ambient, state.playing))
         IconButton(onClick = onClose, modifier = Modifier.padding(16.dp).align(Alignment.TopStart)) {
             Icon(painterResource(Res.drawable.chevron_down), stringResource(Res.string.desktop_close_player))
         }

@@ -144,6 +144,7 @@ object DevTools {
                 report.appendLine(
                     "$line -> screen=${navigator.current} panel=${panel.value} full=${playerOpen.value} " +
                         "playing=${s.playing} buffering=${s.buffering} track=${s.current?.title} pos=${"%.1f".format(player.position.value)} " +
+                        "queue=${s.queue.size}@${s.index} next=${s.queue.drop(s.index + 1).take(3).joinToString("|") { it.title.take(18) }} " +
                         "repeat=${com.k4music.desktop.prefs.Settings.repeatMode} shuffle=${com.k4music.desktop.prefs.Settings.shuffleEnabled} " +
                         "muted=${com.k4music.desktop.prefs.Settings.muted} vol=${com.k4music.desktop.prefs.Settings.volume} error=${s.error}"
                 )

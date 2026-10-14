@@ -33,6 +33,9 @@ import com.k4music.android.models.Artist
 import com.k4music.android.models.Playlist
 import com.k4music.desktop.data.Db
 import com.k4music.desktop.player.Track
+import com.k4music.desktop.player.RadioSeed
+import com.k4music.desktop.res.start_radio
+import com.k4music.desktop.res.view_all
 import com.k4music.desktop.player.toTrack
 import com.k4music.desktop.res.Res
 import com.k4music.desktop.res.albums
@@ -106,11 +109,11 @@ fun PlayButtons(tracks: List<Track>) {
 }
 
 @Composable
-private fun TrackList(tracks: List<Track>, numbered: Boolean = true) {
+private fun TrackList(tracks: List<Track>, numbered: Boolean = true, radio: Boolean = false) {
     val player = LocalPlayer.current
     val actions = songActions()
     tracks.forEachIndexed { i, track ->
-        SongRow(track, onPlay = { player.play(tracks, i) }, actions = { actions(track) }, index = if (numbered) i else null)
+        SongRow(track, onPlay = { if (radio) player.playRadio(track) else player.play(tracks, i) }, actions = { actions(track) }, index = if (numbered) i else null)
     }
 }
 
@@ -232,7 +235,22 @@ fun ArtistScreen(browseId: String) {
         when {
             artist != null -> {
                 CollectionHeader(artist.name.orEmpty(), artist.subscribersCountText, artist.thumbnail?.size(544), circle = true, description = artist.description) {
-                    PlayButtons(songs)
+                    // Android's artist Shuffle / Radio: YouTube Music's mixes for the artist, not just the top 5.
+                    val player = LocalPlayer.current
+                    val shuffle = artist.shuffleEndpoint
+                    val radio = artist.radioEndpoint
+                    if (shuffle != null || radio != null) {
+                        shuffle?.let { e ->
+                            Button(onClick = { player.playRadio(RadioSeed(e.videoId, e.playlistId, e.params, e.playlistSetVideoId)) }) {
+                                Text(stringResource(Res.string.shuffle))
+                            }
+                        }
+                        radio?.let { e ->
+                            FilledTonalButton(onClick = { player.playRadio(RadioSeed(e.videoId, e.playlistId, e.params, e.playlistSetVideoId)) }) {
+                                Text(stringResource(Res.string.start_radio))
+                            }
+                        }
+                    } else PlayButtons(songs)
                     val following = saved?.bookmarkedAt != null
                     OutlinedButton(onClick = {
                         scope.launch {
@@ -246,8 +264,13 @@ fun ArtistScreen(browseId: String) {
                     }) { Text(stringResource(if (following) Res.string.desktop_following else Res.string.desktop_follow)) }
                 }
                 if (songs.isNotEmpty()) {
-                    SectionHeader(stringResource(Res.string.songs))
-                    TrackList(songs)
+                    val all = artist.songsEndpoint?.browseId
+                    SectionHeader(
+                        stringResource(Res.string.songs),
+                        action = all?.let { stringResource(Res.string.view_all) },
+                        onAction = { all?.let { navigator.go(Screen.Playlist(it, artist.songsEndpoint?.params)) } }
+                    )
+                    TrackList(songs, radio = true)
                 }
                 listOf(Res.string.albums to artist.albums, Res.string.singles to artist.singles).forEach { (title, list) ->
                     list.orEmpty().mapNotNull { a -> a.info?.endpoint?.browseId?.let { a to it } }.takeIf { it.isNotEmpty() }?.let { albums ->

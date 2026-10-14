@@ -328,6 +328,9 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
             .build()
             .apply {
                 skipSilenceEnabled = PlayerPreferences.skipSilence
+                // Resolve and buffer the first seconds of the next song while this one plays,
+                // so the next song (or a tap on Next) starts at once.
+                preloadConfiguration = ExoPlayer.PreloadConfiguration(/* targetPreloadDurationUs = */ 10_000_000L)
                 addListener(this@PlayerService)
                 addAnalyticsListener(
                     PlaybackStatsListener(
@@ -1421,8 +1424,17 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
             val mediaId = dataSpec.key?.removePrefix("https://youtube.com/watch?v=")
                 ?: error("A key must be set")
 
-            fun DataSpec.ranged(contentLength: Long?) = contentLength?.let {
-                if (chunkLength == null) return@let null
+            fun DataSpec.withRequestHeaders(headers: Map<String, String>) = buildUpon()
+                .setHttpRequestHeaders(headers + httpRequestHeaders)
+                .build()
+
+            fun DataSpec.ranged(contentLength: Long?): DataSpec = if (chunkLength == null) {
+                // Downloads read a song in one request. YouTube throttles a request without a
+                // Range header to a trickle (~30 KB/s); an open-ended range comes at full speed.
+                if (length == C.LENGTH_UNSET.toLong() && uri.host?.endsWith("googlevideo.com") == true)
+                    withRequestHeaders(mapOf("Range" to "bytes=$position-"))
+                else this
+            } else contentLength?.let {
 
                 val remaining = contentLength - dataSpec.position
                 if (remaining <= 0L) return@let null
@@ -1432,10 +1444,6 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                 // Media3 generates the Range header from position/length; never shift the seek twice.
                 this.subrange(0L, length)
             } ?: this
-
-            fun DataSpec.withRequestHeaders(headers: Map<String, String>) = buildUpon()
-                .setHttpRequestHeaders(headers + httpRequestHeaders)
-                .build()
 
             // YouTube could not serve this song: play the same track from JioSaavn under the same
             // cache key. The old bytes are purged first so two sources never mix in one file.

@@ -86,4 +86,9 @@ F11  Full screen
 Esc  Close player / go back</string>
     <string name="desktop_search_empty">Search for songs, artists, albums or paste a YouTube link</string>
     <string name="desktop_general">General</string>
+    <string name="desktop_background">Background</string>
+    <string name="desktop_bg_artwork">Song colours</string>
+    <string name="desktop_bg_accent">Accent colour</string>
+    <string name="desktop_bg_image">My picture</string>
+    <string name="desktop_choose_picture">Choose picture</string>
 </resources>

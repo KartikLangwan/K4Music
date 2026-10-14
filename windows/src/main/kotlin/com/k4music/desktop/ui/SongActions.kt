@@ -21,6 +21,8 @@ import com.k4music.desktop.res.enqueue
 import com.k4music.desktop.res.go_to_album
 import com.k4music.desktop.res.person
 import com.k4music.desktop.res.play_next
+import com.k4music.desktop.res.radio
+import com.k4music.desktop.res.start_radio
 import com.k4music.desktop.res.play_skip_forward
 import com.k4music.desktop.res.share_social
 import org.jetbrains.compose.resources.stringResource
@@ -36,6 +38,7 @@ fun songActions(extra: (Track) -> List<MenuAction> = { emptyList() }): (Track) -
     val player = LocalPlayer.current
     val navigator = LocalNavigator.current
     val playNext = stringResource(Res.string.play_next)
+    val startRadio = stringResource(Res.string.start_radio)
     val enqueue = stringResource(Res.string.enqueue)
     val goToAlbum = stringResource(Res.string.go_to_album)
     val copyLink = stringResource(Res.string.desktop_copy_link)
@@ -48,6 +51,7 @@ fun songActions(extra: (Track) -> List<MenuAction> = { emptyList() }): (Track) -
 
     return { track ->
         buildList {
+            if (!track.isLocal && !track.isSaavn) add(MenuAction(startRadio, Res.drawable.radio) { player.playRadio(track) })
             add(MenuAction(playNext, Res.drawable.play_skip_forward) { player.playNext(track) })
             add(MenuAction(enqueue, Res.drawable.enqueue) { player.addToQueue(listOf(track)) })
             val liked = track.id in LibraryHooks.liked.value

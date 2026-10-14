@@ -27,6 +27,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -174,6 +185,11 @@ fun Thumbnail(
                 )
         ) {
             var height by remember { mutableIntStateOf(0) }
+            // Double tap: left third back 10 s, right third forward 10 s, middle likes the song.
+            val currentLikedAt by rememberUpdatedState(likedAt)
+            val currentBinder by rememberUpdatedState(binder)
+            var seekHint by remember { mutableStateOf<Pair<Int, Long>?>(null) }
+            LaunchedEffect(seekHint) { if (seekHint != null) { delay(700); seekHint = null } }
 
             AsyncImage(
                 model = currentWindow.mediaItem.mediaMetadata.artworkUri
@@ -187,13 +203,30 @@ fun Thumbnail(
                         detectTapGestures(
                             onTap = { onShowLyrics(true) },
                             onLongPress = { onShowStatsForNerds(true) },
-                            onDoubleTap = {
-                                if (likedAt == null) setLikedAt(System.currentTimeMillis())
+                            onDoubleTap = { offset ->
+                                val player = currentBinder?.player
+                                val third = size.width / 3f
+                                val step = when {
+                                    player == null -> 0
+                                    offset.x < third -> -1
+                                    offset.x > third * 2 -> 1
+                                    else -> 0
+                                }
+                                if (step != 0 && player != null) {
+                                    val duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0 }
+                                    val target = (player.currentPosition + step * SEEK_STEP_MS)
+                                        .coerceAtLeast(0L)
+                                        .let { if (duration != null) it.coerceAtMost(duration - 500L) else it }
+                                    player.seekTo(target)
+                                    seekHint = step to System.nanoTime()
+                                } else {
+                                    if (currentLikedAt == null) setLikedAt(System.currentTimeMillis())
 
-                                coroutineScope.launch {
-                                    val spec = tween<Float>(durationMillis = 500)
-                                    transitionState.animateTo(true, spec)
-                                    transitionState.animateTo(false, spec)
+                                    coroutineScope.launch {
+                                        val spec = tween<Float>(durationMillis = 500)
+                                        transitionState.animateTo(true, spec)
+                                        transitionState.animateTo(false, spec)
+                                    }
                                 }
                             }
                         )
@@ -231,6 +264,18 @@ fun Thumbnail(
                 modifier = Modifier.height(height.px.dp)
             )
 
+            seekHint?.let { (step, _) ->
+                BasicText(
+                    text = if (step < 0) "« 10s" else "10s »",
+                    style = TextStyle(color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold),
+                    modifier = Modifier
+                        .align(if (step < 0) Alignment.CenterStart else Alignment.CenterEnd)
+                        .padding(horizontal = 24.dp)
+                        .background(Color.Black.copy(alpha = 0.45f), CircleShape)
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                )
+            }
+
             Image(
                 painter = painterResource(R.drawable.heart),
                 contentDescription = null,
@@ -266,3 +311,5 @@ fun Thumbnail(
         }
     }
 }
+
+private const val SEEK_STEP_MS = 10_000L

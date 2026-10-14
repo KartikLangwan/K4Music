@@ -7,7 +7,9 @@ import com.k4music.desktop.player.PlayerController
 import com.k4music.desktop.player.Track
 import com.k4music.desktop.player.toTrack
 import com.k4music.providers.innertube.Innertube
+import com.k4music.providers.innertube.models.bodies.ContinuationBody
 import com.k4music.providers.innertube.models.bodies.NextBody
+import com.k4music.desktop.player.RadioSeed
 import com.k4music.providers.innertube.requests.nextPage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -45,10 +47,9 @@ object LibraryHooks {
         }
         // Radio: when the queue ends with repeat off, continue with songs related to the last one.
         player.onQueueEnding = { last ->
-            if (last.isLocal || last.isSaavn) emptyList()
-            else Innertube.nextPage(NextBody(videoId = last.id))?.getOrNull()
-                ?.itemsPage?.items.orEmpty().mapNotNull { it.toTrack() }.filter { it.id != last.id }.take(20)
+            if (last.isLocal || last.isSaavn) emptyList() else Radio(RadioSeed(videoId = last.id)).next()
         }
+        player.radioSource = { seed -> Radio(seed)::next }
         LyricsRepository.store = object : LyricsRepository.Store {
             override suspend fun load(songId: String) = runCatching {
                 Db.library.lyrics(songId).first()?.let { LyricsRepository.Result(it.fixed.orEmpty(), it.synced.orEmpty()) }
@@ -65,5 +66,33 @@ object LibraryHooks {
 
     private suspend fun safely(block: suspend () -> Unit) {
         runCatching { block() }.onFailure { AppLog.w("Library", "Library update failed", it) }
+    }
+}
+
+/**
+ * YouTube Music's endless "radio" for a seed (same requests as Android's YouTubeRadio):
+ * the first call returns the automix page (~25 songs), later calls its continuations.
+ */
+private class Radio(private val seed: RadioSeed) {
+    private var playlistId = seed.playlistId
+    private var params = seed.params
+    private var playlistSetVideoId = seed.playlistSetVideoId
+    private var continuation: String? = null
+    private var started = false
+
+    suspend fun next(): List<Track> {
+        if (started && continuation == null) return emptyList()
+        val page = if (!started) {
+            Innertube.nextPage(
+                NextBody(videoId = seed.videoId, playlistId = playlistId, params = params, playlistSetVideoId = playlistSetVideoId)
+            )?.getOrNull()?.also { result ->
+                playlistId = result.playlistId
+                params = result.params
+                playlistSetVideoId = result.playlistSetVideoId
+            }?.itemsPage
+        } else Innertube.nextPage(ContinuationBody(continuation = continuation!!))?.getOrNull()
+        started = true
+        continuation = page?.continuation?.takeUnless { it == continuation }
+        return page?.items.orEmpty().mapNotNull { it.toTrack() }
     }
 }

@@ -138,7 +138,7 @@ fun HomeScreen() {
             Shelf {
                 items(tracks, key = { it.id }) { track ->
                     MediaCard(track.title, track.artists, track.thumbnailUrl, Modifier.width(164.dp)) {
-                        player.play(tracks, tracks.indexOf(track))
+                        player.playRadio(track)
                     }
                 }
             }
@@ -150,7 +150,7 @@ fun HomeScreen() {
             else stringResource(Res.string.home_popular_subtitle)
         )
         when {
-            pickTracks.isNotEmpty() -> QuickPicksGrid(pickTracks.take(18), actions) { index -> player.play(pickTracks, index) }
+            pickTracks.isNotEmpty() -> QuickPicksGrid(pickTracks.take(18), actions) { index -> player.playRadio(pickTracks[index]) }
             picks.failed -> ErrorState(picks.retry)
             else -> SongListSkeleton()
         }

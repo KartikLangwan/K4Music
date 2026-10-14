@@ -1,5 +1,7 @@
 package com.k4music.desktop.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -71,6 +73,8 @@ import com.k4music.desktop.res.shuffle
 import com.k4music.desktop.res.text
 import com.k4music.desktop.res.up_next
 import com.k4music.desktop.res.volume_up
+import com.k4music.desktop.res.expand
+import com.k4music.desktop.res.desktop_open_player
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -83,29 +87,41 @@ fun NowPlayingBar(
     panel: SidePanel?,
     onPanel: (SidePanel?) -> Unit,
     onOpenPlayer: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    ambient: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primary
 ) {
     val player = LocalPlayer.current
+    val navigator = LocalNavigator.current
     val state by player.state.collectAsState()
     val track = state.current
     val colors = MaterialTheme.colorScheme
 
-    Surface(color = colors.background, modifier = modifier.fillMaxWidth().height(88.dp)) {
-        Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+    // The song's colour glows in from the left, as in desktop music apps.
+    Box(
+        modifier.fillMaxWidth().height(88.dp).background(colors.background)
+            .background(
+                androidx.compose.ui.graphics.Brush.horizontalGradient(
+                    listOf(ambient.copy(alpha = if (track != null) 0.28f else 0f), ambient.copy(alpha = 0.06f), androidx.compose.ui.graphics.Color.Transparent)
+                )
+            )
+    ) {
+        Row(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             // Left: what is playing
             Row(
-                Modifier.weight(0.3f).clickable(enabled = track != null, onClick = onOpenPlayer),
+                Modifier.weight(0.3f),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Artwork(track?.thumbnailUrl, 56.dp, Modifier.size(56.dp))
+                Artwork(track?.thumbnailUrl, 56.dp, Modifier.size(56.dp).clickable(enabled = track != null, onClick = onOpenPlayer), corner = 6.dp)
                 Column(Modifier.weight(1f, fill = false)) {
                     Text(
                         track?.title.orEmpty(),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        // Title opens the album, artist opens the artist (Spotify behaviour).
+                        modifier = Modifier.clickable(enabled = track?.albumId != null) { track?.albumId?.let { navigator.go(Screen.Album(it)) } }
                     )
                     Text(
                         if (state.source == StreamSource.Saavn && track?.isSaavn == false)
@@ -114,7 +130,10 @@ fun NowPlayingBar(
                         style = MaterialTheme.typography.bodySmall,
                         color = if (state.source == StreamSource.Saavn && track?.isSaavn == false) colors.primary else colors.onSurfaceVariant,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.clickable(enabled = track?.artistIds?.isNotEmpty() == true) {
+                            track?.artistIds?.firstOrNull()?.let { navigator.go(Screen.Artist(it)) }
+                        }
                     )
                 }
                 if (track != null) {
@@ -148,6 +167,7 @@ fun NowPlayingBar(
                     onPanel(if (panel == SidePanel.Queue) null else SidePanel.Queue)
                 }
                 Volume(player)
+                ToggleIcon(Res.drawable.expand, stringResource(Res.string.desktop_open_player), false) { if (track != null) onOpenPlayer() }
             }
         }
     }
