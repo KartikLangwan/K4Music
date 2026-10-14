@@ -52,6 +52,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -138,6 +139,13 @@ private fun Resizer(onDrag: (Float) -> Unit, onDragEnd: () -> Unit) {
 }
 private val PanelShape = RoundedCornerShape(22.dp)
 
+/** Panels are glass: the window's backdrop (song colour, accent or picture) shows through evenly. */
+@Composable
+fun panelColor(): Color {
+    val colors = MaterialTheme.colorScheme
+    return colors.surface.copy(alpha = if (colors.background.luminance() < 0.5f) 0.74f else 0.80f)
+}
+
 /**
  * Window frame, desktop-music-app style: top bar (history, home, search), side panel
  * (navigation + your library, collapsible), content, optional queue/lyrics panel, player bar.
@@ -152,13 +160,15 @@ fun Shell(
 ) {
     val navigator = LocalNavigator.current
     val colors = MaterialTheme.colorScheme
+    val ambient = rememberAmbientColor()
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(colors.background)) {
+        // One backdrop behind everything; the panels are see-through, so the whole window shares it.
+        WindowBackdrop(ambient)
         // Narrow windows (or a queue/lyrics panel on a medium one) get the icon-only side panel,
         // so the page itself never gets squeezed.
         val narrow = maxWidth < 1100.dp || (panel.value != null && maxWidth < 1440.dp)
         Column(Modifier.fillMaxSize()) {
             TopBar(navigator, searchFocus, fullscreen, onToggleFullscreen)
-            val ambient = rememberAmbientColor()
             Row(Modifier.weight(1f).padding(horizontal = Gap)) {
                 if (Settings.navPosition == NavPosition.Side || Settings.sidebarPlaylists) {
                     // Drag the edge to resize; drag it far left to shrink to icons (and back out to expand).
@@ -184,7 +194,7 @@ fun Shell(
                         onDrag = { delta -> width = (width - delta).coerceIn(280f, 560f) },
                         onDragEnd = { Settings.sidePanelWidth = width.toInt() }
                     )
-                    Surface(shape = PanelShape, color = colors.surface, modifier = Modifier.width(width.dp).fillMaxHeight()) {
+                    Surface(shape = PanelShape, color = panelColor(), modifier = Modifier.width(width.dp).fillMaxHeight()) {
                         when (which) {
                             SidePanel.Queue -> QueuePanel()
                             SidePanel.Lyrics -> LyricsPanel()
@@ -202,13 +212,11 @@ fun Shell(
     }
 }
 
-/** The page itself: a rounded panel tinted by the playing song's colours (or your picture). */
+/** The page itself: a see-through rounded panel over the window's backdrop. */
 @Composable
 private fun ContentPanel(navigator: Navigator, ambient: Color, modifier: Modifier) {
-    val colors = MaterialTheme.colorScheme
-    Surface(shape = PanelShape, color = colors.surface, modifier = modifier.fillMaxHeight()) {
+    Surface(shape = PanelShape, color = panelColor(), modifier = modifier.fillMaxHeight()) {
         Box(Modifier.fillMaxSize()) {
-            PageBackdrop(ambient)
             Box(Modifier.fillMaxSize().padding(start = 28.dp, end = 28.dp, top = 20.dp)) {
                 ScreenContent(navigator.current)
             }
@@ -347,19 +355,28 @@ private fun SidePanelColumn(navigator: Navigator, collapsed: Boolean, width: Dp)
         Modifier.width(width).fillMaxHeight(),
         verticalArrangement = Arrangement.spacedBy(Gap)
     ) {
-        if (Settings.navPosition == NavPosition.Side) Surface(shape = PanelShape, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+        if (Settings.navPosition == NavPosition.Side) Surface(shape = PanelShape, color = panelColor(), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                // K4 mark: the brand sits where other players put nothing.
+                // The K4 logo and name lead the navigation (the brand sits where other players put nothing).
                 Row(
-                    Modifier.fillMaxWidth().padding(start = if (collapsed) 0.dp else 6.dp, top = 2.dp, bottom = 8.dp),
+                    Modifier.fillMaxWidth().padding(start = if (collapsed) 0.dp else 4.dp, top = 2.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = if (collapsed) Arrangement.Center else Arrangement.spacedBy(12.dp)
                 ) {
-                    Box(
-                        Modifier.size(36.dp).clip(CircleShape).background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, K4Pink))),
-                        contentAlignment = Alignment.Center
-                    ) { Text("K4", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge) }
-                    if (!collapsed) Text(stringResource(Res.string.app_name), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    androidx.compose.foundation.Image(
+                        painterResource(Res.drawable.k4_logo),
+                        contentDescription = if (collapsed) stringResource(Res.string.app_name) else null,
+                        modifier = Modifier.size(40.dp).clip(RoundedCornerShape(11.dp))
+                    )
+                    if (!collapsed) Column {
+                        Text(stringResource(Res.string.app_name), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(
+                            stringResource(Res.string.desktop_tagline),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
                 }
                 visibleDestinations().forEach { d ->
                     SideItem(stringResource(d.title), collapsed, sameRoot(current, d.screen), icon = d.icon, strong = true) { navigator.root(d.screen) }
@@ -377,7 +394,7 @@ private fun LibraryCard(navigator: Navigator, collapsed: Boolean, modifier: Modi
     val playlists by remember { Db.library.playlistPreviews(PlaylistSortBy.DateAdded, SortOrder.Descending) }
         .collectAsState(initial = emptyList<PlaylistPreview>())
     val current = navigator.current
-    Surface(shape = PanelShape, color = colors.surface, modifier = modifier.fillMaxWidth()) {
+    Surface(shape = PanelShape, color = panelColor(), modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(8.dp)) {
             Row(Modifier.fillMaxWidth().padding(start = if (collapsed) 0.dp else 8.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (!collapsed) Text(
@@ -443,7 +460,7 @@ private fun SideItem(
         Row(
             Modifier.fillMaxWidth().clip(if (strong) CircleShape else RoundedCornerShape(14.dp))
                 .then(
-                    if (pill) Modifier.background(Brush.linearGradient(listOf(colors.primary, K4Pink)))
+                    if (pill) Modifier.background(brandBrush())
                     else Modifier.background(
                         when {
                             selected -> colors.primaryContainer
@@ -488,13 +505,13 @@ private fun SideItem(
 private fun BottomNav(navigator: Navigator) {
     val colors = MaterialTheme.colorScheme
     val current = navigator.section()
-    Surface(shape = PanelShape, color = colors.surface, modifier = Modifier.fillMaxWidth().padding(start = Gap, end = Gap, top = Gap)) {
+    Surface(shape = PanelShape, color = panelColor(), modifier = Modifier.fillMaxWidth().padding(start = Gap, end = Gap, top = Gap)) {
         Row(Modifier.fillMaxWidth().padding(6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)) {
             visibleDestinations().forEach { d ->
                 val selected = sameRoot(current, d.screen)
                 Row(
                     Modifier.clip(CircleShape)
-                        .background(if (selected) Brush.linearGradient(listOf(colors.primary, K4Pink)) else SolidColor(Color.Transparent))
+                        .background(if (selected) brandBrush() else SolidColor(Color.Transparent))
                         .clickable { navigator.root(d.screen) }
                         .padding(horizontal = 18.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,

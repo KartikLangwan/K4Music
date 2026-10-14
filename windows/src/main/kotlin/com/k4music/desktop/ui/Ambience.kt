@@ -22,6 +22,9 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.PlatformContext
@@ -79,12 +82,14 @@ fun rememberAmbientColor(): Color {
 }
 
 /**
- * Behind a page: the playing song's colour fading down (default), the accent, or the user's
- * own picture under a scrim so text stays readable.
+ * Behind the whole window, so every panel is tinted the same way (the panels are see-through):
+ * the playing song's colour as a soft aura (default), the accent, or the user's own picture
+ * under a scrim. One backdrop for everything means no half-coloured, half-flat look.
  */
 @Composable
-fun BoxScope.PageBackdrop(ambient: Color) {
-    val surface = MaterialTheme.colorScheme.surface
+fun BoxScope.WindowBackdrop(ambient: Color) {
+    val colors = MaterialTheme.colorScheme
+    val dark = colors.background.luminance() < 0.5f
     val image = Settings.backgroundImage.takeIf { Settings.backgroundStyle == BackgroundStyle.Image && it.isNotBlank() }
         ?.let(::File)?.takeIf { it.isFile }
     if (image != null) {
@@ -92,28 +97,27 @@ fun BoxScope.PageBackdrop(ambient: Color) {
             model = image,
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.matchParentSize().alpha(0.55f)
+            modifier = Modifier.matchParentSize().alpha(if (dark) 0.6f else 0.5f)
         )
-        Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(surface.copy(alpha = 0.35f), surface.copy(alpha = 0.92f)))))
-    } else Box(
-        // The K4 aura: two soft glows (the song's colour and the brand pink) instead of a flat wash.
-        Modifier.fillMaxWidth().height(520.dp).drawBehind {
-            drawRect(
-                Brush.radialGradient(
-                    listOf(ambient.copy(alpha = 0.50f), Color.Transparent),
-                    center = androidx.compose.ui.geometry.Offset(size.width * 0.18f, 0f),
-                    radius = size.width * 0.55f
+        Box(Modifier.matchParentSize().background(colors.background.copy(alpha = 0.45f)))
+    } else {
+        val strong = if (dark) 0.42f else 0.26f
+        val soft = if (dark) 0.22f else 0.14f
+        val ribbon = lerp(colors.primary, Color.White, 0.35f)
+        Box(
+            // Three wide glows that overlap across the window: song colour from the top left,
+            // the K4 ribbon colour from the bottom right, and the song colour again in the middle.
+            Modifier.matchParentSize().drawBehind {
+                val big = maxOf(size.width, size.height)
+                fun glow(color: Color, x: Float, y: Float, radius: Float) = drawRect(
+                    Brush.radialGradient(listOf(color, Color.Transparent), center = Offset(size.width * x, size.height * y), radius = big * radius)
                 )
-            )
-            drawRect(
-                Brush.radialGradient(
-                    listOf(K4Pink.copy(alpha = 0.16f), Color.Transparent),
-                    center = androidx.compose.ui.geometry.Offset(size.width * 0.92f, size.height * 0.05f),
-                    radius = size.width * 0.38f
-                )
-            )
-        }
-    )
+                glow(ambient.copy(alpha = strong), 0.15f, 0.3f, 0.85f)
+                glow(ribbon.copy(alpha = soft), 1.0f, 1.0f, 0.75f)
+                glow(ambient.copy(alpha = soft), 0.6f, 0.55f, 0.6f)
+            }
+        )
+    }
 }
 
 /** Full-player backdrop (YouTube Music style): the cover itself, blurred, under a dark wash. */

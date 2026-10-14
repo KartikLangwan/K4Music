@@ -104,7 +104,7 @@ fun NowPlayingBar(
     Box(
         Modifier.fillMaxSize()
             .clip(RoundedCornerShape(39.dp))
-            .background(colors.surface)
+            .background(panelColor())
             .background(
                 androidx.compose.ui.graphics.Brush.horizontalGradient(
                     listOf(ambient.copy(alpha = if (track != null) 0.32f else 0f), ambient.copy(alpha = 0.08f), androidx.compose.ui.graphics.Color.Transparent)
@@ -191,7 +191,8 @@ private fun DiscCover(url: String?, player: PlayerController, duration: Double, 
     val progress = if (duration > 0) (position / duration).toFloat().coerceIn(0f, 1f) else 0f
     val colors = MaterialTheme.colorScheme
     Box(
-        Modifier.size(60.dp).clip(CircleShape).clickable(enabled = enabled, onClick = onClick),
+        Modifier.size(60.dp).clip(CircleShape)
+            .clickable(enabled = enabled, onClickLabel = stringResource(Res.string.desktop_open_player), role = androidx.compose.ui.semantics.Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         androidx.compose.foundation.Canvas(Modifier.matchParentSize()) {
@@ -209,17 +210,14 @@ private fun DiscCover(url: String?, player: PlayerController, duration: Double, 
     }
 }
 
-/** The K4 play button: a violet-to-pink disc (the app's signature, not a plain white circle). */
+/** The K4 play button: a disc in the logo's ribbon gradient (the app's signature, not a plain white circle). */
 @Composable
 fun PlayButton(playing: Boolean, buffering: Boolean, enabled: Boolean, size: androidx.compose.ui.unit.Dp, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     Box(
         Modifier.size(size)
             .clip(CircleShape)
-            .background(
-                androidx.compose.ui.graphics.Brush.linearGradient(listOf(colors.primary, K4Pink)),
-                alpha = if (enabled) 1f else 0.4f
-            )
+            .background(brandBrush(), alpha = if (enabled) 1f else 0.4f)
             .clickable(enabled = enabled, role = androidx.compose.ui.semantics.Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {

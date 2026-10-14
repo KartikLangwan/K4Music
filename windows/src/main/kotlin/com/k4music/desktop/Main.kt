@@ -32,7 +32,7 @@ import com.k4music.desktop.res.Res
 import com.k4music.desktop.res.app_name
 import com.k4music.desktop.res.desktop_quit
 import com.k4music.desktop.res.desktop_show_window
-import com.k4music.desktop.res.ic_launcher_foreground
+import com.k4music.desktop.res.k4_logo
 import com.k4music.desktop.res.next_track
 import com.k4music.desktop.res.play
 import com.k4music.desktop.res.previous_track
@@ -102,7 +102,7 @@ fun main(args: Array<String>) {
         }
 
         Tray(
-            icon = painterResource(Res.drawable.ic_launcher_foreground),
+            icon = painterResource(Res.drawable.k4_logo),
             tooltip = stringResource(Res.string.app_name),
             onAction = { visible.value = true },
             menu = {
@@ -120,7 +120,7 @@ fun main(args: Array<String>) {
             visible = visible.value,
             state = windowState,
             title = stringResource(Res.string.app_name),
-            icon = painterResource(Res.drawable.ic_launcher_foreground),
+            icon = painterResource(Res.drawable.k4_logo),
             onPreviewKeyEvent = { event ->
                 if (event.type != KeyEventType.KeyDown) return@Window false
                 when {

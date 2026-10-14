@@ -23,6 +23,8 @@ import androidx.compose.ui.zIndex
 import com.k4music.desktop.res.Res
 import com.k4music.desktop.res.reorder
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+import com.k4music.desktop.res.desktop_drag_reorder
 import kotlin.math.roundToInt
 
 /**
@@ -80,7 +82,7 @@ fun Modifier.reorderItem(state: ReorderState, index: Int): Modifier {
 fun ReorderHandle(state: ReorderState, index: Int, count: Int) {
     Icon(
         painterResource(Res.drawable.reorder),
-        null,
+        stringResource(Res.string.desktop_drag_reorder),
         tint = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.size(20.dp)
             .pointerHoverIcon(PointerIcon(java.awt.Cursor(java.awt.Cursor.MOVE_CURSOR)))

@@ -91,4 +91,6 @@ Esc  Close player / go back</string>
     <string name="desktop_bg_accent">Accent colour</string>
     <string name="desktop_bg_image">My picture</string>
     <string name="desktop_choose_picture">Choose picture</string>
+    <string name="desktop_tagline">Your music. Every screen.</string>
+    <string name="desktop_drag_reorder">Drag to reorder</string>
 </resources>

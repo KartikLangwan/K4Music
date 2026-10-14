@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import com.k4music.desktop.player.Track
 import com.k4music.desktop.res.Res
+import com.k4music.desktop.res.play
+import androidx.compose.foundation.shape.CircleShape
 import com.k4music.desktop.res.ellipsis_horizontal
 import com.k4music.desktop.res.download
 import com.k4music.desktop.res.explicit
@@ -108,7 +110,14 @@ fun SongRow(
                 color = if (current) colors.primary else colors.onSurfaceVariant,
                 modifier = Modifier.width(28.dp)
             )
-            Artwork(track.thumbnailUrl, 44.dp, Modifier.size(44.dp), corner = 22.dp)
+            Box(contentAlignment = Alignment.Center) {
+                Artwork(track.thumbnailUrl, 44.dp, Modifier.size(44.dp), corner = 22.dp)
+                // Hovering a song shows it can be played straight from here.
+                if (hovered && !current) Box(
+                    Modifier.size(44.dp).clip(CircleShape).background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.45f)),
+                    contentAlignment = Alignment.Center
+                ) { Icon(painterResource(Res.drawable.play), null, Modifier.size(18.dp), tint = androidx.compose.ui.graphics.Color.White) }
+            }
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(

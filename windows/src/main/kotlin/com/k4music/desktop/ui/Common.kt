@@ -178,7 +178,7 @@ fun ErrorState(onRetry: () -> Unit, modifier: Modifier = Modifier) {
     }
 }
 
-/** The app's primary button: a violet-to-pink pill (same gradient as the play button). */
+/** The app's primary button: a pill in the K4 ribbon gradient (same as the play button). */
 @Composable
 fun K4Button(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit) {
     androidx.compose.material3.Button(
@@ -192,7 +192,7 @@ fun K4Button(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolea
         ),
         modifier = modifier
             .alpha(if (enabled) 1f else 0.45f)
-            .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, K4Pink)), CircleShape),
+            .background(brandBrush(), CircleShape),
         content = content
     )
 }

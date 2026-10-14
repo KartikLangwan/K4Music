@@ -46,6 +46,10 @@ import com.k4music.desktop.player.Downloads
 import com.k4music.desktop.player.Track
 import com.k4music.desktop.player.toTrack
 import com.k4music.desktop.res.Res
+import com.k4music.desktop.res.desktop_move_up
+import com.k4music.desktop.res.desktop_move_down
+import com.k4music.desktop.res.arrow_up
+import com.k4music.desktop.res.chevron_down
 import com.k4music.desktop.res.albums
 import com.k4music.desktop.res.artists
 import com.k4music.desktop.res.delete
@@ -302,6 +306,8 @@ fun LocalPlaylistScreen(id: Long) {
     val playlist by remember(id) { Db.library.playlist(id) }.collectAsState(initial = null)
     val songs by remember(id) { Db.library.playlistSongs(id).map { it.map(Song::toTrack) } }.collectAsState(initial = emptyList())
     val removeLabel = stringResource(Res.string.remove_from_playlist)
+    val upLabel = stringResource(Res.string.desktop_move_up)
+    val downLabel = stringResource(Res.string.desktop_move_down)
     SongList(
         songs,
         header = {
@@ -313,7 +319,15 @@ fun LocalPlaylistScreen(id: Long) {
                 }) { Text(stringResource(Res.string.delete)) }
             }
         },
-        extra = { t -> listOf(MenuAction(removeLabel, Res.drawable.remove_circle_outline) { scope.launch { Db.library.removeFromPlaylist(id, t.id) } }) },
+        extra = { t ->
+            val i = songs.indexOf(t)
+            buildList {
+                add(MenuAction(removeLabel, Res.drawable.remove_circle_outline) { scope.launch { Db.library.removeFromPlaylist(id, t.id) } })
+                // Keyboard-friendly reordering, next to dragging.
+                if (i > 0) add(MenuAction(upLabel, Res.drawable.arrow_up) { scope.launch { Db.library.move(id, i, i - 1) } })
+                if (i in 0 until songs.lastIndex) add(MenuAction(downLabel, Res.drawable.chevron_down) { scope.launch { Db.library.move(id, i, i + 1) } })
+            }
+        },
         // Drag a song by its grip to reorder the playlist (saved at once, as on Android).
         onMove = { from, to -> scope.launch { Db.library.move(id, from, to) } }
     )

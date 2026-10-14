@@ -8,7 +8,9 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -24,8 +26,14 @@ import org.jetbrains.compose.resources.Font
 // Same design tokens as the Android app (app/.../ui/theme/K4Theme.kt).
 val K4Accent = Color(0xFF7B5CFF)
 val K4Error = Color(0xFFFF5A5F)
-/** Second colour of the K4 gradient (play button, active navigation, glow). */
-val K4Pink = Color(0xFFFF6BD6)
+/**
+ * The K4 ribbon gradient, taken from the logo: light lavender into the accent into a deep shade.
+ * Built from the user's accent colour, so every accent keeps the same brand feel.
+ */
+fun brandColors(accent: Color) = listOf(lerp(accent, Color.White, 0.40f), accent, lerp(accent, Color.Black, 0.25f))
+
+@Composable
+fun brandBrush(): Brush = Brush.linearGradient(brandColors(MaterialTheme.colorScheme.primary))
 
 fun isLightColor(c: Color): Boolean = 0.299 * c.red + 0.587 * c.green + 0.114 * c.blue > 0.62
 
@@ -44,21 +52,22 @@ fun k4ColorScheme(accent: Color, dark: Boolean): ColorScheme {
         primary = accent, onPrimary = onAccent,
         primaryContainer = accent.copy(alpha = 0.16f), onPrimaryContainer = Color.White,
         secondary = accent, tertiary = accent.copy(alpha = 0.8f),
-        background = Color(0xFF060709), onBackground = Color(0xFFF2F4F8),
-        surface = Color(0xFF131419), onSurface = Color(0xFFF2F4F8),
-        surfaceVariant = Color(0xFF1B1D24), onSurfaceVariant = Color(0xFF9BA3B0),
-        surfaceContainer = Color(0xFF22242C), surfaceContainerHigh = Color(0xFF2A2D36),
-        outline = Color(0xFF2E313B), outlineVariant = Color(0xFF22242C),
+        // Violet-black, like the logo's tile: the brand shows even before any colour arrives.
+        background = Color(0xFF07060B), onBackground = Color(0xFFF4F2FA),
+        surface = Color(0xFF12101A), onSurface = Color(0xFFF4F2FA),
+        surfaceVariant = Color(0xFF1A1724), onSurfaceVariant = Color(0xFFA9A3BF),
+        surfaceContainer = Color(0xFF221E2E), surfaceContainerHigh = Color(0xFF2B2639),
+        outline = Color(0xFF332D44), outlineVariant = Color(0xFF262134),
         error = K4Error, onError = Color.White
     ) else lightColorScheme(
         primary = accent, onPrimary = onAccent,
         primaryContainer = accent.copy(alpha = 0.12f), onPrimaryContainer = Color.Black,
         secondary = accent, tertiary = accent.copy(alpha = 0.8f),
-        background = Color(0xFFFAFAFC), onBackground = Color(0xFF0B0C10),
-        surface = Color(0xFFFFFFFF), onSurface = Color(0xFF0B0C10),
-        surfaceVariant = Color(0xFFEEF0F5), onSurfaceVariant = Color(0xFF55606E),
-        surfaceContainer = Color(0xFFF4F5F9), surfaceContainerHigh = Color(0xFFECEEF3),
-        outline = Color(0xFFDFE3EA), outlineVariant = Color(0xFFE9ECF2),
+        background = Color(0xFFF1EEF8), onBackground = Color(0xFF15121F),
+        surface = Color(0xFFFFFFFF), onSurface = Color(0xFF15121F),
+        surfaceVariant = Color(0xFFF0EDF7), onSurfaceVariant = Color(0xFF575170),
+        surfaceContainer = Color(0xFFF2EFF8), surfaceContainerHigh = Color(0xFFE9E5F2),
+        outline = Color(0xFFDCD6E8), outlineVariant = Color(0xFFE7E2F0),
         error = K4Error, onError = Color.White
     )
 }
