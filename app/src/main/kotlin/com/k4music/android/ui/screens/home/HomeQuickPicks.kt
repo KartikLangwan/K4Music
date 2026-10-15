@@ -233,6 +233,7 @@ fun QuickPicks(
                             playing = playing && mediaId == song.id,
                             enabled = binder != null,
                             size = 128.dp,
+                            disc = true,
                             onClick = {
                                 binder?.stopRadio()
                                 binder?.player?.forcePlayAtIndex(history.map { it.asMediaItem }, index)

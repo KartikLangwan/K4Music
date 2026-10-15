@@ -169,14 +169,12 @@ private fun Hero(onPlayer: () -> Unit) {
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Surface(shape = CircleShape, color = palette.accent) {
-                    Icon(
-                        painterResource(R.drawable.musical_notes),
-                        null,
-                        Modifier.padding(10.dp).size(24.dp),
-                        tint = palette.onAccent
-                    )
-                }
+                // The K4 logo, as in the Home header and the PC app.
+                androidx.compose.foundation.Image(
+                    painterResource(R.drawable.k4_logo),
+                    null,
+                    Modifier.size(44.dp).clip(RoundedCornerShape(12.dp))
+                )
                 Column {
                     Text(Brand.APP_NAME, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = palette.text)
                     Text("v${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall, color = palette.textSecondary)

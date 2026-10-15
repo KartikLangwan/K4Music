@@ -151,9 +151,12 @@ fun MusicTile(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     enabled: Boolean = true,
-    size: Dp = 140.dp
+    size: Dp = 140.dp,
+    disc: Boolean = false
 ) {
     val palette = LocalAppearance.current.colorPalette
+    // disc: a round cover with a centre hole, the PC app's "Recently played" look.
+    val shape = if (disc) CircleShape else ArtworkShape
     Column(
         Modifier
             .width(size)
@@ -161,13 +164,15 @@ fun MusicTile(
             .combinedClickable(enabled = enabled, role = Role.Button, onClick = onClick, onLongClick = onLongClick),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Box {
+        Box(contentAlignment = Alignment.Center) {
             MusicArtwork(
                 artwork,
                 Modifier
                     .size(size)
-                    .border(if (playing) 2.dp else 0.dp, if (playing) palette.accent else Color.Transparent, ArtworkShape)
+                    .border(if (playing) 2.dp else 0.dp, if (playing) palette.accent else Color.Transparent, shape),
+                shape = shape
             )
+            if (disc) Box(Modifier.size(size * 0.12f).clip(CircleShape).background(palette.background0))
             if (playing) Box(
                 Modifier
                     .align(Alignment.BottomEnd)

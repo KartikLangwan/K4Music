@@ -52,7 +52,13 @@
 -dontwarn org.openjsse.net.ssl.OpenJSSE
 -dontwarn org.slf4j.impl.StaticLoggerBinder
 
+# logback builds its appenders and encoders from logback.xml by reflection (no-arg
+# constructors, setters); R8 stripped the encoder's constructor and logging failed.
 -keep class ch.qos.logback.classic.android.** { *; }
+-keep class ch.qos.logback.classic.encoder.** { *; }
+-keep class ch.qos.logback.classic.pattern.** { *; }
+-keep class ch.qos.logback.core.encoder.** { *; }
+-keep class ch.qos.logback.core.pattern.** { *; }
 
 # Manifest-declared classes: the system instantiates these by exact name.
 -keep class com.k4music.android.MainApplication { *; }
