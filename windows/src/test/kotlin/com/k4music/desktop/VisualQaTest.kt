@@ -36,6 +36,14 @@ class VisualQaTest {
                 DevTools.uitest(flows, player, listOf("go favorites", "click 1124 851", "shot lyrics", "click 1393 851", "wait 1200", "shot player"))
                 DevTools.uitest(flows, player, listOf("theme light", "go favorites", "shot light"))
                 DevTools.uitest(flows, player, listOf("size 960 640", "go favorites", "shot narrow"))
+                // Every Settings page and the online screens (they show their offline state without network).
+                DevTools.uitest(flows, player, listOf(
+                    "click 1410 32", "shot settings-appearance", "click 440 232", "shot settings-windows",
+                    "click 440 294", "shot settings-player", "click 440 356", "shot settings-effects",
+                    "click 440 418", "shot settings-layout", "click 440 480", "shot settings-library",
+                    "click 440 604", "shot settings-advanced", "click 440 666", "shot settings-about",
+                    "go home", "shot home", "click 100 199", "wait 5000", "shot discover", "search arijit singh", "shot search"
+                ))
             } finally {
                 player.close()
                 // Repeated runs must not pile up fixture playlists in the sidebar.

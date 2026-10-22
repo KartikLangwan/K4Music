@@ -42,7 +42,9 @@ fun K4Slider(
     onChange: (Float) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    onCommit: (Float) -> Unit = {}
+    onCommit: (Float) -> Unit = {},
+    /** Keep a small knob visible at rest (settings), not only on hover (player bar). */
+    knob: Boolean = false
 ) {
     var pending by remember(value) { mutableStateOf(value.coerceIn(0f, 1f)) }
     val interaction = remember { MutableInteractionSource() }
@@ -51,7 +53,7 @@ fun K4Slider(
     val focused by interaction.collectIsFocusedAsState()
     val active = enabled && (hovered || dragged || focused)
     val trackHeight by animateDpAsState(if (active) 6.dp else 4.dp, label = "track")
-    val thumbSize by animateDpAsState(if (active) 12.dp else 0.dp, label = "thumb")
+    val thumbSize by animateDpAsState(if (active) 12.dp else if (knob) 10.dp else 0.dp, label = "thumb")
     val colors = MaterialTheme.colorScheme
     val fill = if (enabled) colors.primary else colors.onSurfaceVariant.copy(alpha = 0.4f)
     val rest = colors.onSurfaceVariant.copy(alpha = 0.25f)

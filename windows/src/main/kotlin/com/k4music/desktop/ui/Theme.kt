@@ -60,7 +60,7 @@ fun k4ColorScheme(accent: Color, dark: Boolean): ColorScheme {
         surface = Color(0xFF12101A), onSurface = Color(0xFFF4F2FA),
         surfaceVariant = Color(0xFF1A1724), onSurfaceVariant = Color(0xFFA9A3BF),
         surfaceContainer = Color(0xFF221E2E), surfaceContainerHigh = Color(0xFF2B2639),
-        outline = Color(0xFF332D44), outlineVariant = Color(0xFF262134),
+        outline = Color(0xFF5C5475), outlineVariant = Color(0xFF3A3450),
         error = K4Error, onError = Color.White
     ) else lightColorScheme(
         primary = accent, onPrimary = onAccent,
@@ -70,7 +70,7 @@ fun k4ColorScheme(accent: Color, dark: Boolean): ColorScheme {
         surface = Color(0xFFFFFFFF), onSurface = Color(0xFF15121F),
         surfaceVariant = Color(0xFFF0EDF7), onSurfaceVariant = Color(0xFF575170),
         surfaceContainer = Color(0xFFF2EFF8), surfaceContainerHigh = Color(0xFFE9E5F2),
-        outline = Color(0xFFDCD6E8), outlineVariant = Color(0xFFE7E2F0),
+        outline = Color(0xFFC2BAD6), outlineVariant = Color(0xFFDAD4E7),
         error = K4Error, onError = Color.White
     )
 }

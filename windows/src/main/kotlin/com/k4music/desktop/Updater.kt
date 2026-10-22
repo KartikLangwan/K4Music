@@ -24,7 +24,7 @@ object Updater {
     /** A newer release; [installerUrl] is null when it has no Windows installer yet. */
     class Update(val version: String, val notes: String?, val installerUrl: String?, val installerSize: Long, val digest: String? = null)
 
-    val currentVersion: String get() = System.getProperty("jpackage.app-version") ?: "2.12.14"
+    val currentVersion: String get() = System.getProperty("jpackage.app-version") ?: "2.14.26"
 
     private val client = OkHttpClient.Builder().connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS).callTimeout(10, TimeUnit.MINUTES).build()

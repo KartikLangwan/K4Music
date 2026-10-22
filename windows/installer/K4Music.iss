@@ -2,7 +2,7 @@
 ; Built by `gradlew -p windows packageInstaller`, which passes AppVersion, AppImage, OutDir and RepoRoot.
 
 #ifndef AppVersion
-  #define AppVersion "2.12.14"
+  #define AppVersion "2.14.26"
 #endif
 #ifndef RepoRoot
   #define RepoRoot "..\.."

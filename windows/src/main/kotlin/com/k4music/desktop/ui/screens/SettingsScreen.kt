@@ -196,8 +196,39 @@ private fun LayoutSection() = Section(Res.string.desktop_layout) {
     SwitchRow(stringResource(Res.string.desktop_compact_sidebar), stringResource(Res.string.desktop_compact_sidebar_description), Settings.sidebarCollapsed) { Settings.sidebarCollapsed = it }
     SwitchRow(stringResource(Res.string.desktop_sidebar_playlists), stringResource(Res.string.desktop_sidebar_playlists_description), Settings.sidebarPlaylists) { Settings.sidebarPlaylists = it }
     Label(stringResource(Res.string.desktop_shortcuts))
-    Text(stringResource(Res.string.desktop_shortcuts_list), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Shortcuts(stringResource(Res.string.desktop_shortcuts_list))
 }
+
+/** "Ctrl+F  Search" lines drawn as keycaps beside what they do. */
+@Composable
+private fun Shortcuts(list: String) = Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    val colors = MaterialTheme.colorScheme
+    list.lines().filter { it.isNotBlank() }.forEach { line ->
+        val keys = line.substringBefore("  ").trim()
+        val action = line.substringAfter("  ", "").trim()
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.width(190.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                keys.split(" / ").forEachIndexed { i, combo ->
+                    if (i > 0) Text("/", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+                    combo.split('+').forEach { key ->
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = colors.surfaceContainerHigh,
+                            border = BorderStroke(1.dp, colors.outlineVariant)
+                        ) {
+                            Text(key, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp))
+                        }
+                    }
+                }
+            }
+            Text(action, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun SettingsSlider(value: Float, onChange: (Float) -> Unit, modifier: Modifier = Modifier, onCommit: (Float) -> Unit = {}) =
+    K4Slider(value, onChange, modifier, onCommit = onCommit, knob = true)
 
 @Composable
 private fun SystemSection() = Section(Res.string.desktop_system_title) {
@@ -291,7 +322,18 @@ private fun Label(text: String, value: String? = null) = Row(Modifier.fillMaxWid
 @Composable
 private fun <T> Choices(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        options.forEach { (value, label) -> FilterChip(selected = value == selected, onClick = { onSelect(value) }, label = { Text(label) }) }
+        val colors = MaterialTheme.colorScheme
+        options.forEach { (value, label) ->
+            FilterChip(
+                selected = value == selected,
+                onClick = { onSelect(value) },
+                label = { Text(label) },
+                colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = colors.primary.copy(alpha = 0.22f),
+                    selectedLabelColor = colors.onSurface
+                )
+            )
+        }
     }
 }
 
@@ -379,7 +421,7 @@ private fun AppearanceSection() = Section(Res.string.appearance) {
     }
 
     Label(stringResource(Res.string.desktop_panel_transparency), "${Settings.panelOpacity}%")
-    K4Slider(
+    SettingsSlider(
         value = (Settings.panelOpacity - 15) / 85f,
         onChange = { Settings.panelOpacity = (15 + it * 85).toInt() },
         modifier = Modifier.fillMaxWidth()
@@ -443,8 +485,6 @@ private fun PlaybackSection() = Section(Res.string.player) {
     val state by player.state.collectAsState()
     SwitchRow(stringResource(Res.string.smart_fallback), stringResource(Res.string.smart_fallback_description), Settings.smartFallback) { Settings.smartFallback = it }
     com.k4music.desktop.ui.AudioOutputSettings(player)
-    if (com.k4music.desktop.DiscordPresence.available)
-        SwitchRow(stringResource(Res.string.desktop_discord), stringResource(Res.string.desktop_discord_hint), Settings.discordPresence) { Settings.discordPresence = it }
     Label(stringResource(Res.string.audio_quality))
     Choices(
         listOf(
@@ -464,9 +504,9 @@ private fun PlaybackSection() = Section(Res.string.player) {
     SwitchRow(stringResource(Res.string.sponsor_block), stringResource(Res.string.sponsor_block_description), Settings.sponsorBlockEnabled) { Settings.sponsorBlockEnabled = it }
 
     Label(stringResource(Res.string.desktop_speed), "%.2fx".format(Settings.speed))
-    K4Slider((Settings.speed - 0.5f) / 1.5f, onChange = { Settings.speed = (0.5f + it * 1.5f).let { v -> (v * 20).toInt() / 20f } }, onCommit = { player.applyEffects() }, modifier = Modifier.fillMaxWidth())
+    SettingsSlider((Settings.speed - 0.5f) / 1.5f, onChange = { Settings.speed = (0.5f + it * 1.5f).let { v -> (v * 20).toInt() / 20f } }, onCommit = { player.applyEffects() }, modifier = Modifier.fillMaxWidth())
     Label(stringResource(Res.string.desktop_pitch), "%.2fx".format(Settings.pitch))
-    K4Slider((Settings.pitch - 0.5f) / 1.5f, onChange = { Settings.pitch = (0.5f + it * 1.5f).let { v -> (v * 20).toInt() / 20f } }, onCommit = { player.applyEffects() }, modifier = Modifier.fillMaxWidth())
+    SettingsSlider((Settings.pitch - 0.5f) / 1.5f, onChange = { Settings.pitch = (0.5f + it * 1.5f).let { v -> (v * 20).toInt() / 20f } }, onCommit = { player.applyEffects() }, modifier = Modifier.fillMaxWidth())
 
     val sleepAt = state.sleepAt
     Label(stringResource(Res.string.sleep_timer), sleepAt?.let { stringResource(Res.string.desktop_sleep_until, DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))) })
@@ -495,7 +535,7 @@ private fun EffectsSection() = Section(Res.string.audio_effects) {
         AudioEffects.bands.forEachIndexed { i, hz ->
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(if (hz >= 1000) "${hz / 1000} kHz" else "$hz Hz", style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(64.dp))
-                K4Slider(
+                SettingsSlider(
                     (gains[i] + AudioEffects.MAX_GAIN) / (2 * AudioEffects.MAX_GAIN),
                     onChange = { v -> gains = gains.toMutableList().also { it[i] = ((v * 2 - 1) * AudioEffects.MAX_GAIN * 2).toInt() / 2f } },
                     onCommit = { AudioEffects.setGains(gains, "Custom"); player.applyEffects() },
@@ -506,9 +546,9 @@ private fun EffectsSection() = Section(Res.string.audio_effects) {
         }
     }
     Label(stringResource(Res.string.bass_boost), "${Settings.bassBoost}%")
-    K4Slider(Settings.bassBoost / 100f, onChange = { Settings.bassBoost = (it * 100).toInt() }, onCommit = { player.applyEffects() }, modifier = Modifier.fillMaxWidth())
+    SettingsSlider(Settings.bassBoost / 100f, onChange = { Settings.bassBoost = (it * 100).toInt() }, onCommit = { player.applyEffects() }, modifier = Modifier.fillMaxWidth())
     Label(stringResource(Res.string.atd_wide_stage), "${Settings.wideStage}%")
-    K4Slider(Settings.wideStage / 100f, onChange = { Settings.wideStage = (it * 100).toInt() }, onCommit = { player.applyEffects() }, modifier = Modifier.fillMaxWidth())
+    SettingsSlider(Settings.wideStage / 100f, onChange = { Settings.wideStage = (it * 100).toInt() }, onCommit = { player.applyEffects() }, modifier = Modifier.fillMaxWidth())
     Label(stringResource(Res.string.reverb))
     Choices(
         listOf(
@@ -798,7 +838,7 @@ private fun AboutSection() = Section(Res.string.about) {
 const val WEBSITE = "https://k4music.vercel.app"
 private const val GITHUB = "https://github.com/KartikLangwan/K4Music"
 private const val CREATOR_SITE = "https://kartiklangwan.vercel.app"
-private val APP_VERSION get() = System.getProperty("jpackage.app-version") ?: "2.12.14"
+private val APP_VERSION get() = System.getProperty("jpackage.app-version") ?: "2.14.26"
 
 /**
  * Compares this version with the newest K4 Music release; downloads always go through the

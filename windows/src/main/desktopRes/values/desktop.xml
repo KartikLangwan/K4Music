@@ -91,6 +91,7 @@
     <string name="desktop_update_failed">Could not check for updates. Opening the website instead.</string>
     <string name="desktop_shortcuts">Keyboard shortcuts</string>
     <string name="desktop_shortcuts_list">Space  Play / pause
+Ctrl+K  Quick actions
 Ctrl+→ / Ctrl+←  Next / previous
 Ctrl+F  Search
 Ctrl+B  Collapse side panel

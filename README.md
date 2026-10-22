@@ -25,26 +25,25 @@ Downloads are in this repository's [**Releases**](https://github.com/KartikLangw
 
 | | Android | Windows |
 | --- | --- | --- |
-| **File** | [K4Music-v2.12.14-RELEASE.apk](https://github.com/KartikLangwan/K4Music/releases/download/v2.12.14/K4Music-v2.12.14-RELEASE.apk) | [K4Music-Setup-2.12.14.exe](https://github.com/KartikLangwan/K4Music/releases/download/v2.12.14/K4Music-Setup-2.12.14.exe) |
-| **Requires** | Android 7.0+, arm64-v8a or x86_64 | Windows 10 / 11, 64-bit |
-| **Size** | 34.9 MB | 116.3 MB |
-| **SHA-256** | `7F20DCC8A8B22E347EFCB29E87438E4499B2AD70A51162B6B5FAC71E5B506973` | `7648B7D51F87DF825F3707AC8F56D5E12868A9D813C2E4B58408A603102FD753` |
+| **File** | [K4Music-v2.14.26-RELEASE.apk](https://github.com/KartikLangwan/K4Music/releases/download/v2.14.26/K4Music-v2.14.26-RELEASE.apk) | [K4Music-Setup-2.14.26.exe](https://github.com/KartikLangwan/K4Music/releases/download/v2.14.26/K4Music-Setup-2.14.26.exe) |
+| **Requires** | Android 7.0+, 64-bit ARM (arm64-v8a) | Windows 10 / 11, 64-bit |
+| **Size** | 26.8 MB | 115.8 MB |
+| **SHA-256** | `9DF480CCA77070C736334A4888CE5330BAA0C229F3D8FF84F0B7713A1BF2E8C9` | `D392B2712130F8A3CF5F2E053F64F2C5263F6140008E055695627D371BD35395` |
 
-The checksums above identify the existing 2.12.14 files in this checkout. The ongoing audit fixes in [the live changelog](chanagesbyaanother.md) are source changes and are not included in those existing binaries until a new build is produced.
-
-The current source introduces stable Saavn catalogue identities while retaining existing URL-based library/download keys. Backups containing new catalogue identities need a build with this support on the receiving device; the older binaries linked above cannot resolve those new identities. Existing library IDs and downloaded files are preserved during this compatibility stage.
+2.14.26 installs over 2.12.14 and keeps your library, likes, downloads and history. Libraries backed up from 2.14.26 need 2.14.26 or newer to restore.
 
 **Android:** open the APK on your phone and allow *Install unknown apps* for your browser when Android asks. Updating from a build signed with a different key? Uninstall that build first.
 
 **Windows:** run the installer (no admin rights needed). It isn't code-signed yet, so on *Windows protected your PC* click **More info → Run anyway**. Later updates: Settings → Check for updates → **Update now**, or run a newer installer; it closes K4 Music, updates it and keeps your library.
 
-## What's new in 2.12.14
+## What's new in 2.14.26
 
-- **K4 Music for Windows.** The whole app on PC: glass panels over the song's colours, a vinyl full player, media keys and Bluetooth headphone buttons, taskbar controls, audio output switching (Bluetooth, headphones, speakers), a Discord status, autoplay radio, resizable panels, full screen and in-app updates.
-- **A new look on Android**, matching the PC: logo header, a soft violet glow behind every screen, round covers, a capsule mini player with a progress ring and the K4 gradient play buttons.
-- **Songs keep playing.** If YouTube can't serve a song, the same song plays from JioSaavn (*Smart fallback*). When YouTube is limiting the whole network for a while, K4 Music now waits it out instead of retrying every song.
-- **Faster:** quicker downloads, the next song preloaded, the saved queue loaded only when you press play.
-- **Double-tap the artwork** to seek 10 seconds back or forward.
+- **Lighter:** the Android app is a quarter smaller (28 MB) and uses far less memory for artwork; the PC app hands unused memory back to Windows while it plays in the background, and redraws much less while a song plays.
+- **More reliable:** safer library backup and restore, downloads that can be cancelled and retried, saved lyrics and play counts that are never lost, and playback that resumes near where it stopped even after a crash.
+- **Better sound on Android:** JioSaavn and local songs no longer play much louder than YouTube songs with loudness normalization on.
+- **A tidier player on PC:** balanced controls, and like, lyrics, queue, sound output and volume right inside the full-screen player.
+- **Polished screens:** clearer buttons and options in Settings, keyboard shortcuts shown as keys, helpful empty Favorites / History / Downloads pages, and a layout that fits small windows.
+- **Private by default:** the Discord status is now off until you turn it on.
 
 Every fix and how it was verified: [AUDIT.md](AUDIT.md).
 

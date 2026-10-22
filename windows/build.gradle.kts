@@ -9,7 +9,7 @@ plugins {
     id("org.jetbrains.compose") version "1.12.1"
 }
 
-val appVersion = "2.12.14"
+val appVersion = "2.14.26"
 group = "com.k4music"
 version = appVersion
 
