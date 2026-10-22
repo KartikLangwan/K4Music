@@ -19,11 +19,16 @@ import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 /**
  * "Playing K4 Music" on the user's Discord profile: song, artist, cover, a time bar and two
  * links. Talks to the Discord desktop app over its local IPC pipe (no account, no
- * token, nothing leaves the PC except to Discord itself). Shown until the app quits.
+ * token, nothing leaves the PC except to Discord itself).
+ *
+ * Fully resilient to Discord starting after K4 Music or restarting during playback.
  */
 object DiscordPresence {
     /**
@@ -38,6 +43,7 @@ object DiscordPresence {
     private const val OP_HANDSHAKE = 0
     private const val OP_FRAME = 1
 
+    @Volatile
     private var pipe: RandomAccessFile? = null
     private var sent: String? = null
     private var sentAt = 0L
@@ -46,7 +52,10 @@ object DiscordPresence {
         if (!available) return
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             while (true) {
-                runCatching { update(player) }.onFailure { disconnect() }
+                runCatching { update(player) }.onFailure { e ->
+                    AppLog.w("Discord", "Presence update failed: ${e.message}")
+                    disconnect()
+                }
                 delay(3_000)
             }
         }
@@ -65,9 +74,14 @@ object DiscordPresence {
             playing -> "play|${track.id}|${start / 4_000}"
             else -> "pause|${track.id}"
         }
-        if (key == sent) return
-        if (key == "off" && pipe == null) { sent = key; return } // nothing shown, nothing to clear
-        if (System.currentTimeMillis() - sentAt < 4_000) return
+
+        if (key == "off" && pipe == null) {
+            sent = key
+            return
+        }
+        if (key == sent && pipe != null) return
+        if (System.currentTimeMillis() - sentAt < 3_000) return
+
         val p = pipe ?: connect() ?: return
         val activity = if (key == "off") null else activity(track, playing, start, state.durationSeconds)
         val payload = buildJsonObject {
@@ -79,11 +93,17 @@ object DiscordPresence {
             }
         }
         write(p, OP_FRAME, payload.toString())
-        // Discord's reply; a CLOSE (wrong id, Discord logging out) drops the connection.
-        val (op, reply) = read(p)
-        if (op != OP_FRAME) { disconnect(); return }
-        // A rejected activity still comes back as a normal frame, with "evt":"ERROR".
-        if ("\"evt\":\"ERROR\"" in reply) AppLog.w("Discord", "Status rejected: ${reply.take(300)}")
+
+        // Discord's reply with bounded read; a CLOSE drops the connection.
+        val replyPair = readWithTimeout(p, timeoutMs = 2500)
+        if (replyPair == null || replyPair.first != OP_FRAME) {
+            disconnect()
+            return
+        }
+        val (_, reply) = replyPair
+        if ("\"evt\":\"ERROR\"" in reply) {
+            AppLog.w("Discord", "Status rejected: ${reply.take(300)}")
+        }
         sent = key
         sentAt = System.currentTimeMillis()
     }
@@ -136,18 +156,27 @@ object DiscordPresence {
             val p = runCatching { RandomAccessFile("\\\\.\\pipe\\discord-ipc-$i", "rw") }.getOrNull() ?: continue
             val ok = runCatching {
                 write(p, OP_HANDSHAKE, buildJsonObject { put("v", 1); put("client_id", APP_ID) }.toString())
-                check(read(p).first == OP_FRAME) { "Discord refused the connection" } // READY, else CLOSE
-            }.isSuccess
-            if (ok) { pipe = p; sent = null; AppLog.i("Discord", "Connected"); return p }
+                val resp = readWithTimeout(p, timeoutMs = 2500)
+                check(resp != null && resp.first == OP_FRAME) { "Discord refused handshake" }
+                true
+            }.getOrDefault(false)
+
+            if (ok) {
+                pipe = p
+                sent = null // Force immediate re-announcement of active song
+                AppLog.i("Discord", "Connected to Discord on pipe discord-ipc-$i")
+                return p
+            }
             runCatching { p.close() }
         }
         return null
     }
 
     private fun disconnect() {
-        runCatching { pipe?.close() }
+        val p = pipe
         pipe = null
         sent = null
+        runCatching { p?.close() }
     }
 
     private fun write(p: RandomAccessFile, op: Int, json: String) {
@@ -156,13 +185,34 @@ object DiscordPresence {
         p.write(header + body)
     }
 
-    /** One frame: (opcode, JSON). Opcode 1 = reply/READY, 2 = CLOSE. */
-    private fun read(p: RandomAccessFile): Pair<Int, String> {
-        val header = ByteBuffer.wrap(ByteArray(8).also { p.readFully(it) }).order(ByteOrder.LITTLE_ENDIAN)
-        val op = header.getInt(0)
-        val length = header.getInt(4)
-        require(length in 0..1_000_000) { "Bad Discord frame" }
-        return op to ByteArray(length).also { p.readFully(it) }.toString(Charsets.UTF_8)
+    /**
+     * Reads one frame: (opcode, JSON) with a strict timeout.
+     * If the read times out or hangs, the pipe is closed to unblock the underlying native ReadFile.
+     */
+    private fun readWithTimeout(p: RandomAccessFile, timeoutMs: Long = 2500): Pair<Int, String>? {
+        val future = CompletableFuture.supplyAsync {
+            val headerBytes = ByteArray(8)
+            p.readFully(headerBytes)
+            val header = ByteBuffer.wrap(headerBytes).order(ByteOrder.LITTLE_ENDIAN)
+            val op = header.getInt(0)
+            val length = header.getInt(4)
+            require(length in 0..1_000_000) { "Bad Discord frame length: $length" }
+            val bodyBytes = ByteArray(length)
+            p.readFully(bodyBytes)
+            op to bodyBytes.toString(Charsets.UTF_8)
+        }
+
+        return try {
+            future.get(timeoutMs, TimeUnit.MILLISECONDS)
+        } catch (e: TimeoutException) {
+            future.cancel(true)
+            runCatching { p.close() }
+            null
+        } catch (e: Exception) {
+            future.cancel(true)
+            runCatching { p.close() }
+            null
+        }
     }
 
     /** Clears the status on exit (Discord also clears it when the pipe closes). */

@@ -44,7 +44,6 @@ import java.io.File
 fun StartupScreen(error: String?, onRetry: () -> Unit) {
     val context = LocalContext.current
     val shareTitle = stringResource(R.string.share)
-    var recoveryAttempted by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -112,24 +111,6 @@ fun StartupScreen(error: String?, onRetry: () -> Unit) {
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Text(stringResource(R.string.retry))
-                }
-
-                OutlinedButton(
-                    onClick = {
-                        // Safe recovery: clear stale WAL/SHM locks and cache
-                        runCatching {
-                            val dbDir = File(context.filesDir.parentFile, "databases")
-                            File(dbDir, "data.db-wal").delete()
-                            File(dbDir, "data.db-shm").delete()
-                            context.cacheDir.deleteRecursively()
-                        }
-                        recoveryAttempted = true
-                        onRetry()
-                    },
-                    modifier = Modifier.fillMaxWidth(0.8f),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Text(if (recoveryAttempted) "Repaired! Retrying..." else "Clean Cache & Repair")
                 }
 
                 TextButton(

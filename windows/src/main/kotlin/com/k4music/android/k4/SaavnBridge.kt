@@ -10,7 +10,7 @@ import com.k4music.providers.innertube.models.Thumbnail
 suspend fun searchSaavnSongs(query: String): List<K4Song> = com.k4music.desktop.k4.searchSaavnSongs(query)
 
 fun K4Song.toSongItem(): Innertube.SongItem = Innertube.SongItem(
-    info = Innertube.Info(name = title, endpoint = NavigationEndpoint.Endpoint.Watch(videoId = SAAVN_KEY_PREFIX + contentUri)),
+    info = Innertube.Info(name = title, endpoint = NavigationEndpoint.Endpoint.Watch(videoId = saavnMediaKey())),
     authors = if (artist.isBlank()) null else listOf(Innertube.Info(name = artist, endpoint = null)),
     album = null,
     durationText = durationMs.takeIf { it > 0 }?.let { com.k4music.desktop.player.formatDuration(it) },

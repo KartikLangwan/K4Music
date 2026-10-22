@@ -32,6 +32,9 @@ val K4Error = Color(0xFFFF5A5F)
  */
 fun brandColors(accent: Color) = listOf(lerp(accent, Color.White, 0.40f), accent, lerp(accent, Color.Black, 0.25f))
 
+/** Hidden/minimized windows pause decorative work without affecting audio playback. */
+val LocalWindowActive = androidx.compose.runtime.staticCompositionLocalOf { true }
+
 @Composable
 fun brandBrush(): Brush = Brush.linearGradient(brandColors(MaterialTheme.colorScheme.primary))
 

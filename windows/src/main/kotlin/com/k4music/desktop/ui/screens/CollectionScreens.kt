@@ -2,6 +2,9 @@ package com.k4music.desktop.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -72,9 +75,11 @@ import com.k4music.providers.innertube.requests.artistPage
 import com.k4music.providers.innertube.requests.browse
 import com.k4music.providers.innertube.requests.playlistPage
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /** Big artwork, title, subtitle and the action buttons of an album / playlist / artist page. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CollectionHeader(
     title: String,
@@ -84,8 +89,11 @@ fun CollectionHeader(
     description: String? = null,
     actions: @Composable () -> Unit
 ) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+    // Narrow window (queue open, small screen): smaller cover so title and actions keep their room.
+    val art = if (maxWidth < 640.dp) 140.dp else 200.dp
     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.Bottom) {
-        Artwork(image, 200.dp, Modifier.size(200.dp), corner = if (circle) 999.dp else 16.dp)
+        Artwork(image, art, Modifier.size(art), corner = if (circle) 999.dp else 16.dp)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(title, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             if (!subtitle.isNullOrBlank()) Text(subtitle, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -96,8 +104,9 @@ fun CollectionHeader(
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis
             )
-            Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { actions() }
+            FlowRow(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { actions() }
         }
+    }
     }
 }
 
@@ -138,9 +147,8 @@ fun AlbumScreen(browseId: String) {
     val tracks = album?.songsPage?.items.orEmpty().mapNotNull { it.toTrack() }
         .map { it.copy(album = album?.title, albumId = browseId, thumbnailUrl = it.thumbnailUrl ?: album?.thumbnail?.size(544)) }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
-        when {
-            album != null -> {
+    when {
+        album != null -> SongList(tracks, header = {
                 CollectionHeader(album.title.orEmpty(), listOfNotNull(authors, album.year).joinToString(" • "), album.thumbnail?.size(544), description = album.description) {
                     PlayButtons(tracks)
                     val bookmarked = saved?.bookmarkedAt != null
@@ -159,7 +167,7 @@ fun AlbumScreen(browseId: String) {
                     }) { Text(stringResource(if (bookmarked) Res.string.desktop_saved else Res.string.desktop_save_to_library)) }
                 }
                 SectionHeader(stringResource(Res.string.songs))
-                TrackList(tracks)
+        }, footer = {
                 album.otherVersions?.mapNotNull { a -> a.info?.endpoint?.browseId?.let { a to it } }?.takeIf { it.isNotEmpty() }?.let { versions ->
                     SectionHeader(stringResource(Res.string.other_versions))
                     Shelf {
@@ -168,25 +176,24 @@ fun AlbumScreen(browseId: String) {
                         }
                     }
                 }
-            }
-            page.failed -> ErrorState(page.retry)
-            else -> { HeaderSkeleton(); Box(Modifier.padding(top = 24.dp)) { SongListSkeleton() } }
-        }
+        })
+        page.failed -> ErrorState(page.retry)
+        else -> Column { HeaderSkeleton(); Box(Modifier.padding(top = 24.dp)) { SongListSkeleton() } }
     }
 }
 
-/** A YouTube Music playlist; every page is loaded (up to 1000 songs) so Play covers all of it. */
+/** A YouTube Music playlist; partial or failed pagination never masquerades as a complete collection. */
 @Composable
 fun PlaylistScreen(browseId: String, params: String?) {
     val scope = rememberCoroutineScope()
     val page = rememberPage("playlist/$browseId") {
         val first = Innertube.playlistPage(BrowseBody(browseId = browseId, params = params))?.getOrNull() ?: return@rememberPage null
-        var songs = first.songsPage?.items.orEmpty()
-        var token = first.songsPage?.continuation
-        while (token != null && songs.size < 1000) {
-            val next = Innertube.playlistPage(ContinuationBody(continuation = token))?.getOrNull() ?: break
-            songs = songs + next.items.orEmpty()
-            token = next.continuation?.takeIf { it != token }
+        val songs = com.k4music.android.playlistimport.collectAllPages(
+            first.songsPage?.items.orEmpty(), first.songsPage?.continuation
+        ) { token ->
+            val next = Innertube.playlistPage(ContinuationBody(continuation = token))?.getOrThrow()
+                ?: error("No playlist continuation response")
+            next.items.orEmpty() to next.continuation
         }
         first.copy(songsPage = Innertube.ItemsPage(songs, null))
     }
@@ -194,12 +201,11 @@ fun PlaylistScreen(browseId: String, params: String?) {
     val tracks = playlist?.songsPage?.items.orEmpty().mapNotNull { it.toTrack() }
     val savedId = remember(browseId) { Db.library.playlistPreviewsByNameAsc() }.collectAsState(initial = emptyList())
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
-        when {
-            playlist != null -> {
+    when {
+        playlist != null -> SongList(tracks, header = {
                 CollectionHeader(
                     playlist.title.orEmpty(),
-                    listOfNotNull(playlist.authors?.joinToString("") { it.name.orEmpty() }, stringResource(Res.string.desktop_song_count, tracks.size)).joinToString(" • "),
+                    listOfNotNull(playlist.authors?.joinToString("") { it.name.orEmpty() }, pluralStringResource(Res.plurals.desktop_song_count, tracks.size, tracks.size)).joinToString(" • "),
                     playlist.thumbnail?.size(544),
                     description = playlist.description
                 ) {
@@ -215,11 +221,9 @@ fun PlaylistScreen(browseId: String, params: String?) {
                     }) { Text(stringResource(if (alreadySaved) Res.string.desktop_saved else Res.string.desktop_save_to_library)) }
                 }
                 SectionHeader(stringResource(Res.string.songs))
-                TrackList(tracks)
-            }
-            page.failed -> ErrorState(page.retry)
-            else -> { HeaderSkeleton(); Box(Modifier.padding(top = 24.dp)) { SongListSkeleton() } }
-        }
+        })
+        page.failed -> ErrorState(page.retry)
+        else -> Column { HeaderSkeleton(); Box(Modifier.padding(top = 24.dp)) { SongListSkeleton() } }
     }
 }
 

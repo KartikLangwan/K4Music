@@ -14,7 +14,7 @@ import kotlinx.coroutines.CancellationException
  *
  * The decision for the merged app is "YouTube Music first, JioSaavn second":
  * a JioSaavn song enters the existing pipeline as a normal [Innertube.SongItem]
- * whose media key is "saavn:<direct stream url>". The player's resolving data
+ * whose media key is a stable catalogue id or a preserved legacy URL. The player's resolving data
  * source recognises the prefix and resolves the CDN url here instead of asking
  * YouTube. Nothing else in the app needs to know about the second source.
  */
@@ -24,12 +24,9 @@ private val saavnApi by lazy { JioSaavnApi() }
 
 fun isSaavnKey(key: String?) = key?.startsWith(SAAVN_KEY_PREFIX) == true
 
-/** Best CDN mp4 for a saavn key, or null when nothing serves. Never throws. */
-fun resolveSaavnStream(key: String, quality: String = "320"): String? {
-    val base = key.removePrefix(SAAVN_KEY_PREFIX)
-    if (base.isBlank()) return null
-    saavnApi.preferredQuality = quality
-    return runCatching { saavnApi.bestVariant(base) }.getOrNull()
+/** Best CDN mp4 for a Saavn key, or null when nothing serves. Cancellation propagates. */
+suspend fun resolveSaavnStream(key: String, quality: String = "320"): String? {
+    return saavnApi.resolveMediaKey(key, quality)
 }
 
 /**
@@ -41,8 +38,9 @@ suspend fun findSaavnStream(title: String, artist: String, durationMs: Long?, qu
     val candidates = searchSaavnSongs("$title $artist".trim())
         .map { Candidate(it.title, it.artist, it.durationMs.takeIf { d -> d > 0 }, it.contentUri) }
     val match = pickBestMatch(title, artist, durationMs, candidates) ?: return null
-    saavnApi.preferredQuality = quality
-    return runCatching { saavnApi.bestVariant(match.payload) }.getOrNull()
+    return try { saavnApi.bestVariant(match.payload, quality = quality) }
+    catch (error: CancellationException) { throw error }
+    catch (_: Exception) { null }
 }
 
 /**
@@ -86,7 +84,10 @@ object StreamFallback {
 
 /** Saavn search results with unplayable (blank) entries dropped. Never throws. */
 suspend fun searchSaavnSongs(query: String): List<K4Song> = try {
-    saavnApi.searchSongs(query).filter { it.contentUri.isNotBlank() }
+    val songs = saavnApi.searchSongs(query).filter { it.contentUri.isNotBlank() }
+    if (songs.isEmpty()) songs else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        preserveLegacySaavnKeys(songs, com.k4music.android.Database.legacySaavnSongIds())
+    }
 } catch (error: CancellationException) {
     throw error
 } catch (_: Exception) {
@@ -97,7 +98,7 @@ suspend fun searchSaavnSongs(query: String): List<K4Song> = try {
 fun K4Song.toSongItem(): Innertube.SongItem = Innertube.SongItem(
     info = Innertube.Info(
         name = title,
-        endpoint = NavigationEndpoint.Endpoint.Watch(videoId = SAAVN_KEY_PREFIX + contentUri)
+        endpoint = NavigationEndpoint.Endpoint.Watch(videoId = saavnMediaKey())
     ),
     authors = if (artist.isBlank()) null else listOf(
         Innertube.Info(name = artist, endpoint = null)

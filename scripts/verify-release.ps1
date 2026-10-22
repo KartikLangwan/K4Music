@@ -2,7 +2,8 @@ param(
     [string]$GradleCommand,
     [string]$PythonCommand,
     [switch]$Offline,
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [switch]$AllowDevelopmentSigning
 )
 
 $ErrorActionPreference = 'Stop'
@@ -22,6 +23,7 @@ try {
             $GradleCommand = if ($installedGradle) { $installedGradle.Source } else { Join-Path $projectRoot 'gradlew.bat' }
         }
         $buildArguments = @(':app:testDebugUnitTest', ':app:lintDebug', ':app:assembleRelease', '--no-daemon', '--console=plain', '-Pkotlin.compiler.execution.strategy=in-process')
+        if ($AllowDevelopmentSigning) { $buildArguments += '-PallowDevelopmentSigning=true' }
         if ($Offline) { $buildArguments += '--offline' }
         & $GradleCommand @buildArguments
         if ($LASTEXITCODE -ne 0) { throw 'Android verification or release build failed.' }
@@ -39,13 +41,17 @@ try {
     if (-not $sdkDirectory) { throw 'Configure sdk.dir, ANDROID_SDK_ROOT or ANDROID_HOME.' }
     $buildTools = Get-ChildItem (Join-Path $sdkDirectory 'build-tools') -Directory | Sort-Object { [version]($_.Name -replace '-.*$', '') } -Descending | Select-Object -First 1
     if (-not $buildTools) { throw 'Android build-tools are missing.' }
-    & (Join-Path $buildTools.FullName 'apksigner.bat') verify --verbose --print-certs $apk
+    $signatureOutput = & (Join-Path $buildTools.FullName 'apksigner.bat') verify --verbose --print-certs $apk
     if ($LASTEXITCODE -ne 0) { throw 'APK signature verification failed.' }
+    if (-not $AllowDevelopmentSigning -and ($signatureOutput -join "`n") -match 'CN=Android Debug') {
+        throw 'Refusing to distribute a debug-signed APK. Use -AllowDevelopmentSigning only for local testing.'
+    }
+    Write-Output $signatureOutput
 
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $archive = [System.IO.Compression.ZipFile]::OpenRead($apk)
     try {
-        foreach ($abi in @('arm64-v8a', 'x86_64')) {
+        foreach ($abi in @('arm64-v8a')) {
             foreach ($library in @('libqjs.so', 'libpython3.14.so')) {
                 $packed = $archive.GetEntry("lib/$abi/$library")
                 if (-not $packed -or $packed.Length -eq 0) { throw "Missing native runtime: $abi/$library" }

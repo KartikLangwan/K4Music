@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
@@ -21,6 +22,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -81,6 +84,7 @@ import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /** A navigation button: [key] names it in Settings.hiddenNav (Home cannot be hidden). */
@@ -139,11 +143,25 @@ private fun Resizer(onDrag: (Float) -> Unit, onDragEnd: () -> Unit) {
 }
 private val PanelShape = RoundedCornerShape(22.dp)
 
-/** Panels are glass: the window's backdrop (song colour, accent or picture) shows through evenly. */
+/** Panels are glass: the window's backdrop shows through evenly with customizable transparency. */
 @Composable
 fun panelColor(): Color {
+    if (Settings.oledBlack) return Color.Black
     val colors = MaterialTheme.colorScheme
-    return colors.surface.copy(alpha = if (colors.background.luminance() < 0.5f) 0.74f else 0.80f)
+    val alpha = Settings.panelOpacity.coerceIn(15, 100) / 100f
+    return if (Settings.glassmorphism) {
+        colors.surface.copy(alpha = alpha)
+    } else {
+        colors.surface
+    }
+}
+
+/** Subtle 1dp border for glassmorphic frosted acrylic surfaces. */
+@Composable
+fun panelBorder(): BorderStroke? {
+    if (!Settings.glassmorphism || Settings.oledBlack) return null
+    val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    return BorderStroke(1.dp, if (dark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f))
 }
 
 /**
@@ -190,14 +208,17 @@ fun Shell(
                 ContentPanel(navigator, ambient, Modifier.weight(1f))
                 panel.value?.let { which ->
                     var width by remember { mutableStateOf(Settings.sidePanelWidth.toFloat()) }
+                    val minW = if (which == SidePanel.Both) 360f else 280f
+                    val maxW = if (which == SidePanel.Both) 720f else 560f
                     Resizer(
-                        onDrag = { delta -> width = (width - delta).coerceIn(280f, 560f) },
+                        onDrag = { delta -> width = (width - delta).coerceIn(minW, maxW) },
                         onDragEnd = { Settings.sidePanelWidth = width.toInt() }
                     )
-                    Surface(shape = PanelShape, color = panelColor(), modifier = Modifier.width(width.dp).fillMaxHeight()) {
+                    Surface(shape = PanelShape, color = panelColor(), border = panelBorder(), modifier = Modifier.width(width.coerceAtLeast(minW).dp).fillMaxHeight()) {
                         when (which) {
                             SidePanel.Queue -> QueuePanel()
                             SidePanel.Lyrics -> LyricsPanel()
+                            SidePanel.Both -> DualSidePanel(onClose = { panel.value = null })
                         }
                     }
                 }
@@ -215,7 +236,7 @@ fun Shell(
 /** The page itself: a see-through rounded panel over the window's backdrop. */
 @Composable
 private fun ContentPanel(navigator: Navigator, ambient: Color, modifier: Modifier) {
-    Surface(shape = PanelShape, color = panelColor(), modifier = modifier.fillMaxHeight()) {
+    Surface(shape = PanelShape, color = panelColor(), border = panelBorder(), modifier = modifier.fillMaxHeight()) {
         Box(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize().padding(start = 28.dp, end = 28.dp, top = 20.dp)) {
                 ScreenContent(navigator.current)
@@ -333,11 +354,26 @@ private fun SearchField(navigator: Navigator, focus: FocusRequester, modifier: M
                 }.onPreviewKeyEventEnter { if (submitSearch(text, navigator, player)) text = "" }
             )
         }
-        if (text.isNotEmpty()) Icon(
-            painterResource(Res.drawable.close), stringResource(Res.string.clear),
-            Modifier.size(18.dp).clip(CircleShape).clickable { text = ""; if (navigator.current is Screen.Search) navigator.replace(Screen.Search()) },
-            tint = colors.onSurfaceVariant
-        )
+        if (text.isNotEmpty()) {
+            Icon(
+                painterResource(Res.drawable.close), stringResource(Res.string.clear),
+                Modifier.size(18.dp).clip(CircleShape).clickable { text = ""; if (navigator.current is Screen.Search) navigator.replace(Screen.Search()) },
+                tint = colors.onSurfaceVariant
+            )
+        } else {
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = colors.surface.copy(alpha = 0.5f),
+                modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable { AppDialogs.openCommandPalette() }
+            ) {
+                Text(
+                    "Ctrl K",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = colors.onSurfaceVariant.copy(alpha = 0.75f),
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                )
+            }
+        }
     }
 }
 
@@ -355,7 +391,7 @@ private fun SidePanelColumn(navigator: Navigator, collapsed: Boolean, width: Dp)
         Modifier.width(width).fillMaxHeight(),
         verticalArrangement = Arrangement.spacedBy(Gap)
     ) {
-        if (Settings.navPosition == NavPosition.Side) Surface(shape = PanelShape, color = panelColor(), modifier = Modifier.fillMaxWidth()) {
+        if (Settings.navPosition == NavPosition.Side) Surface(shape = PanelShape, color = panelColor(), border = panelBorder(), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 // The K4 logo and name lead the navigation (the brand sits where other players put nothing).
                 Row(
@@ -394,7 +430,7 @@ private fun LibraryCard(navigator: Navigator, collapsed: Boolean, modifier: Modi
     val playlists by remember { Db.library.playlistPreviews(PlaylistSortBy.DateAdded, SortOrder.Descending) }
         .collectAsState(initial = emptyList<PlaylistPreview>())
     val current = navigator.current
-    Surface(shape = PanelShape, color = panelColor(), modifier = modifier.fillMaxWidth()) {
+    Surface(shape = PanelShape, color = panelColor(), border = panelBorder(), modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(8.dp)) {
             Row(Modifier.fillMaxWidth().padding(start = if (collapsed) 0.dp else 8.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (!collapsed) Text(
@@ -429,7 +465,7 @@ private fun LibraryCard(navigator: Navigator, collapsed: Boolean, modifier: Modi
                 items(playlists, key = { it.id }) { p ->
                     SideItem(
                         p.name, collapsed, current == Screen.LocalPlaylist(p.id),
-                        subtitle = stringResource(Res.string.desktop_song_count, p.songCount),
+                        subtitle = pluralStringResource(Res.plurals.desktop_song_count, p.songCount, p.songCount),
                         artwork = p.thumbnail ?: ""
                     ) { navigator.go(Screen.LocalPlaylist(p.id)) }
                 }
@@ -539,3 +575,81 @@ fun Tip(label: String, enabled: Boolean = true, content: @Composable () -> Unit)
         state = androidx.compose.material3.rememberTooltipState()
     ) { content() }
 }
+
+/** Multi-panel view allowing simultaneous viewing of both Up Next and Live Synced Lyrics. */
+@Composable
+fun DualSidePanel(modifier: Modifier = Modifier, onClose: (() -> Unit)? = null) {
+    var viewMode by remember { mutableStateOf(0) } // 0: Split, 1: Queue, 2: Lyrics
+    val colors = MaterialTheme.colorScheme
+    Column(modifier.fillMaxSize()) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = if (viewMode == 0) colors.primaryContainer else colors.surfaceContainer,
+                modifier = Modifier.clickable { viewMode = 0 }
+            ) {
+                Text(
+                    stringResource(Res.string.desktop_dual_split),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = if (viewMode == 0) FontWeight.Bold else FontWeight.Medium,
+                    color = if (viewMode == 0) colors.onPrimaryContainer else colors.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                )
+            }
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = if (viewMode == 1) colors.primaryContainer else colors.surfaceContainer,
+                modifier = Modifier.clickable { viewMode = 1 }
+            ) {
+                Text(
+                    stringResource(Res.string.up_next),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = if (viewMode == 1) FontWeight.Bold else FontWeight.Medium,
+                    color = if (viewMode == 1) colors.onPrimaryContainer else colors.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                )
+            }
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = if (viewMode == 2) colors.primaryContainer else colors.surfaceContainer,
+                modifier = Modifier.clickable { viewMode = 2 }
+            ) {
+                Text(
+                    stringResource(Res.string.lyrics),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = if (viewMode == 2) FontWeight.Bold else FontWeight.Medium,
+                    color = if (viewMode == 2) colors.onPrimaryContainer else colors.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            if (onClose != null) {
+                IconButton(onClick = onClose, modifier = Modifier.size(28.dp)) {
+                    Icon(painterResource(Res.drawable.close), null, Modifier.size(16.dp))
+                }
+            }
+        }
+        HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.25f))
+
+        when (viewMode) {
+            0 -> {
+                Column(Modifier.fillMaxSize()) {
+                    Box(Modifier.weight(0.5f).fillMaxWidth()) {
+                        QueuePanel()
+                    }
+                    HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.35f))
+                    Box(Modifier.weight(0.5f).fillMaxWidth()) {
+                        LyricsPanel()
+                    }
+                }
+            }
+            1 -> QueuePanel(Modifier.fillMaxSize())
+            2 -> LyricsPanel(Modifier.fillMaxSize())
+        }
+    }
+}
+

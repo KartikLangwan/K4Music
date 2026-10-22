@@ -162,6 +162,9 @@ interface K4Dao {
     @Query("SELECT * FROM QueuedMediaItem")
     suspend fun queue(): List<QueuedMediaItem>
 
+    @Query("SELECT id FROM Song WHERE id LIKE 'saavn:http%' ORDER BY likedAt DESC, totalPlayTimeMs DESC, ROWID ASC")
+    suspend fun legacySaavnSongIds(): List<String>
+
     @Transaction
     @Query(
         """

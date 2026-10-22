@@ -109,10 +109,11 @@ fun NowPlaying(panel: SidePanel?, onClose: () -> Unit) {
                     modifier = Modifier.padding(top = 12.dp)
                 )
             }
-            if (panel != null) Box(Modifier.widthIn(min = 340.dp, max = 420.dp).fillMaxHeight()) {
+            if (panel != null) Box(Modifier.widthIn(min = 340.dp, max = if (panel == SidePanel.Both) 600.dp else 420.dp).fillMaxHeight()) {
                 when (panel) {
                     SidePanel.Queue -> QueuePanel()
                     SidePanel.Lyrics -> LyricsPanel()
+                    SidePanel.Both -> DualSidePanel(onClose = null)
                 }
             }
         }
@@ -132,8 +133,9 @@ fun Modifier.livingBackdrop(accent: Color, playing: Boolean): Modifier {
         Color(java.awt.Color.HSBtoRGB((hsb[0] + 48f / 360f) % 1f, hsb[1], hsb[2]))
     }
     val phase = remember { Animatable(0f) }
-    LaunchedEffect(playing) {
-        if (!playing) return@LaunchedEffect
+    val moving = playing && LocalWindowActive.current && !com.k4music.desktop.prefs.Settings.reducedMotion
+    LaunchedEffect(moving) {
+        if (!moving) return@LaunchedEffect
         while (true) phase.animateTo(phase.value + 2f * PI.toFloat(), tween(18_000, easing = LinearEasing))
     }
     val energy by animateFloatAsState(if (playing) 1f else 0f, tween(1_200), label = "backdropEnergy")
@@ -167,8 +169,9 @@ private fun com.k4music.desktop.player.StreamSource.label() = when (this) {
 @Composable
 fun Vinyl(url: String?, playing: Boolean, modifier: Modifier = Modifier) {
     val angle = remember { Animatable(0f) }
-    LaunchedEffect(playing) {
-        if (!playing) return@LaunchedEffect
+    val moving = playing && LocalWindowActive.current && !com.k4music.desktop.prefs.Settings.reducedMotion
+    LaunchedEffect(moving) {
+        if (!moving) return@LaunchedEffect
         while (true) angle.animateTo(angle.value + 360f, tween(16_000, easing = LinearEasing))
     }
     val vinyl = Color(0xFF141118)

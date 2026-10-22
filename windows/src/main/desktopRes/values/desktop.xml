@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Strings only the Windows app needs; everything else comes from the Android app's resources. -->
 <resources>
+    <string name="desktop_piped_https">Use an HTTPS API URL to protect your account.</string>
+    <string name="desktop_piped_missing_session">This account is no longer signed in. Add it again in Settings → Sync.</string>
     <string name="desktop_copy_link">Copy link</string>
     <string name="desktop_link_copied">Link copied</string>
     <string name="desktop_open_player">Open player</string>
@@ -22,7 +24,10 @@
     <string name="desktop_saved">Saved</string>
     <string name="desktop_follow">Follow</string>
     <string name="desktop_following">Following</string>
-    <string name="desktop_song_count">%1$d songs</string>
+    <plurals name="desktop_song_count">
+        <item quantity="one">%1$d song</item>
+        <item quantity="other">%1$d songs</item>
+    </plurals>
     <string name="desktop_add_folder">Add folder</string>
     <string name="desktop_scan">Scan for music</string>
     <string name="desktop_sort">Sort</string>
@@ -49,7 +54,10 @@
     <string name="desktop_open_logs">Open logs folder</string>
     <string name="desktop_open_data">Open data folder</string>
     <string name="desktop_check_updates">Check for updates</string>
-    <string name="desktop_downloads_count">%1$d songs downloaded</string>
+    <plurals name="desktop_downloads_count">
+        <item quantity="one">%1$d song downloaded</item>
+        <item quantity="other">%1$d songs downloaded</item>
+    </plurals>
     <string name="desktop_restore_pending">Restart K4 Music to finish restoring your library</string>
     <string name="desktop_done">Done</string>
     <string name="desktop_tray_title">System tray</string>
@@ -86,11 +94,34 @@ F11  Full screen
 Esc  Close player / go back</string>
     <string name="desktop_search_empty">Search for songs, artists, albums or paste a YouTube link</string>
     <string name="desktop_general">General</string>
-    <string name="desktop_background">Background</string>
-    <string name="desktop_bg_artwork">Song colours</string>
-    <string name="desktop_bg_accent">Accent colour</string>
-    <string name="desktop_bg_image">My picture</string>
+    <string name="desktop_background">Background Style</string>
+    <string name="desktop_bg_blurred_artwork">Blurred Artwork</string>
+    <string name="desktop_bg_glow_aura">Ambient Glow Aura</string>
+    <string name="desktop_bg_alpine">Alpine Twilight (Nature)</string>
+    <string name="desktop_bg_aurora">Nordic Aurora (Nature)</string>
+    <string name="desktop_bg_pure_black">Pure OLED Black</string>
+    <string name="desktop_bg_accent">Accent Colour</string>
+    <string name="desktop_bg_image">Custom Wallpaper</string>
     <string name="desktop_choose_picture">Choose picture</string>
+    <string name="desktop_backdrop_blur">Artwork blur intensity</string>
+    <string name="desktop_backdrop_dim">Artwork dimming / scrim</string>
+    <string name="desktop_glassmorphism">Frosted acrylic glass panels</string>
+    <string name="desktop_glassmorphism_desc">Translucent panels with subtle glass borders reflecting background ambience</string>
+    <string name="desktop_panel_transparency">Panel glass opacity</string>
+    <string name="desktop_artist_glow">Artist profile rings &amp; glow</string>
+    <string name="desktop_artist_glow_desc">Subtle gradient rings and ambient glow on artist avatars</string>
+    <string name="desktop_oled_black">Pure OLED black surfaces</string>
+    <string name="desktop_oled_black_desc">Deep pitch black surfaces for OLED and battery efficiency</string>
+    <string name="desktop_system_title">Windows &amp; System</string>
+    <string name="desktop_start_minimized">Start minimized in system tray</string>
+    <string name="desktop_start_minimized_hint">When starting with Windows, keep the window hidden in the background tray</string>
+    <string name="desktop_resume_on_start">Resume playback on launch</string>
+    <string name="desktop_resume_on_start_hint">Automatically resume the last played song when K4 Music opens</string>
+    <string name="desktop_dual_split">Dual View</string>
+    <string name="desktop_panel_both">Up Next &amp; Lyrics</string>
+    <string name="desktop_creator_title">Founder &amp; Lead Architect</string>
+    <string name="desktop_creator_bio">Architecting high-performance, lightweight audio experiences across Windows and Android.</string>
+    <string name="desktop_tech_stack">Crafted with Compose Multiplatform, Kotlin Coroutines, libmpv &amp; Material 3 Expressive.</string>
     <string name="desktop_tagline">Your music. Every screen.</string>
     <string name="desktop_drag_reorder">Drag to reorder</string>
     <string name="desktop_audio_output">Audio output</string>
@@ -110,4 +141,22 @@ Esc  Close player / go back</string>
     <string name="desktop_update_error">Could not update. Try again, or get it from the website.</string>
     <string name="desktop_discord">Show on Discord</string>
     <string name="desktop_discord_hint">Shows K4 Music and the song you are playing on your Discord profile and in voice channels (needs the Discord desktop app)</string>
+    <string name="desktop_startup_title">Start with Windows</string>
+    <string name="desktop_startup_hint">Automatically start K4 Music silently in the system tray when Windows boots</string>
+    <string name="desktop_now_playing">Now Playing: %1$s</string>
+    <string name="desktop_tray_ready">K4 Music - Ready</string>
+    <string name="desktop_restart_now">Restart K4 Music</string>
+    <string name="desktop_restart_pending_hint">Library backup staged. Restart now to apply your library.</string>
+    <string name="desktop_download_active">Active downloads</string>
+    <string name="desktop_download_queued">Waiting</string>
+    <string name="desktop_download_preparing">Preparing audio</string>
+    <string name="desktop_download_receiving">Downloading</string>
+    <string name="desktop_download_failures">Downloads needing attention</string>
+    <string name="desktop_download_dismiss">Dismiss</string>
+    <string name="desktop_download_cancel">Cancel download</string>
+    <string name="desktop_startup_failed">Could not update Windows startup registration</string>
+    <string name="desktop_extractor_update_failed">Extractor update failed</string>
+    <string name="desktop_reduced_motion">Reduce motion</string>
+    <string name="desktop_reduced_motion_hint">Keep decorative backgrounds and artwork still</string>
+    <string name="desktop_cancel_restore">Cancel staged restore</string>
 </resources>

@@ -90,6 +90,7 @@ import com.k4music.android.ui.screens.artistRoute
 import com.k4music.android.ui.screens.home.HomeScreen
 import com.k4music.android.ui.components.StartupScreen
 import com.k4music.android.ui.theme.K4Theme
+import com.k4music.android.ui.theme.k4Backdrop
 import com.k4music.android.ui.screens.player.Player
 import com.k4music.android.ui.screens.player.Thumbnail
 import com.k4music.android.ui.screens.playlistRoute
@@ -221,24 +222,10 @@ class MainActivity : ComponentActivity(), MonetColorsChangedListener {
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
-            Log.e(TAG, "Library startup initial attempt failed, attempting safe auto-recovery", error)
-            val recovered = runCatching {
-                withContext(Dispatchers.IO) {
-                    val dbDir = File(filesDir.parentFile, "databases")
-                    File(dbDir, "data.db-wal").delete()
-                    File(dbDir, "data.db-shm").delete()
-                    DatabaseDependency.verifyOrRebuild()
-                }
-                true
-            }.getOrDefault(false)
-
-            if (recovered) {
-                Log.i(TAG, "Library auto-recovery succeeded")
-                vm.ready = true
-                if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) connectService()
-            } else {
-                vm.startupError = getString(R.string.library_startup_error)
-            }
+            // WAL files contain committed transactions. Let SQLite recover them; never delete
+            // journals or rebuild a library in response to an arbitrary startup error.
+            Log.e(TAG, "Library startup failed; database and journals preserved", error)
+            vm.startupError = getString(R.string.library_startup_error)
         }
     }
 
@@ -295,8 +282,13 @@ class MainActivity : ComponentActivity(), MonetColorsChangedListener {
 
         SystemBarAppearance(palette = appearance.colorPalette)
 
+        val isAmoled = darkness == Darkness.PureBlack || darkness == Darkness.AMOLED
         BoxWithConstraints(
-            modifier = Modifier.background(appearance.colorPalette.background0) then modifier.fillMaxSize()
+            modifier = Modifier
+                .background(appearance.colorPalette.background0)
+                .let { if (!isAmoled) it.k4Backdrop(appearance.colorPalette.accent, appearance.colorPalette.isDark) else it }
+                .then(modifier)
+                .fillMaxSize()
         ) {
             CompositionLocalProvider(
                 LocalAppearance provides appearance,

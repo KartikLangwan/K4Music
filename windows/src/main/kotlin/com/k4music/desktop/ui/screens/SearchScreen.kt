@@ -144,34 +144,50 @@ fun SearchScreen(query: String) {
     }
 }
 
-/** Pages through search results: first page, then "load more" via continuation tokens. */
+private data class PagedSearch<T>(
+    val items: List<T>?, val loading: Boolean, val failed: Boolean,
+    val more: () -> Unit, val retry: () -> Unit
+)
+
+/** Search failures retain the last successful page and its continuation for an explicit retry. */
 @Composable
 private fun <I : Innertube.Item, T : Any> rememberPagedSearch(
     query: String,
     filter: Innertube.SearchFilter,
     from: (com.k4music.providers.innertube.models.MusicShelfRenderer.Content) -> I?,
     map: (I) -> T?
-): Triple<List<T>?, Boolean, () -> Unit> {
+): PagedSearch<T> {
     var items by remember(query, filter) { mutableStateOf<List<T>?>(null) }
     var continuation by remember(query, filter) { mutableStateOf<String?>(null) }
     var loading by remember(query, filter) { mutableStateOf(false) }
+    var failed by remember(query, filter) { mutableStateOf(false) }
+    var job by remember(query, filter) { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     val scope = rememberCoroutineScope()
 
     fun load() {
-        if (loading) return
+        if (loading || (items != null && continuation == null && !failed)) return
         loading = true
-        scope.launch {
-            val token = continuation
-            val page = (if (token == null && items == null) Innertube.searchPage(SearchBody(query = query, params = filter.value), from)
-            else if (token != null) Innertube.searchPage(ContinuationBody(continuation = token), from)
-            else null)?.getOrNull()
-            items = items.orEmpty() + page?.items.orEmpty().mapNotNull(map)
-            continuation = page?.continuation
-            loading = false
+        failed = false
+        job = scope.launch {
+            try {
+                val token = continuation
+                val page = (if (token == null) Innertube.searchPage(SearchBody(query = query, params = filter.value), from)
+                    else Innertube.searchPage(ContinuationBody(continuation = token), from))?.getOrThrow()
+                    ?: error("No search response")
+                check(token == null || token != page.continuation) { "Search continuation repeated" }
+                items = items.orEmpty() + page.items.orEmpty().mapNotNull(map)
+                continuation = page.continuation
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                failed = true
+                com.k4music.desktop.AppLog.w("Search", "Could not load results", error)
+            } finally { loading = false }
         }
     }
+    androidx.compose.runtime.DisposableEffect(query, filter) { onDispose { job?.cancel() } }
     LaunchedEffect(query, filter) { if (items == null) load() }
-    return Triple(items, loading, { if (continuation != null) load() })
+    return PagedSearch(items, loading, failed, { if (continuation != null && !failed) load() }, ::load)
 }
 
 @Composable
@@ -184,15 +200,21 @@ private fun <I : Innertube.Item> SongResults(
 ) {
     val player = LocalPlayer.current
     val actions = songActions()
-    val (youtube, loading, more) = rememberPagedSearch(query, filter, from, map)
+    val page = rememberPagedSearch(query, filter, from, map)
+    val youtube = page.items
+    val loading = page.loading
+    val more = page.more
     // YouTube Music first; when it comes back empty, fill the list from JioSaavn (as on Android).
     var saavn by remember(query) { mutableStateOf<List<Track>?>(null) }
-    LaunchedEffect(youtube) {
-        if (saavnFill && youtube != null && youtube.isEmpty()) saavn = searchSaavnSongs(query).map { it.toTrack() }
+    val needsSaavn = saavnFill && (youtube?.isEmpty() == true || (page.failed && youtube == null))
+    LaunchedEffect(query, needsSaavn) {
+        if (needsSaavn) saavn = searchSaavnSongs(query).map { it.toTrack() }
     }
-    val tracks = youtube?.ifEmpty { saavn.orEmpty() }
+    val tracks = if (needsSaavn) saavn else youtube
 
     when {
+        needsSaavn && saavn == null -> Loading()
+        page.failed && tracks.isNullOrEmpty() -> com.k4music.desktop.ui.ErrorState(page.retry)
         tracks == null -> Loading()
         tracks.isEmpty() && !loading -> Empty()
         else -> LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
@@ -201,7 +223,8 @@ private fun <I : Innertube.Item> SongResults(
             }
             // Reaching the end of the list loads the next page.
             item(key = "more") {
-                LaunchedEffect(tracks.size) { more() }
+                if (page.failed) com.k4music.desktop.ui.ErrorState(page.retry)
+                else LaunchedEffect(tracks.size) { more() }
                 Box(Modifier.fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) {
                     if (loading) CircularProgressIndicator(Modifier.size(24.dp))
                 }
@@ -219,8 +242,11 @@ private fun <I : Innertube.Item> CardResults(
     from: (com.k4music.providers.innertube.models.MusicShelfRenderer.Content) -> I?,
     map: (I) -> CardModel?
 ) {
-    val (cards, loading, _) = rememberPagedSearch(query, filter, from, map)
+    val page = rememberPagedSearch(query, filter, from, map)
+    val cards = page.items
+    val loading = page.loading
     when {
+        page.failed && cards == null -> com.k4music.desktop.ui.ErrorState(page.retry)
         cards == null -> Loading()
         cards.isEmpty() && !loading -> Empty()
         else -> LazyVerticalGrid(
@@ -230,6 +256,13 @@ private fun <I : Innertube.Item> CardResults(
             contentPadding = PaddingValues(bottom = 16.dp)
         ) {
             items(cards) { c -> MediaCard(c.title, c.subtitle, c.image, circle = c.circle, onClick = c.onClick) }
+            item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+                if (page.failed) com.k4music.desktop.ui.ErrorState(page.retry)
+                else LaunchedEffect(cards.size) { page.more() }
+                if (loading) Box(Modifier.fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(Modifier.size(24.dp))
+                }
+            }
         }
     }
 }
@@ -255,7 +288,7 @@ private fun SearchHistory(onPick: (String) -> Unit) {
         }
     }
     LazyColumn {
-        items(history.take(30), key = { it.id }) { q ->
+        items(history.take(30), key = { "${it.id}-${it.query}" }) { q ->
             Row(
                 Modifier.fillMaxWidth().clickable { onPick(q.query) }.padding(horizontal = 8.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,

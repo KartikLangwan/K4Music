@@ -62,13 +62,13 @@ import java.util.concurrent.ConcurrentHashMap
  */
 object PageCache {
     private class Entry(val value: Any, val at: Long)
-    private val entries = ConcurrentHashMap<String, Entry>()
+    private val entries = com.k4music.desktop.BoundedCache<String, Entry>(32)
 
     @Suppress("UNCHECKED_CAST")
     fun <T : Any> peek(key: String): T? = entries[key]?.value as T?
     fun isFresh(key: String, ttlMs: Long) = entries[key]?.let { System.currentTimeMillis() - it.at < ttlMs } == true
     fun put(key: String, value: Any) { entries[key] = Entry(value, System.currentTimeMillis()) }
-    fun invalidate(prefix: String) { entries.keys.removeIf { it.startsWith(prefix) } }
+    fun invalidate(prefix: String) { entries.removeKeys { it.startsWith(prefix) } }
 }
 
 class PageState<T>(val value: T?, val loading: Boolean, val failed: Boolean, val retry: () -> Unit)

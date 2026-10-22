@@ -3,6 +3,7 @@ package com.k4music.desktop.player
 import androidx.compose.runtime.Immutable
 import com.k4music.android.k4.K4Song
 import com.k4music.android.k4.parseClockToMs
+import com.k4music.android.k4.saavnMediaKey
 import com.k4music.android.models.Song
 import com.k4music.desktop.k4.SAAVN_KEY_PREFIX
 import com.k4music.desktop.k4.isSaavnKey
@@ -72,7 +73,7 @@ fun Innertube.VideoItem.toTrack(): Track? {
 }
 
 fun K4Song.toTrack() = Track(
-    id = SAAVN_KEY_PREFIX + contentUri,
+    id = saavnMediaKey(),
     title = title,
     artists = artist.takeIf { it.isNotBlank() },
     album = album.takeIf { it.isNotBlank() },

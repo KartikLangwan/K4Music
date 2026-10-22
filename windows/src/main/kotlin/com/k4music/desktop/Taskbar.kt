@@ -147,7 +147,7 @@ object Taskbar {
                     }
                 } catch (_: Throwable) {
                 }
-                u.CallWindowProcW(oldProc!!, w, msg, wParam, lParam)
+                oldProc?.let { u.CallWindowProcW(it, w, msg, wParam, lParam) }
             }
             proc = handler
             oldProc = u.SetWindowLongPtrW(h, GWLP_WNDPROC, handler)

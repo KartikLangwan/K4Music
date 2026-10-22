@@ -127,8 +127,10 @@ value class Whitelist(private val map: WhitelistMap = mapOf()) {
             }
     }
 
-    fun isWhitelisted(pak: String, signature: String) =
-        map[pak]?.first { it.signature == signature } != null
+    fun isWhitelisted(pak: String, signature: String): Boolean {
+        val normSig = signature.replace(":", "").lowercase()
+        return map[pak]?.any { it.signature.replace(":", "").lowercase() == normSig } == true
+    }
 
     data class Key(
         val signature: String,

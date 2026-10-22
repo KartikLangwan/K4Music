@@ -286,10 +286,11 @@ fun OtherSettings() {
                             }.also { it.exceptionOrNull()?.printStackTrace() }.getOrNull()
 
                             withContext(Dispatchers.Main) {
-                                context.toast(
-                                    if (success == true) R.string.yt_dlp_success
-                                    else R.string.yt_dlp_fail
-                                )
+                                if (success == true) {
+                                    context.toast("yt-dlp updated. Please restart K4 Music to apply.")
+                                } else {
+                                    context.toast(R.string.yt_dlp_fail)
+                                }
                             }
                         }
                         job.invokeOnCompletion { upgrading = false }

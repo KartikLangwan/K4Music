@@ -7,6 +7,8 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -14,13 +16,18 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -404,29 +411,37 @@ fun Lyrics(
         ) { synchronized ->
             val lazyListState = rememberLazyListState()
             if (synchronized) {
+                val sentenceList = remember(synchronizedLyrics) {
+                    synchronizedLyrics?.sentences?.toList().orEmpty()
+                }
+
                 LaunchedEffect(synchronizedLyrics, density, animatedHeight) {
                     val currentSynchronizedLyrics = synchronizedLyrics ?: return@LaunchedEffect
                     val centerOffset = with(density) { (-animatedHeight / 3).roundToPx() }
 
-                    lazyListState.animateScrollToItem(
-                        index = currentSynchronizedLyrics.index + 1,
-                        scrollOffset = centerOffset
-                    )
+                    if (!lazyListState.isScrollInProgress && sentenceList.isNotEmpty()) {
+                        lazyListState.animateScrollToItem(
+                            index = (currentSynchronizedLyrics.index + 1).coerceAtMost(sentenceList.size),
+                            scrollOffset = centerOffset
+                        )
+                    }
 
                     while (true) {
                         delay(UPDATE_DELAY.milliseconds)
                         if (!currentSynchronizedLyrics.update()) continue
 
-                        lazyListState.animateScrollToItem(
-                            index = currentSynchronizedLyrics.index + 1,
-                            scrollOffset = centerOffset
-                        )
+                        if (!lazyListState.isScrollInProgress && sentenceList.isNotEmpty()) {
+                            lazyListState.animateScrollToItem(
+                                index = (currentSynchronizedLyrics.index + 1).coerceAtMost(sentenceList.size),
+                                scrollOffset = centerOffset
+                            )
+                        }
                     }
                 }
 
                 if (synchronizedLyrics != null) LazyColumn(
                     state = lazyListState,
-                    userScrollEnabled = false,
+                    userScrollEnabled = true,
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                     modifier = Modifier
@@ -437,25 +452,65 @@ fun Lyrics(
                         Spacer(modifier = Modifier.height(maxHeight))
                     }
                     itemsIndexed(
-                        items = synchronizedLyrics.sentences.values.toImmutableList()
-                    ) { index, sentence ->
-                        val color by animateColorAsState(
-                            if (index == synchronizedLyrics.index) Color.White
-                            else colorPalette.textDisabled
+                        items = sentenceList,
+                        key = { index, (timeMs, _) -> "$index-$timeMs" }
+                    ) { index, (timeMs, sentence) ->
+                        val isCurrent = index == synchronizedLyrics.index
+                        val scale by animateFloatAsState(
+                            targetValue = if (isCurrent) 1.04f else 1.0f,
+                            animationSpec = tween(220),
+                            label = "lyricScale"
+                        )
+                        val textColor by animateColorAsState(
+                            targetValue = if (isCurrent) {
+                                if (colorPalette.isDark) Color.White else colorPalette.accent
+                            } else colorPalette.textDisabled,
+                            animationSpec = tween(220),
+                            label = "lyricColor"
+                        )
+                        val activeBg by animateColorAsState(
+                            targetValue = if (isCurrent) colorPalette.accent.copy(alpha = 0.15f) else Color.Transparent,
+                            animationSpec = tween(220),
+                            label = "lyricBg"
+                        )
+                        val activeBorder by animateColorAsState(
+                            targetValue = if (isCurrent) colorPalette.accent.copy(alpha = 0.32f) else Color.Transparent,
+                            animationSpec = tween(220),
+                            label = "lyricBorder"
                         )
 
-                        if (sentence.isBlank()) Image(
-                            painter = painterResource(R.drawable.musical_notes),
-                            contentDescription = null,
-                            colorFilter = ColorFilter.tint(color),
+                        Box(
                             modifier = Modifier
-                                .padding(vertical = 4.dp, horizontal = 32.dp)
-                                .size(typography.xs.fontSize.dp)
-                        ) else BasicText(
-                            text = sentence,
-                            style = typography.xs.center.medium.color(color),
-                            modifier = Modifier.padding(vertical = 4.dp, horizontal = 32.dp)
-                        )
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 3.dp)
+                                .graphicsLayer {
+                                    scaleX = scale
+                                    scaleY = scale
+                                }
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(activeBg)
+                                .border(1.dp, activeBorder, RoundedCornerShape(12.dp))
+                                .clickable(
+                                    indication = ripple(color = colorPalette.accent),
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) {
+                                    val targetMs = timeMs - lyricsState.offset + (lyrics?.startTime ?: 0L)
+                                    binder?.player?.seekTo(targetMs.coerceAtLeast(0L))
+                                }
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (sentence.isBlank()) Image(
+                                painter = painterResource(R.drawable.musical_notes),
+                                contentDescription = null,
+                                colorFilter = ColorFilter.tint(textColor),
+                                modifier = Modifier.size(typography.xs.fontSize.dp)
+                            ) else BasicText(
+                                text = sentence,
+                                style = (if (isCurrent) typography.s.semiBold else typography.xs.medium)
+                                    .center.color(textColor)
+                            )
+                        }
                     }
                     item(key = "footer", contentType = 0) {
                         Spacer(modifier = Modifier.height(maxHeight))

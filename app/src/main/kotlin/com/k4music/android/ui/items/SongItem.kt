@@ -1,6 +1,13 @@
 package com.k4music.android.ui.items
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -8,6 +15,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Row
@@ -87,7 +97,7 @@ fun SongItem(
         modifier = modifier,
         thumbnailUrl = song.mediaMetadata.artworkUri?.thumbnail(thumbnailSize.px)?.toString(),
         title = song.mediaMetadata.title?.toString(),
-        authors = song.mediaMetadata.artist?.toString(),
+        authors = com.k4music.android.utils.localFileSubtitle(song.mediaId, song.mediaMetadata.artist?.toString()),
         duration = extras?.durationText,
         explicit = extras?.explicit == true,
         thumbnailSize = thumbnailSize,
@@ -117,7 +127,7 @@ fun SongItem(
     index = index,
     thumbnailUrl = song.thumbnailUrl?.thumbnail(thumbnailSize.px),
     title = song.title,
-    authors = song.artistsText,
+    authors = com.k4music.android.utils.localFileSubtitle(song.id, song.artistsText),
     duration = song.durationText,
     explicit = song.explicit,
     thumbnailSize = thumbnailSize,
@@ -227,12 +237,18 @@ private fun SongItem(
         // Round "disc" covers, as in the PC app.
         Box(Modifier.size(thumbnailSize).clip(CircleShape), content = thumbnailContent)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            BasicText(
-                text = title.orEmpty(),
-                style = typography.s.semiBold.copy(color = if (isPlaying) palette.accent else palette.text),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (isPlaying) {
+                    MiniEqualizerBars(color = palette.accent)
+                }
+                BasicText(
+                    text = title.orEmpty(),
+                    style = typography.s.semiBold.copy(color = if (isPlaying) palette.accent else palette.text),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+            }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 BasicText(
                     text = authors.orEmpty(),
@@ -275,5 +291,63 @@ fun SongItemPlaceholder(
     ItemInfoContainer {
         TextPlaceholder()
         TextPlaceholder()
+    }
+}
+
+/**
+ * Three lightweight GPU-animated equalizer bars indicating the actively playing song.
+ * Built with zero heap allocations in the draw phase.
+ */
+@Composable
+fun MiniEqualizerBars(
+    color: Color = LocalAppearance.current.colorPalette.accent,
+    modifier: Modifier = Modifier
+) {
+    val transition = rememberInfiniteTransition(label = "eqBars")
+    val h1 by transition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.95f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(420, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "h1"
+    )
+    val h2 by transition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 0.25f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(580, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "h2"
+    )
+    val h3 by transition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(360, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "h3"
+    )
+
+    Canvas(modifier.size(width = 16.dp, height = 14.dp)) {
+        val barWidth = 3.dp.toPx()
+        val spacing = 2.dp.toPx()
+        val totalH = size.height
+
+        val heights = listOf(h1, h2, h3)
+        heights.forEachIndexed { i, factor ->
+            val barH = (totalH * factor).coerceAtLeast(3.dp.toPx())
+            val x = i * (barWidth + spacing)
+            val y = totalH - barH
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(x, y),
+                size = Size(barWidth, barH),
+                cornerRadius = CornerRadius(barWidth / 2, barWidth / 2)
+            )
+        }
     }
 }

@@ -44,6 +44,7 @@ import com.k4music.providers.piped.Piped
 import com.k4music.providers.piped.models.Instance
 import io.ktor.http.Url
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import java.util.UUID
 
@@ -100,13 +101,15 @@ private fun PipedLoginDialog(onClose: () -> Unit) {
             TextButton(enabled = !working && instance.isNotBlank() && username.isNotBlank() && password.isNotBlank(), onClick = {
                 working = true
                 scope.launch {
-                    val url = runCatching { Url(instance.trim()) }.getOrNull()
-                    val session = url?.let { Piped.login(it, username.trim(), password)?.getOrNull() }
-                    if (session != null && url != null) {
+                    try {
+                        val url = Url(instance.trim())
+                        require(url.protocol.name.equals("https", true)) { org.jetbrains.compose.resources.getString(Res.string.desktop_piped_https) }
+                        val session = Piped.login(url, username.trim(), password)?.getOrThrow() ?: error("Sign-in cancelled")
                         Db.library.insert(PipedSession(apiBaseUrl = url, token = session.token, username = username.trim()))
                         onClose()
-                    } else error = "Sign-in failed"
-                    working = false
+                    } catch (failure: kotlinx.coroutines.CancellationException) { throw failure }
+                    catch (failure: Exception) { error = failure.message ?: "Sign-in failed" }
+                    finally { working = false }
                 }
             }) { Text(stringResource(Res.string.confirm)) }
         },
@@ -122,11 +125,13 @@ fun PipedPlaylistsShelves() {
     sessions.forEach { session ->
         val page = rememberPage("piped/${session.id}") { Piped.playlist.list(session.toApiSession())?.getOrNull() }
         val playlists = page.value.orEmpty()
+        if (page.loading && page.value == null) androidx.compose.material3.LinearProgressIndicator()
+        if (page.failed) com.k4music.desktop.ui.ErrorState(page.retry)
         if (playlists.isNotEmpty()) {
             SectionHeader("Piped · ${session.username}")
             Shelf {
                 items(playlists, key = { it.id.toString() }) { p ->
-                    MediaCard(p.name, stringResource(Res.string.desktop_song_count, p.videoCount), p.thumbnailUrl.toString(), Modifier.width(164.dp)) {
+                    MediaCard(p.name, pluralStringResource(Res.plurals.desktop_song_count, p.videoCount, p.videoCount), p.thumbnailUrl.toString(), Modifier.width(164.dp)) {
                         navigator.go(Screen.PipedPlaylist(session.id, p.id.toString(), p.name))
                     }
                 }
@@ -139,7 +144,9 @@ fun PipedPlaylistsShelves() {
 fun PipedPlaylistScreen(sessionId: Long, playlistId: String, name: String) {
     val sessions by remember { Db.library.pipedSessions() }.collectAsState(initial = null)
     val session = sessions?.firstOrNull { it.id == sessionId }
-    val page = rememberPage("piped/$sessionId/$playlistId") {
+    if (sessions == null) { Loading(); return }
+    if (session == null) { Text(stringResource(Res.string.desktop_piped_missing_session)); return }
+    val page = rememberPage("piped/${session?.id}/$playlistId") {
         session?.let { Piped.playlist.songs(it.toApiSession(), UUID.fromString(playlistId))?.getOrNull() }
     }
     val tracks = page.value?.videos.orEmpty().mapNotNull { v ->
@@ -148,6 +155,8 @@ fun PipedPlaylistScreen(sessionId: Long, playlistId: String, name: String) {
         }
     }
     SongList(tracks, header = {
-        CollectionHeader(name, stringResource(Res.string.desktop_song_count, tracks.size), page.value?.thumbnailUrl?.toString()) { PlayButtons(tracks) }
+        CollectionHeader(name, pluralStringResource(Res.plurals.desktop_song_count, tracks.size, tracks.size), page.value?.thumbnailUrl?.toString()) { PlayButtons(tracks) }
+        if (page.loading && page.value == null) androidx.compose.material3.LinearProgressIndicator()
+        if (page.failed) com.k4music.desktop.ui.ErrorState(page.retry)
     })
 }

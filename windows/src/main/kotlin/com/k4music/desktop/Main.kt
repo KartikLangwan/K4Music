@@ -1,5 +1,6 @@
 package com.k4music.desktop
 
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,6 +35,10 @@ import com.k4music.desktop.res.desktop_output_lost
 import com.k4music.desktop.res.desktop_youtube_blocked
 import com.k4music.desktop.res.desktop_quit
 import com.k4music.desktop.res.desktop_show_window
+import com.k4music.desktop.res.desktop_now_playing
+import com.k4music.desktop.res.desktop_tray_ready
+import com.k4music.desktop.res.desktop_mute
+import com.k4music.desktop.res.desktop_unmute
 import com.k4music.desktop.res.k4_logo
 import com.k4music.desktop.res.next_track
 import com.k4music.desktop.res.play
@@ -57,26 +62,37 @@ fun main(args: Array<String>) {
     Thread.setDefaultUncaughtExceptionHandler { thread, error -> AppLog.e("Crash", "Uncaught on ${thread.name}", error) }
     // Before any window: Windows then names and groups the app as "K4 Music" everywhere
     // (taskbar, pinned shortcut, notifications), not as the Java runtime.
+    // A restart child waits before acquiring the mutex or accessing any library files.
+    args.firstOrNull { it.startsWith("--wait-for-pid=") }?.substringAfter('=')?.toLongOrNull()?.let { pid ->
+        try {
+            ProcessHandle.of(pid).orElse(null)?.onExit()?.get(30, java.util.concurrent.TimeUnit.SECONDS)
+        } catch (error: Exception) {
+            System.err.println("The previous K4 Music process did not exit: ${error.message}")
+            return
+        }
+    }
     TitleBar.setAppId()
-    // A library restore staged in Settings is applied before anything opens the database.
-    com.k4music.desktop.data.Maintenance.applyPendingRestore()
     val navigator = Navigator()
     var openLink: (String) -> Unit = {}
     var requestQuit: () -> Unit = {}
+    var showWindow: () -> Unit = {}
     // Links from a second launch arrive on a socket thread; handle them on the UI thread.
     // "--quit" comes from the installer: close properly (save queue and settings) before an update.
     val incoming = { lines: List<String> ->
-        lines.forEach { line -> javax.swing.SwingUtilities.invokeLater { if (line == QUIT_ARG) requestQuit() else openLink(line) } }
+        lines.forEach { line -> javax.swing.SwingUtilities.invokeLater { if (line == QUIT_ARG) requestQuit() else { showWindow(); openLink(line) } } }
     }
     val devCheck = args.any { it in setOf("--selftest", "--screenshots", "--uitest") }
-    if (!devCheck && !SingleInstance.acquire(args) { incoming(it); Unit }) exitProcess(0)
+    if (!devCheck && !SingleInstance.acquire(args, incoming)) exitProcess(0)
     // Nothing was running to close: do not start the app either.
     if (QUIT_ARG in args) exitProcess(0)
+    // Only the single owning instance applies a staged restore before Room opens
+    com.k4music.desktop.data.Maintenance.applyPendingRestore()
     AppLog.i("App", "K4 Music ${System.getProperty("jpackage.app-version") ?: "dev"} starting")
 
     val resolver = com.k4music.desktop.player.StreamResolver()
     val player = PlayerController(Mpv(AppPaths.tools), resolver)
     com.k4music.desktop.player.Downloads.resolver = resolver
+    com.k4music.desktop.player.Downloads.onCleanupError = { com.k4music.desktop.ui.AppDialogs.show(it) }
     com.k4music.desktop.data.LibraryHooks.attach(player)
     if (!devCheck) DiscordPresence.attach(player)
     player.onAudioDeviceLost = {
@@ -113,7 +129,8 @@ fun main(args: Array<String>) {
             size = DpSize(Settings.windowWidth.dp, Settings.windowHeight.dp),
             placement = if (Settings.windowMaximized) WindowPlacement.Maximized else WindowPlacement.Floating
         )
-        val visible = remember { mutableStateOf(true) }
+        val startMinimized = "--minimized" in args || ("--startup" in args && Settings.startMinimizedOnStartup)
+        val visible = remember { mutableStateOf(!startMinimized) }
         val panel = remember { mutableStateOf<SidePanel?>(null) }
         val playerOpen = remember { mutableStateOf(false) }
         val searchFocus = remember { FocusRequester() }
@@ -121,7 +138,10 @@ fun main(args: Array<String>) {
         var composeWindow: androidx.compose.ui.awt.ComposeWindow? = null
         fun toggleFullscreen() { composeWindow?.let(Fullscreen::toggle) }
 
+        var quitting = false
         fun quit() {
+            if (quitting) return
+            quitting = true
             // In full screen the window covers the monitor: keep the size it had before.
             if (!Fullscreen.active) {
                 Settings.windowMaximized = windowState.placement == WindowPlacement.Maximized
@@ -132,22 +152,64 @@ fun main(args: Array<String>) {
             }
             DiscordPresence.close()
             player.close()
+            kotlinx.coroutines.runBlocking {
+                com.k4music.desktop.player.Downloads.close()
+                com.k4music.desktop.data.LibraryHooks.flush()
+            }
             Settings.flush()
             com.k4music.desktop.data.Db.close()
             exitApplication()
         }
         requestQuit = ::quit
+        com.k4music.desktop.data.Maintenance.onRestart = {
+            runCatching {
+                val exe = requireNotNull(StartupManager.executablePath()) { "Restart is available in the installed app" }
+                ProcessBuilder(exe, "--wait-for-pid=${ProcessHandle.current().pid()}").start()
+                quit()
+            }.onFailure { com.k4music.desktop.ui.AppDialogs.show(it.message ?: "Could not restart K4 Music") }
+        }
+
+        fun bringToFront() {
+            visible.value = true
+            if (windowState.isMinimized) windowState.isMinimized = false
+        }
+        showWindow = ::bringToFront
+
+        val playerState by player.state.collectAsState()
+        val currentTrack = playerState.current
+        val trayTooltip = if (currentTrack != null) {
+            val title = currentTrack.title
+            val artist = currentTrack.artists ?: "K4 Music"
+            "${title.take(50)} • ${artist.take(30)}\nK4 Music"
+        } else {
+            stringResource(Res.string.desktop_tray_ready)
+        }
 
         Tray(
             icon = painterResource(Res.drawable.k4_logo),
-            tooltip = stringResource(Res.string.app_name),
-            onAction = { visible.value = true },
+            tooltip = trayTooltip,
+            onAction = ::bringToFront,
             menu = {
-                Item(stringResource(Res.string.desktop_show_window), onClick = { visible.value = true })
-                Item(stringResource(Res.string.play), onClick = { player.togglePlay() })
+                if (currentTrack != null) {
+                    Item(stringResource(Res.string.desktop_now_playing, currentTrack.title.take(35)), enabled = false, onClick = {})
+                    currentTrack.artists?.takeIf { it.isNotBlank() }?.let { artists ->
+                        Item(artists.take(35), enabled = false, onClick = {})
+                    }
+                    Separator()
+                }
+                Item(
+                    stringResource(if (playerState.playing) Res.string.pause else Res.string.play),
+                    onClick = { player.togglePlay() }
+                )
                 Item(stringResource(Res.string.next_track), onClick = { player.next() })
                 Item(stringResource(Res.string.previous_track), onClick = { player.previous() })
                 Separator()
+                Item(
+                    stringResource(if (Settings.muted) Res.string.desktop_unmute else Res.string.desktop_mute),
+                    onClick = { player.setMuted(!Settings.muted) }
+                )
+                Separator()
+                Item(stringResource(Res.string.desktop_show_window), onClick = ::bringToFront)
                 Item(stringResource(Res.string.desktop_quit), onClick = ::quit)
             }
         )
@@ -161,6 +223,12 @@ fun main(args: Array<String>) {
             onPreviewKeyEvent = { event ->
                 if (event.type != KeyEventType.KeyDown) return@Window false
                 when {
+                    event.isCtrlPressed && (event.key == Key.K || event.key == Key.P) -> {
+                        com.k4music.desktop.ui.AppDialogs.current =
+                            if (com.k4music.desktop.ui.AppDialogs.current == com.k4music.desktop.ui.AppDialogs.Dialog.CommandPalette) null
+                            else com.k4music.desktop.ui.AppDialogs.Dialog.CommandPalette
+                        true
+                    }
                     event.isCtrlPressed && event.key == Key.DirectionRight -> { player.next(); true }
                     event.isCtrlPressed && event.key == Key.DirectionLeft -> { player.previous(); true }
                     event.isCtrlPressed && event.key == Key.F -> { runCatching { searchFocus.requestFocus() }; true }
@@ -184,9 +252,14 @@ fun main(args: Array<String>) {
         ) {
             window.minimumSize = java.awt.Dimension(900, 600)
             composeWindow = window
+            val focused = androidx.compose.ui.platform.LocalWindowInfo.current.isWindowFocused
+            androidx.compose.runtime.LaunchedEffect(focused) {
+                if (focused) com.k4music.desktop.player.Downloads.reconcile()
+            }
             androidx.compose.runtime.LaunchedEffect(Unit) {
                 val ms = System.currentTimeMillis() - java.lang.management.ManagementFactory.getRuntimeMXBean().startTime
                 AppLog.i("App", "Window ready ${ms}ms after launch")
+                com.k4music.desktop.data.Maintenance.lastRestoreError?.let { com.k4music.desktop.ui.AppDialogs.show(it) }
             }
             // Previous / Play-Pause / Next under the taskbar thumbnail (Windows-native controls).
             val taskbarLabels = Taskbar.Labels(
@@ -209,12 +282,21 @@ fun main(args: Array<String>) {
                 ThemeMode.Light -> false
                 ThemeMode.System -> systemDark
             }
-            K4Theme(accent = parseHexColor(Settings.accentColorHex), dark = dark) {
-                // The Windows title bar follows the app theme instead of staying white.
-                val background = androidx.compose.material3.MaterialTheme.colorScheme.background
-                val onBackground = androidx.compose.material3.MaterialTheme.colorScheme.onBackground
-                androidx.compose.runtime.LaunchedEffect(dark, background) { TitleBar.style(window, dark, background, onBackground) }
-                CompositionLocalProvider(LocalNavigator provides navigator, LocalPlayer provides player) {
+            CompositionLocalProvider(
+                LocalNavigator provides navigator, LocalPlayer provides player,
+                com.k4music.desktop.ui.LocalWindowActive provides (visible.value && !windowState.isMinimized)
+            ) {
+                val ambient = com.k4music.desktop.ui.rememberAmbientColor()
+                val activeAccent = if (Settings.syncAccentWithArtwork && playerState.current != null) {
+                    ambient
+                } else {
+                    parseHexColor(Settings.accentColorHex)
+                }
+                K4Theme(accent = activeAccent, dark = dark) {
+                    // The Windows title bar follows the app theme instead of staying white.
+                    val background = androidx.compose.material3.MaterialTheme.colorScheme.background
+                    val onBackground = androidx.compose.material3.MaterialTheme.colorScheme.onBackground
+                    androidx.compose.runtime.LaunchedEffect(dark, background) { TitleBar.style(window, dark, background, onBackground) }
                     Shell(
                         panel, playerOpen, searchFocus,
                         fullscreen = Fullscreen.active,

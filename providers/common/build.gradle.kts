@@ -4,6 +4,7 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.okhttp)
     implementation(libs.kotlin.coroutines)
     api(libs.kotlin.datetime)
 

@@ -6,6 +6,9 @@ import com.sun.jna.Pointer
 import com.sun.jna.Structure
 import com.sun.jna.ptr.DoubleByReference
 import kotlin.concurrent.thread
+import kotlin.concurrent.read
+import kotlin.concurrent.write
+import java.util.concurrent.locks.ReentrantReadWriteLock
 
 /** A sound output: mpv's id ("auto" or "wasapi/{…}") and the name Windows shows. */
 data class AudioDevice(val name: String, val description: String)
@@ -104,6 +107,12 @@ class Mpv(libraryDir: java.io.File) : AutoCloseable {
     @Volatile private var listener: Listener? = null
     @Volatile private var closed = false
     private val events: Thread
+    private val access = ReentrantReadWriteLock()
+    private val shutdown = Any()
+
+    private inline fun <T> withHandle(fallback: T, operation: () -> T): T = access.read {
+        if (closed) fallback else operation()
+    }
 
     init {
         System.setProperty("jna.library.path", libraryDir.absolutePath)
@@ -120,7 +129,11 @@ class Mpv(libraryDir: java.io.File) : AutoCloseable {
             // YouTube throttles one long download; ranged requests (as ExoPlayer makes) arrive at full speed.
             "curl-max-request-size" to "1MiB"
         ).forEach { (name, value) -> lib.mpv_set_option_string(ctx, name, value) }
-        check(lib.mpv_initialize(ctx) >= 0) { "mpv_initialize failed" }
+        val initialized = lib.mpv_initialize(ctx)
+        if (initialized < 0) {
+            lib.mpv_terminate_destroy(ctx)
+            error("mpv_initialize failed: ${lib.mpv_error_string(initialized)}")
+        }
 
         // mpv's own warnings and errors go to the app log (why a stream failed, etc.).
         lib.mpv_request_log_messages(ctx, System.getProperty("k4.mpvLog") ?: "warn")
@@ -152,7 +165,7 @@ class Mpv(libraryDir: java.io.File) : AutoCloseable {
     fun setSpeed(speed: Float) = set("speed", speed.toString())
     /** Audio filter chain (equalizer, effects, normalization, skip silence). Empty clears it. */
     fun setAudioFilters(chain: String) = set("af", chain)
-    fun set(name: String, value: String) { if (!closed) lib.mpv_set_property_string(ctx, name, value) }
+    fun set(name: String, value: String) { withHandle(Unit) { lib.mpv_set_property_string(ctx, name, value); Unit } }
 
     fun position(): Double? = getDouble("time-pos")
 
@@ -174,27 +187,24 @@ class Mpv(libraryDir: java.io.File) : AutoCloseable {
     fun reloadAudio() = command("ao-reload")
 
     /** A property as text (e.g. "audio-codec-name"), or null when unavailable. */
-    fun getString(name: String): String? {
-        if (closed) return null
-        val p = lib.mpv_get_property_string(ctx, name) ?: return null
-        return try { p.getString(0, "UTF-8") } finally { lib.mpv_free(p) }
+    fun getString(name: String): String? = withHandle(null) {
+        val p = lib.mpv_get_property_string(ctx, name) ?: return@withHandle null
+        try { p.getString(0, "UTF-8") } finally { lib.mpv_free(p) }
     }
 
     /** mpv's real pause flag (events only fire on change, so state must not rely on them alone). */
-    fun isPaused(): Boolean {
-        if (closed) return true
+    fun isPaused(): Boolean = withHandle(true) {
         val out = com.sun.jna.ptr.IntByReference()
-        return lib.mpv_get_property(ctx, "pause", LibMpv.FORMAT_FLAG, out.pointer) < 0 || out.value != 0
+        lib.mpv_get_property(ctx, "pause", LibMpv.FORMAT_FLAG, out.pointer) < 0 || out.value != 0
     }
 
-    private fun getDouble(name: String): Double? {
-        if (closed) return null
+    private fun getDouble(name: String): Double? = withHandle(null) {
         val out = DoubleByReference()
-        return if (lib.mpv_get_property(ctx, name, LibMpv.FORMAT_DOUBLE, out.pointer) >= 0) out.value else null
+        if (lib.mpv_get_property(ctx, name, LibMpv.FORMAT_DOUBLE, out.pointer) >= 0) out.value else null
     }
 
     private fun command(vararg args: String) {
-        if (!closed) lib.mpv_command(ctx, arrayOf(*args, null))
+        withHandle(Unit) { lib.mpv_command(ctx, arrayOf(*args, null)); Unit }
     }
 
     private fun eventLoop() {
@@ -234,10 +244,24 @@ class Mpv(libraryDir: java.io.File) : AutoCloseable {
     }
 
     override fun close() {
-        if (closed) return
-        closed = true
-        lib.mpv_wakeup(ctx)
-        events.join(2_000)
-        lib.mpv_terminate_destroy(ctx)
+        synchronized(shutdown) {
+            access.write {
+                if (closed) return
+                closed = true
+                listener = null
+                lib.mpv_wakeup(ctx)
+            }
+            if (Thread.currentThread() !== events) events.join(2_000)
+            if (!events.isAlive) {
+                access.write { lib.mpv_terminate_destroy(ctx) }
+            } else {
+                // A slow callback still owns event-data pointers. Let it return before freeing them.
+                com.k4music.desktop.AppLog.w("mpv", "Waiting for the event callback before releasing the player")
+                thread(isDaemon = true, name = "mpv-close") {
+                    events.join()
+                    access.write { lib.mpv_terminate_destroy(ctx) }
+                }
+            }
+        }
     }
 }

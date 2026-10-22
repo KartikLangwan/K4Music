@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="import_review">Review matches</string>
+    <string name="import_review_title">Choose a recording</string>
+    <string name="import_review_hint">Check the title, artist and duration. A recording is added only when you choose it.</string>
+    <string name="import_review_choose">Use this recording</string>
+    <string name="import_review_empty">No alternatives found. Try again later.</string>
+    <string name="local_file_unavailable">File unavailable</string>
+    <string name="lyrics_refresh_failed">Could not refresh lyrics. Your saved lyrics have been kept.</string>
     <string name="up_next">Up next</string>
     <string name="back">Back</string>
     <string name="settings">Settings</string>

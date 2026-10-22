@@ -28,7 +28,11 @@ Downloads are in this repository's [**Releases**](https://github.com/KartikLangw
 | **File** | [K4Music-v2.12.14-RELEASE.apk](https://github.com/KartikLangwan/K4Music/releases/download/v2.12.14/K4Music-v2.12.14-RELEASE.apk) | [K4Music-Setup-2.12.14.exe](https://github.com/KartikLangwan/K4Music/releases/download/v2.12.14/K4Music-Setup-2.12.14.exe) |
 | **Requires** | Android 7.0+, arm64-v8a or x86_64 | Windows 10 / 11, 64-bit |
 | **Size** | 34.9 MB | 116.3 MB |
-| **SHA-256** | `A7496D58185977D2E29267D4E08BA323DF69D46532FEFD97BDCE3C3DEF0D105A` | `E8C6A7E0676121E5B75D5F502DCD4F37FE00BA1BFDF9874B37C1A6C2ECDE5C65` |
+| **SHA-256** | `7F20DCC8A8B22E347EFCB29E87438E4499B2AD70A51162B6B5FAC71E5B506973` | `7648B7D51F87DF825F3707AC8F56D5E12868A9D813C2E4B58408A603102FD753` |
+
+The checksums above identify the existing 2.12.14 files in this checkout. The ongoing audit fixes in [the live changelog](chanagesbyaanother.md) are source changes and are not included in those existing binaries until a new build is produced.
+
+The current source introduces stable Saavn catalogue identities while retaining existing URL-based library/download keys. Backups containing new catalogue identities need a build with this support on the receiving device; the older binaries linked above cannot resolve those new identities. Existing library IDs and downloaded files are preserved during this compatibility stage.
 
 **Android:** open the APK on your phone and allow *Install unknown apps* for your browser when Android asks. Updating from a build signed with a different key? Uninstall that build first.
 
@@ -82,9 +86,11 @@ gradlew -p windows packageInstaller
 
 The installer lands in `windows/build/installer/`.
 
-The APK lands in `app/build/outputs/apk/release/`. Local release builds use the debug signing key; configure a private release keystore before distributing publicly.
+The APK lands in `app/build/outputs/apk/release/`. Production release/nightly builds require a private signing keystore. Configure `ANDROID_NIGHTLY_KEYSTORE`, `ANDROID_NIGHTLY_KEYSTORE_ALIAS` and `ANDROID_NIGHTLY_KEYSTORE_PASSWORD` (the existing CI variable names also configure release signing). For local testing, build `:app:assembleDebug`; an intentionally debug-signed release requires `-PallowDevelopmentSigning=true` and must not be distributed as a production release.
 
 For the repeatable verification workflow, run `scripts/verify-release.ps1` with `-PythonCommand` pointing to a Python 3 interpreter and, if needed, `-GradleCommand` pointing to Gradle 9.8.0. Use `-Offline` when dependencies are already cached. The script runs regression tests and lint, builds the release, checks its signature and packaged runtimes, and exports the APK with a SHA256 checksum.
+
+After compiling both platforms, run `python -B scripts/verify-library-parity.py` to check their shared DAO queries, generated table/index/view SQL and Room identity against the committed Android schema. This check reads generated files; run it after fresh platform builds.
 
 ## Origin
 

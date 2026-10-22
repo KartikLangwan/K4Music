@@ -108,12 +108,21 @@ object DatabaseDependency {
 
     /** Open and migrate a staged copy, so invalid backups cannot replace the library. */
     fun validateBackup(file: java.io.File) {
+        check(file.isFile && file.length() > 0) { "Empty backup" }
+        // This is a private staged copy. Removing only Room's identity metadata forces Room's
+        // normal opening path to validate every table/index/view, even with a copied identity hash.
+        android.database.sqlite.SQLiteDatabase.openDatabase(file.absolutePath, null,
+            android.database.sqlite.SQLiteDatabase.OPEN_READWRITE or android.database.sqlite.SQLiteDatabase.NO_LOCALIZED_COLLATORS).use {
+            it.execSQL("DROP TABLE IF EXISTS room_master_table")
+        }
         val staged = buildDatabase(file.absolutePath)
         try {
             staged.query("PRAGMA integrity_check", emptyArray()).use {
                 check(it.moveToFirst() && it.getString(0) == "ok") { "Invalid backup database" }
             }
-            staged.query("SELECT id, title, artistsText FROM Song LIMIT 1", emptyArray()).close()
+            staged.query("PRAGMA foreign_key_check", emptyArray()).use {
+                check(!it.moveToFirst()) { "Backup has broken library relationships" }
+            }
             staged.query("PRAGMA wal_checkpoint(TRUNCATE)", emptyArray()).use {
                 check(it.moveToFirst() && it.getInt(0) == 0) { "Backup database is busy" }
             }
@@ -268,6 +277,9 @@ interface DatabaseAccessor {
 
     @Query("SELECT * FROM QueuedMediaItem")
     fun queue(): List<QueuedMediaItem>
+
+    @Query("SELECT id FROM Song WHERE id LIKE 'saavn:http%' ORDER BY likedAt DESC, totalPlayTimeMs DESC, ROWID ASC")
+    fun legacySaavnSongIds(): List<String>
 
     @Transaction
     @Query(
@@ -717,6 +729,10 @@ interface DatabaseAccessor {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insert(format: Format)
 
+    @Query("UPDATE Format SET contentLength = :length WHERE songId = :id")
+    fun updateDownloadedLength(id: String, length: Long): Int
+
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insert(searchQuery: SearchQuery)
 
@@ -731,6 +747,35 @@ interface DatabaseAccessor {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     fun insert(song: Song): Long
+
+    @Query("UPDATE Song SET title = :title, artistsText = :artistsText, durationText = :durationText, thumbnailUrl = :thumbnailUrl WHERE id = :id")
+    fun updateSongMetadata(id: String, title: String, artistsText: String?, durationText: String?, thumbnailUrl: String?)
+
+    @Query("SELECT id FROM Song WHERE id LIKE '$LOCAL_KEY_PREFIX%' AND likedAt IS NULL AND totalPlayTimeMs = 0 AND id NOT IN (SELECT songId FROM SongPlaylistMap) AND id NOT IN (SELECT songId FROM Event) AND id NOT IN (SELECT songId FROM Lyrics)")
+    fun unreferencedLocalSongIds(): List<String>
+
+    @Query("DELETE FROM Song WHERE id IN (:ids)")
+    fun deleteSongsByIds(ids: List<String>)
+
+    @Transaction
+    fun pruneLocalSongs(activeIds: Set<String>) {
+        if (activeIds.isEmpty()) return // Never prune if scan returned empty or storage was unmounted
+        val candidates = unreferencedLocalSongIds()
+        // A phone scan cannot establish whether a restored Windows file still exists.
+        val toDelete = candidates.filter { it !in activeIds && com.k4music.android.utils.localMediaStoreId(it) != null }
+        if (toDelete.isNotEmpty()) {
+            toDelete.chunked(500).forEach { chunk ->
+                deleteSongsByIds(chunk)
+            }
+        }
+    }
+
+    @Transaction
+    fun upsertLocalSong(song: Song) {
+        if (insert(song) == -1L) {
+            updateSongMetadata(song.id, song.title, song.artistsText, song.durationText, song.thumbnailUrl)
+        }
+    }
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     fun insert(queuedMediaItems: List<QueuedMediaItem>)
@@ -927,6 +972,7 @@ interface DatabaseAccessor {
 @TypeConverters(Converters::class)
 abstract class DatabaseInitializer protected constructor() : RoomDatabase() {
     abstract val database: DatabaseAccessor
+
 
     @DeleteTable.Entries(DeleteTable(tableName = "QueuedMediaItem"))
     class From3To4Migration : AutoMigrationSpec

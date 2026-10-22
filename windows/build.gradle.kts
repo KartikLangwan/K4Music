@@ -30,6 +30,7 @@ val syncSharedSources by tasks.registering(Sync::class) {
             "com/k4music/android/k4/K4Models.kt",
             "com/k4music/android/k4/K4Recommend.kt",
             "com/k4music/android/k4/JioSaavnApi.kt",
+            "com/k4music/android/k4/SaavnKeys.kt",
             "com/k4music/android/models/*.kt",
             "com/k4music/android/playlistimport/PlaylistImport.kt",
             "com/k4music/android/playlistimport/SpotifySource.kt",
@@ -148,7 +149,11 @@ val stageNativeTools by tasks.registering(Sync::class) {
 compose.desktop {
     application {
         mainClass = "com.k4music.desktop.MainKt"
-        jvmArgs += listOf("-Dfile.encoding=UTF-8", "-Xss2m")
+        jvmArgs += listOf(
+            "-Dfile.encoding=UTF-8", "-Xss2m",
+            // A music app idles in the background for hours: give unused heap back to Windows.
+            "-XX:G1PeriodicGCInterval=60000", "-XX:MinHeapFreeRatio=10", "-XX:MaxHeapFreeRatio=30"
+        )
 
         nativeDistributions {
             targetFormats(TargetFormat.Msi)
@@ -202,25 +207,37 @@ val bakeCdsArchive by tasks.registering(Exec::class) {
 // this updates the K4 Music installed on this PC by copying the build over it (settings, library
 // and the uninstaller stay). ponytail: per-user install folder only; signed installers make it unnecessary.
 val installLocal by tasks.registering {
-    description = "Updates the K4 Music installed on this PC straight from the build, without Setup.exe"
+    description = "Installs or updates K4 Music on this PC straight from the build, without Setup.exe"
     group = "distribution"
     dependsOn(bakeCdsArchive)
     val appImage = layout.buildDirectory.dir("compose/binaries/main/app/K4 Music").get().asFile
     doLast {
         val target = File(System.getenv("LOCALAPPDATA"), "Programs/K4 Music")
         val exe = target.resolve("K4 Music.exe")
-        check(exe.isFile) { "K4 Music is not installed in $target: install it once with Setup first" }
+        target.mkdirs()
         fun running() = ProcessBuilder("tasklist", "/FI", "IMAGENAME eq K4 Music.exe", "/NH").start()
             .inputStream.bufferedReader().readText().contains("K4 Music.exe")
         if (running()) {
-            // Close it properly (it saves the queue); older builds without --quit get ended after 10 s.
-            ProcessBuilder(exe.absolutePath, "--quit").start()
-            repeat(40) { if (running()) Thread.sleep(250) }
+            if (exe.isFile) {
+                // Close it properly (it saves the queue); older builds without --quit get ended after 10 s.
+                ProcessBuilder(exe.absolutePath, "--quit").start()
+                repeat(40) { if (running()) Thread.sleep(250) }
+            }
             if (running()) ProcessBuilder("taskkill", "/F", "/T", "/IM", "K4 Music.exe").start().waitFor()
             Thread.sleep(1000)
         }
         appImage.copyRecursively(target, overwrite = true)
-        logger.lifecycle("Updated $target")
+        val startMenu = File(System.getenv("APPDATA"), "Microsoft/Windows/Start Menu/Programs/K4 Music")
+        startMenu.mkdirs()
+        val shortcutScript = """
+            ${'$'}ws = New-Object -ComObject WScript.Shell
+            ${'$'}s = ${'$'}ws.CreateShortcut('${startMenu.resolve("K4 Music.lnk").absolutePath.replace("'", "''")}')
+            ${'$'}s.TargetPath = '${exe.absolutePath.replace("'", "''")}'
+            ${'$'}s.WorkingDirectory = '${target.absolutePath.replace("'", "''")}'
+            ${'$'}s.Save()
+        """.trimIndent()
+        ProcessBuilder("powershell", "-NoProfile", "-Command", shortcutScript).start().waitFor()
+        logger.lifecycle("Installed/Updated K4 Music in $target")
     }
 }
 
@@ -247,4 +264,12 @@ val packageInstaller by tasks.registering(Exec::class) {
         "/DRepoRoot=${layout.projectDirectory.dir("..").asFile.canonicalPath}",
         script.absolutePath
     )
+}
+
+// Tests may exercise persistence, but never the installed user's library or settings.
+tasks.withType<Test>().configureEach {
+    val testData = layout.buildDirectory.dir("test-data").get().asFile
+    systemProperty("k4.dataDir", testData.absolutePath)
+    systemProperty("java.io.tmpdir", testData.resolve("tmp").absolutePath)
+    doFirst { testData.resolve("tmp").mkdirs() }
 }

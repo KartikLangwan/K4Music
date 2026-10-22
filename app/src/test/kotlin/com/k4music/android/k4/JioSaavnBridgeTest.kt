@@ -41,7 +41,7 @@ class JioSaavnBridgeTest {
     @Test
     fun `song item key is the saavn key the player resolver understands`() {
         val item = song().toSongItem()
-        assertEquals("saavn:https://saavncdn.com/abc/_320.mp4", item.key)
+        assertEquals("saavn:id:x1", item.key)
         assertTrue(isSaavnKey(item.key))
         assertFalse(isSaavnKey("dQw4w9WgXcQ"))
         assertFalse(isSaavnKey(null))
@@ -57,7 +57,7 @@ class JioSaavnBridgeTest {
     }
 
     @Test
-    fun `junk keys resolve to null instead of throwing`() {
+    fun `junk keys resolve to null instead of throwing`() = kotlinx.coroutines.runBlocking {
         assertNull(resolveSaavnStream("saavn:"))
         assertNull(resolveSaavnStream("saavn:not-a-saavn-url"))
     }

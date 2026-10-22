@@ -1,5 +1,8 @@
 package com.k4music.desktop.ui
 
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.clickable
@@ -82,7 +85,7 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
-enum class SidePanel { Queue, Lyrics }
+enum class SidePanel { Queue, Lyrics, Both }
 
 /** The player: a floating capsule along the bottom of the window, tinted by the song's colour. */
 @Composable
@@ -167,11 +170,26 @@ fun NowPlayingBar(
                 horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ToggleIcon(Res.drawable.text, stringResource(Res.string.lyrics), panel == SidePanel.Lyrics) {
-                    onPanel(if (panel == SidePanel.Lyrics) null else SidePanel.Lyrics)
+                val isLyrics = panel == SidePanel.Lyrics || panel == SidePanel.Both
+                val isQueue = panel == SidePanel.Queue || panel == SidePanel.Both
+
+                ToggleIcon(Res.drawable.text, stringResource(Res.string.lyrics), isLyrics) {
+                    val next = when {
+                        isLyrics && isQueue -> SidePanel.Queue
+                        isLyrics -> null
+                        isQueue -> SidePanel.Both
+                        else -> SidePanel.Lyrics
+                    }
+                    onPanel(next)
                 }
-                ToggleIcon(Res.drawable.list, stringResource(Res.string.up_next), panel == SidePanel.Queue) {
-                    onPanel(if (panel == SidePanel.Queue) null else SidePanel.Queue)
+                ToggleIcon(Res.drawable.list, stringResource(Res.string.up_next), isQueue) {
+                    val next = when {
+                        isQueue && isLyrics -> SidePanel.Lyrics
+                        isQueue -> null
+                        isLyrics -> SidePanel.Both
+                        else -> SidePanel.Queue
+                    }
+                    onPanel(next)
                 }
                 AudioOutputButton(player)
                 Volume(player)
@@ -280,10 +298,22 @@ fun SeekBar(player: PlayerController, duration: Double, enabled: Boolean, modifi
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun Volume(player: PlayerController) {
     val muted = Settings.muted
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.onPointerEvent(PointerEventType.Scroll) { event ->
+            val delta = event.changes.firstOrNull()?.scrollDelta?.y ?: 0f
+            if (delta != 0f) {
+                val step = if (delta < 0) 5 else -5
+                val newVol = (Settings.volume + step).coerceIn(0, 100)
+                player.setVolume(newVol)
+                if (muted && newVol > 0) player.setMuted(false)
+            }
+        }
+    ) {
         ToggleIcon(
             Res.drawable.volume_up,
             stringResource(if (muted) Res.string.desktop_unmute else Res.string.desktop_mute),

@@ -7,6 +7,7 @@ import com.k4music.desktop.player.Track
 import com.k4music.desktop.player.formatDuration
 import com.k4music.desktop.prefs.Settings
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,10 +30,29 @@ object LocalMusic {
 
     init { Logger.getLogger("org.jaudiotagger").level = Level.OFF }
 
-    fun folders(): List<File> {
+    private fun configuredFolders(): List<File> {
         val music = File(System.getProperty("user.home"), "Music")
         return (listOf(music) + Settings.localFolders.split(';').filter { it.isNotBlank() }.map(::File))
-            .filter { it.isDirectory }.distinctBy { it.canonicalPath }
+            .distinctBy { it.absoluteFile.normalize().path.lowercase() }
+    }
+
+    fun folders(): List<File> = configuredFolders().filter { it.isDirectory }
+
+    internal data class Scan(val files: List<File>, val completeRoots: List<String>)
+
+    internal fun collectFiles(roots: List<File>): Scan {
+        val files = LinkedHashSet<File>()
+        val completeRoots = ArrayList<String>()
+        roots.forEach { root ->
+            if (!root.isDirectory) return@forEach
+            var complete = true
+            root.walkTopDown().onFail { path, error ->
+                complete = false
+                AppLog.w("LocalMusic", "Folder was not fully scanned: $path", error)
+            }.filter { it.isFile && it.extension.lowercase() in extensions }.forEach(files::add)
+            if (complete) completeRoots += root.absolutePath
+        }
+        return Scan(files.toList(), completeRoots)
     }
 
     fun addFolder(folder: File) {
@@ -41,13 +61,16 @@ object LocalMusic {
 
     /** Adds every music file found to the library; returns how many songs were found. */
     suspend fun scan(): Int = withContext(Dispatchers.IO) {
-        if (_scanning.value) return@withContext 0
-        _scanning.value = true
+        if (!_scanning.compareAndSet(false, true)) return@withContext 0
         try {
-            val files = folders().flatMap { root ->
-                root.walkTopDown().onFail { _, _ -> }.filter { it.isFile && it.extension.lowercase() in extensions }.toList()
+            val scan = collectFiles(configuredFolders())
+            val files = scan.files
+            files.forEach { file ->
+                kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                Db.library.upsertLocal(read(file))
             }
-            files.forEach { file -> runCatching { Db.library.insert(read(file)) } }
+            val activeIds = files.mapTo(HashSet()) { LOCAL_KEY_PREFIX + it.absolutePath }
+            Db.library.pruneLocalSongs(activeIds, scan.completeRoots)
             AppLog.i("LocalMusic", "Scanned ${files.size} files")
             files.size
         } finally {
@@ -61,7 +84,7 @@ object LocalMusic {
         fun field(key: FieldKey) = runCatching { tag?.getFirst(key) }.getOrNull()?.takeIf { it.isNotBlank() }
         val seconds = audio?.audioHeader?.trackLength ?: 0
         val cover = runCatching { tag?.firstArtwork?.binaryData }.getOrNull()?.let { bytes ->
-            val name = MessageDigest.getInstance("MD5").digest(file.absolutePath.toByteArray()).joinToString("") { "%02x".format(it) }
+            val name = MessageDigest.getInstance("MD5").digest("${file.absolutePath}|${file.lastModified()}|${file.length()}".toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
             File(AppPaths.imageCache.resolve("local").apply { mkdirs() }, "$name.jpg").apply { if (!isFile) writeBytes(bytes) }
         }
         return Track(

@@ -23,6 +23,13 @@ import kotlinx.coroutines.launch
 object LibraryHooks {
     private const val MIN_LISTEN_MS = 10_000L
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val writeJob = SupervisorJob()
+    private val writes = CoroutineScope(writeJob + Dispatchers.IO)
+
+    /** Called after playback has stopped emitting history and before Room closes. */
+    suspend fun flush() {
+        writeJob.children.toList().forEach { it.join() }
+    }
 
     /** Ids of liked songs, kept current so menus and the player bar never wait on the database. */
     val liked: kotlinx.coroutines.flow.StateFlow<Set<String>> = Db.library.favorites()
@@ -31,13 +38,13 @@ object LibraryHooks {
 
     fun toggleLike(track: Track) {
         val like = track.id !in liked.value
-        scope.launch { safely { Db.library.toggleLike(track, like) } }
+        writes.launch { safely { Db.library.toggleLike(track, like) } }
     }
 
     fun attach(player: PlayerController) {
-        player.onTrackStarted = { track -> scope.launch { safely { Db.library.insert(track) } } }
+        player.onTrackStarted = { track -> writes.launch { safely { Db.library.insert(track) } } }
         player.onPlayed = { track, ms ->
-            if (ms >= MIN_LISTEN_MS) scope.launch {
+            if (ms >= MIN_LISTEN_MS) writes.launch {
                 safely {
                     Db.library.insert(track)
                     Db.library.insert(Event(songId = track.id, timestamp = System.currentTimeMillis(), playTime = ms))

@@ -43,10 +43,12 @@ import kotlinx.coroutines.Dispatchers
 @TypeConverters(Converters::class)
 abstract class K4Database : RoomDatabase() {
     abstract val library: LibraryDao
+
+
 }
 
 /** Room's generated implementation (KSP), created without reflection lookups at every start. */
-private fun newDatabase(): K4Database = Class.forName("com.k4music.desktop.data.K4Database_Impl")
+internal fun newDatabase(): K4Database = Class.forName("com.k4music.desktop.data.K4Database_Impl")
     .getDeclaredConstructor().newInstance() as K4Database
 
 object Converters {
@@ -83,6 +85,16 @@ abstract class LibraryDao : K4Dao {
         )
     }
 
+    @androidx.room.Query("UPDATE Song SET title=:title, artistsText=:artists, durationText=:duration, thumbnailUrl=:artwork WHERE id=:id")
+    abstract suspend fun updateLocalMetadata(id: String, title: String, artists: String?, duration: String?, artwork: String?)
+
+    @Transaction
+    open suspend fun upsertLocal(track: Track) {
+        if (insert(track.toSong()) == -1L) {
+            updateLocalMetadata(track.id, track.title, track.artists, track.durationText, track.thumbnailUrl)
+        }
+    }
+
     /** Appends [tracks] (creating [playlist] when it has no id) and returns how many were added. */
     @Transaction
     open suspend fun addToPlaylist(playlist: Playlist, tracks: List<Track>): Int {
@@ -110,6 +122,28 @@ abstract class LibraryDao : K4Dao {
     open suspend fun toggleLike(track: Track, liked: Boolean) {
         val at = if (liked) System.currentTimeMillis() else null
         if (like(track.id, at) == 0) insert(track, likedAt = at)
+    }
+
+    @androidx.room.Query("SELECT id FROM Song WHERE id LIKE 'local:%' AND likedAt IS NULL AND totalPlayTimeMs = 0 AND id NOT IN (SELECT songId FROM SongPlaylistMap) AND id NOT IN (SELECT songId FROM Event) AND id NOT IN (SELECT songId FROM Lyrics)")
+    abstract suspend fun unreferencedLocalSongIds(): List<String>
+
+    @androidx.room.Query("DELETE FROM Song WHERE id IN (:ids)")
+    abstract suspend fun deleteSongsByIds(ids: List<String>)
+
+    @Transaction
+    open suspend fun pruneLocalSongs(activeIds: Set<String>, completeRoots: List<String>) {
+        if (completeRoots.isEmpty()) return
+        val roots = completeRoots.map { java.io.File(it).toPath().toAbsolutePath().normalize() }
+        val candidates = unreferencedLocalSongIds()
+        val toDelete = candidates.filter { id ->
+            val path = java.io.File(id.removePrefix("local:")).toPath()
+            id !in activeIds && path.isAbsolute && roots.any { path.normalize().startsWith(it) }
+        }
+        if (toDelete.isNotEmpty()) {
+            toDelete.chunked(500).forEach { chunk ->
+                deleteSongsByIds(chunk)
+            }
+        }
     }
 
     @RawQuery

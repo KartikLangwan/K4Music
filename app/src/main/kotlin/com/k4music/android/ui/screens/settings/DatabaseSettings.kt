@@ -26,6 +26,7 @@ import com.k4music.android.service.PlayerService
 import com.k4music.android.transaction
 import com.k4music.android.ui.screens.Route
 import com.k4music.android.utils.intent
+import com.k4music.android.utils.snapshotDatabase
 import com.k4music.android.utils.toast
 import kotlinx.coroutines.flow.distinctUntilChanged
 import java.io.FileInputStream
@@ -57,10 +58,18 @@ fun DatabaseSettings() = with(DataPreferences) {
         scope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    Database.checkpoint()
-                    val resolver = context.applicationContext.contentResolver
-                    val output = resolver.openOutputStream(uri, "wt") ?: error("Cannot open backup destination")
-                    output.use { FileInputStream(Database.internal.path).use { input -> input.copyTo(it) } }
+                    val temp = java.io.File.createTempFile("backup-", ".db", context.cacheDir)
+                    try {
+                        snapshotDatabase(Database.internal.openHelper.writableDatabase, temp)
+                        DatabaseDependency.validateBackup(temp)
+                        val resolver = context.applicationContext.contentResolver
+                        val output = resolver.openOutputStream(uri, "wt") ?: error("Cannot open backup destination")
+                        output.use { dest ->
+                            java.io.FileInputStream(temp).use { it.copyTo(dest) }
+                        }
+                    } finally {
+                        temp.delete()
+                    }
                 }
                 context.toast(R.string.backup_saved)
             } catch (error: kotlinx.coroutines.CancellationException) {
@@ -96,16 +105,11 @@ fun DatabaseSettings() = with(DataPreferences) {
                         DatabaseDependency.validateBackup(staged)
                         // Once validated, finish the atomic swap even if navigation cancels.
                         withContext(kotlinx.coroutines.NonCancellable) {
-                            Database.checkpoint()
                             val recovery = java.io.File(current.parentFile, "data-before-restore.db")
                             val recoveryStage = java.io.File.createTempFile("recovery-", ".db", current.parentFile)
                             try {
-                                current.inputStream().use { inputStream ->
-                                    FileOutputStream(recoveryStage).use { output ->
-                                        inputStream.copyTo(output)
-                                        output.fd.sync()
-                                    }
-                                }
+                                snapshotDatabase(Database.internal.openHelper.writableDatabase, recoveryStage)
+                                DatabaseDependency.validateBackup(recoveryStage)
                                 android.system.Os.rename(recoveryStage.absolutePath, recovery.absolutePath)
                             } finally { recoveryStage.delete() }
                             withContext(Dispatchers.Main) { context.stopService(android.content.Intent(context, PlayerService::class.java)) }

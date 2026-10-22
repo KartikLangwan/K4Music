@@ -11,7 +11,7 @@ abstract class PackageQuickJs : DefaultTask() {
     @TaskAction
     fun packageBinaries() {
         val perAbi = binaries.files.groupBy { it.parentFile.name }
-        check(perAbi.keys.containsAll(listOf("arm64-v8a", "x86_64"))) {
+        check("arm64-v8a" in perAbi.keys) {
             "QuickJS binaries are missing. Build the native targets before packaging."
         }
         perAbi.forEach { (abi, candidates) ->
@@ -31,13 +31,19 @@ plugins {
     alias(libs.plugins.chaquo)
 }
 
+// Development signing must be an explicit local choice, never an accidental production fallback.
+val allowDevelopmentSigning = providers.gradleProperty("allowDevelopmentSigning").map(String::toBoolean).orElse(false)
+
 android {
     // Merged identity: applicationId/namespace define the Play identity.
     // All Kotlin packages were renamed to com.k4music.* in the same pass.
     namespace = "com.k4music.app"
     compileSdk = 37
 
-    val abis = listOf("arm64-v8a", "x86_64")
+    // Shipped builds are arm64 only (every modern phone; x86 Chromebooks translate ARM): x86_64 adds
+    // ~13 MB of Python/QuickJS natives. Debug keeps it for the emulator.
+    val shipping = gradle.startParameter.taskNames.any { "Release" in it || "Nightly" in it }
+    val abis = if (shipping) listOf("arm64-v8a") else listOf("arm64-v8a", "x86_64")
     val cmakeVersion = "4.1.2"
     ndkVersion = "29.0.14206865"
 
@@ -93,9 +99,10 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            // Local build: sign with the standard debug key so the APK installs
-            // straight away. CI/upload builds override with their own keystore.
-            signingConfig = signingConfigs.getByName("debug")
+            // Production builds require an explicitly configured signing identity.
+            signingConfig = signingConfigs.findByName("release")?.takeIf { it.storeFile?.isFile == true }
+                ?: signingConfigs.findByName("ci")?.takeIf { it.storeFile?.isFile == true }
+                ?: signingConfigs.getByName("debug").takeIf { allowDevelopmentSigning.get() }
             manifestPlaceholders["appName"] = "K4 Music"
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -110,7 +117,8 @@ android {
             applicationIdSuffix = ".nightly"
             versionNameSuffix = "-NIGHTLY"
             manifestPlaceholders["appName"] = "K4 Music Nightly"
-            signingConfig = signingConfigs.findByName("ci")
+            signingConfig = signingConfigs.findByName("ci")?.takeIf { it.storeFile?.isFile == true }
+                ?: signingConfigs.getByName("debug").takeIf { allowDevelopmentSigning.get() }
         }
     }
 
@@ -261,6 +269,7 @@ dependencies {
     testImplementation(libs.junit)
 
     implementation(projects.providers.github)
+    implementation(projects.providers.common)
     implementation(projects.providers.innertube)
     implementation(projects.providers.kugou)
     implementation(projects.providers.lrclib)
@@ -269,4 +278,21 @@ dependencies {
     implementation(projects.providers.translate)
     implementation(projects.core.data)
     implementation(projects.core.ui)
+}
+
+listOf("release", "nightly").forEach { variant ->
+    val suffix = variant.replaceFirstChar { it.uppercase() }
+    val verifySigning = tasks.register("verify${suffix}Signing") {
+        group = "verification"
+        description = "Rejects missing or accidental debug signing for $variant distributions"
+        doLast {
+            val signing = android.buildTypes.getByName(variant).signingConfig
+            check(signing != null && signing.storeFile?.isFile == true &&
+                !signing.keyAlias.isNullOrBlank() && signing.storePassword != null && signing.keyPassword != null &&
+                (signing.name != "debug" || allowDevelopmentSigning.get())) {
+                "Production signing is not configured for $variant. Configure the CI keystore credentials, or use -PallowDevelopmentSigning=true only for local development builds."
+            }
+        }
+    }
+    tasks.matching { it.name == "pre${suffix}Build" }.configureEach { dependsOn(verifySigning) }
 }

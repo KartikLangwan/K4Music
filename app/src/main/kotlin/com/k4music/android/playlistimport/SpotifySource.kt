@@ -29,6 +29,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import com.k4music.providers.utils.useCancellable
 
 data class WantedTrack(val title: String, val artist: String, val durationMs: Long?)
 
@@ -48,6 +49,11 @@ class SpotifySource(
     override fun accepts(link: String) = playlistIdOf(link) != null
 
     override val canRetryFailed = true
+
+    override suspend fun candidates(track: FailedTrack): List<Candidate<MediaItem>> = retrying(attempts = 2) {
+        kotlinx.coroutines.withTimeoutOrNull(SEARCH_TIMEOUT_MS) { search("${track.title} ${track.artist}".trim()) }
+            ?: throw PlaylistImportException(ImportError.Network, "Search timed out. Try again.")
+    }.distinctBy { it.payload.mediaId }.take(8)
 
     override suspend fun fetch(link: String, progress: (ImportProgress) -> Unit): FetchedPlaylist {
         val id = playlistIdOf(link) ?: throw PlaylistImportException(ImportError.InvalidLink, "No Spotify playlist id in this link.")
@@ -109,10 +115,15 @@ class SpotifySource(
         var searchFailed = false
         val candidates = try {
             retrying(attempts = 2, pauseMs = retryPauseMs) { withTimeout(SEARCH_TIMEOUT_MS) { search(query) } }
+        } catch (error: kotlinx.coroutines.TimeoutCancellationException) {
+            searchFailed = true
+            android.util.Log.w("SpotifySource", "Search timed out for '$query'")
+            emptyList()
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
             searchFailed = true
+            android.util.Log.w("SpotifySource", "Search failed for '$query': ${error.message}")
             emptyList()
         }
         val best = pickBestMatch(want.title, want.artist, want.durationMs, candidates)
@@ -129,9 +140,9 @@ class SpotifySource(
     private suspend fun get(url: String, userAgent: String = UA): String? = withContext(Dispatchers.IO) {
         try {
             retrying {
-                http.newCall(Request.Builder().url(url).header("User-Agent", userAgent).build()).execute().use { response ->
+                http.newCall(Request.Builder().url(url).header("User-Agent", userAgent).build()).useCancellable { response ->
                     when {
-                        response.isSuccessful -> response.body?.string().orEmpty()
+                        response.isSuccessful -> response.body.string()
                         response.code in 400..499 && response.code != 429 -> ""
                         else -> throw IOException("HTTP ${response.code}")
                     }
@@ -204,20 +215,25 @@ class SpotifySource(
 }
 
 private suspend fun searchCatalogues(query: String): List<Candidate<MediaItem>> {
-    val youtube = Innertube.searchPage(
-        body = SearchBody(query = query, params = Innertube.SearchFilter.Song.value),
-        fromMusicShelfRendererContent = Innertube.SongItem.Companion::from
-    )?.getOrThrow()?.items.orEmpty().mapNotNull { item ->
-        val key = runCatching { item.key }.getOrNull() ?: return@mapNotNull null
-        Candidate(
-            title = item.info?.name.orEmpty(),
-            artist = item.authors?.joinToString("") { it.name.orEmpty() }.orEmpty(),
-            durationMs = item.durationText?.let(::parseClockToMs)?.takeIf { it > 0 },
-            payload = item.asMediaItem.also { check(it.mediaId == key) }
-        )
-    }
-    // JioSaavn is only a fallback for tracks YouTube Music cannot offer; it never throws.
-    return youtube + searchSaavnSongs(query).map { song ->
-        Candidate(song.title, song.artist, song.durationMs.takeIf { it > 0 }, song.toSongItem().asMediaItem)
-    }
+    val youtube = runCatching {
+        Innertube.searchPage(
+            body = SearchBody(query = query, params = Innertube.SearchFilter.Song.value),
+            fromMusicShelfRendererContent = Innertube.SongItem.Companion::from
+        )?.getOrNull()?.items.orEmpty().mapNotNull { item ->
+            val key = runCatching { item.key }.getOrNull() ?: return@mapNotNull null
+            Candidate(
+                title = item.info?.name.orEmpty(),
+                artist = item.authors?.joinToString("") { it.name.orEmpty() }.orEmpty(),
+                durationMs = item.durationText?.let(::parseClockToMs)?.takeIf { it > 0 },
+                payload = item.asMediaItem.also { check(it.mediaId == key) }
+            )
+        }
+    }.getOrDefault(emptyList())
+    // JioSaavn is a fallback for tracks YouTube Music cannot offer or if YouTube search fails
+    val saavn = runCatching {
+        searchSaavnSongs(query).map { song ->
+            Candidate(song.title, song.artist, song.durationMs.takeIf { it > 0 }, song.toSongItem().asMediaItem)
+        }
+    }.getOrDefault(emptyList())
+    return youtube + saavn
 }

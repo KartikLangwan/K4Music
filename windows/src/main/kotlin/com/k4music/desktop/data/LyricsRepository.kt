@@ -19,7 +19,7 @@ import kotlin.time.Duration.Companion.milliseconds
 object LyricsRepository {
     data class Result(val fixed: String, val synced: String)
 
-    private val memory = ConcurrentHashMap<String, Result>()
+    private val memory = com.k4music.desktop.BoundedCache<String, Result>(64)
     /** Persistent store hook (the library database); null until the database is ready. */
     @Volatile var store: Store? = null
 
@@ -43,12 +43,19 @@ object LyricsRepository {
 
     fun forget(id: String) { memory.remove(id) }
 
-    /** Looks the lyrics up again online, replacing the saved ones. */
-    suspend fun refetch(track: Track): Result = withContext(Dispatchers.IO) { fetch(track).also { put(track, it) } }
+    /** Empty/failed provider responses must never erase saved or manually edited lyrics. */
+    internal suspend fun refetch(track: Track, load: suspend (Track) -> Result = ::fetch): Result = withContext(Dispatchers.IO) {
+        val fresh = load(track)
+        check(fresh.fixed.isNotBlank() || fresh.synced.isNotBlank()) { "No fresh lyrics were returned" }
+        val previous = memory[track.id] ?: store?.load(track.id)
+        val replacement = Result(fresh.fixed.ifBlank { previous?.fixed.orEmpty() }, fresh.synced.ifBlank { previous?.synced.orEmpty() })
+        put(track, replacement)
+        replacement
+    }
 
     private suspend fun fetch(track: Track): Result {
         val artist = track.artists.orEmpty()
-        val title = if (track.isLocal) track.title.substringBeforeLast('.').trim() else track.title
+        val title = track.title
         val duration = (track.durationMs ?: 0L).milliseconds
 
         val fixed = (if (track.isLocal || track.isSaavn) null else Innertube.lyrics(NextBody(videoId = track.id))?.getOrNull())

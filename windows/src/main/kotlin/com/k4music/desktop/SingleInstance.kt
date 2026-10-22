@@ -42,21 +42,61 @@ object SingleInstance {
     }
 
     private fun forward(args: Array<String>) = runCatching {
-        Socket(InetAddress.getLoopbackAddress(), portFile.readText().trim().toInt()).use { socket ->
-            socket.getOutputStream().writer().use { it.write(args.joinToString("\n", postfix = "\n")) }
+        var lastErr: Throwable? = null
+        for (attempt in 0..4) {
+            try {
+                if (portFile.isFile) {
+                    val port = portFile.readText().trim().toInt()
+                    Socket().use { socket ->
+                        socket.connect(java.net.InetSocketAddress(InetAddress.getLoopbackAddress(), port), 500)
+                        socket.getOutputStream().writer(Charsets.UTF_8).use {
+                            it.write(args.joinToString("\n", postfix = "\n"))
+                            it.flush()
+                        }
+                    }
+                    return@runCatching
+                }
+            } catch (e: Exception) {
+                lastErr = e
+            }
+            Thread.sleep(100)
         }
+        if (lastErr != null) throw lastErr
     }
 
     private fun listen(onMessage: (List<String>) -> Unit) {
         val server = ServerSocket(0, 4, InetAddress.getLoopbackAddress())
-        portFile.writeText(server.localPort.toString())
+        runCatching {
+            portFile.writeText(server.localPort.toString())
+            portFile.deleteOnExit()
+        }
         thread(isDaemon = true, name = "k4-single-instance") {
             while (true) {
                 val lines = runCatching {
-                    server.accept().use { it.getInputStream().bufferedReader().readLines() }
+                    server.accept().use { readMessage(it) }
                 }.getOrNull() ?: continue
-                onMessage(lines.filter { it.isNotBlank() })
+                runCatching { onMessage(lines) }.onFailure { AppLog.w("IPC", "Could not handle launch request", it) }
             }
         }
+    }
+
+    /** Bound both message memory and total connection time, including trickling clients. */
+    internal fun readMessage(socket: Socket, timeoutMillis: Int = 2_000): List<String> {
+        val deadline = System.nanoTime() + timeoutMillis * 1_000_000L
+        val bytes = java.io.ByteArrayOutputStream()
+        val buffer = ByteArray(1024)
+        val input = socket.getInputStream()
+        while (true) {
+            val remaining = (deadline - System.nanoTime()) / 1_000_000
+            if (remaining <= 0) throw java.net.SocketTimeoutException("Launch request timed out")
+            socket.soTimeout = remaining.coerceAtMost(timeoutMillis.toLong()).coerceAtLeast(1).toInt()
+            val count = input.read(buffer)
+            if (count < 0) break
+            require(bytes.size() + count <= 16_384) { "Launch request is too large" }
+            bytes.write(buffer, 0, count)
+        }
+        val lines = bytes.toString(Charsets.UTF_8).lineSequence().filter { it.isNotBlank() }.toList()
+        require(lines.size <= 32) { "Too many launch arguments" }
+        return lines
     }
 }

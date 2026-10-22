@@ -2,6 +2,7 @@ package com.k4music.desktop.k4
 
 import com.k4music.android.k4.JioSaavnApi
 import com.k4music.android.k4.K4Song
+import com.k4music.android.k4.preserveLegacySaavnKeys
 import com.k4music.android.playlistimport.Candidate
 import com.k4music.android.playlistimport.pickBestMatch
 import com.k4music.desktop.AppPaths
@@ -17,17 +18,15 @@ private val saavnApi by lazy { JioSaavnApi() }
 
 fun isSaavnKey(key: String?) = key?.startsWith(SAAVN_KEY_PREFIX) == true
 
-/** Best CDN mp4 for a saavn key, or null when nothing serves. Never throws. */
-fun resolveSaavnStream(key: String, quality: String = "320"): String? {
-    val base = key.removePrefix(SAAVN_KEY_PREFIX)
-    if (base.isBlank()) return null
-    saavnApi.preferredQuality = quality
-    return runCatching { saavnApi.bestVariant(base) }.getOrNull()
+/** Best CDN mp4 for a Saavn key, or null when nothing serves. Cancellation propagates. */
+suspend fun resolveSaavnStream(key: String, quality: String = "320"): String? {
+    return saavnApi.resolveMediaKey(key, quality)
 }
 
 /** Saavn search results with unplayable (blank) entries dropped. Never throws. */
 suspend fun searchSaavnSongs(query: String): List<K4Song> = try {
-    saavnApi.searchSongs(query).filter { it.contentUri.isNotBlank() }
+    val songs = saavnApi.searchSongs(query).filter { it.contentUri.isNotBlank() }
+    if (songs.isEmpty()) songs else preserveLegacySaavnKeys(songs, com.k4music.desktop.data.Db.library.legacySaavnSongIds())
 } catch (error: CancellationException) {
     throw error
 } catch (_: Exception) {
@@ -40,8 +39,9 @@ suspend fun findSaavnStream(title: String, artist: String, durationMs: Long?, qu
     val candidates = searchSaavnSongs("$title $artist".trim())
         .map { Candidate(it.title, it.artist, it.durationMs.takeIf { d -> d > 0 }, it.contentUri) }
     val match = pickBestMatch(title, artist, durationMs, candidates) ?: return null
-    saavnApi.preferredQuality = quality
-    return runCatching { saavnApi.bestVariant(match.payload) }.getOrNull()
+    return try { saavnApi.bestVariant(match.payload, quality = quality) }
+    catch (error: CancellationException) { throw error }
+    catch (_: Exception) { null }
 }
 
 /**

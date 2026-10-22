@@ -48,4 +48,25 @@ class CoreTest {
         nav.root(Screen.Home)
         assertFalse(nav.canGoBack)
     }
+
+    @Test
+    fun startupCommandQuotesPathsWithSpacesWithoutChangingTheRegistry() {
+        assertEquals("\"C:\\Program Files\\K4 Music\\K4 Music.exe\" --startup",
+            StartupManager.startupCommand("C:\\Program Files\\K4 Music\\K4 Music.exe"))
+    }
+
+    @Test
+    fun backgroundStyleParsing() {
+        assertEquals(com.k4music.desktop.prefs.BackgroundStyle.BlurredArtwork, com.k4music.desktop.prefs.BackgroundStyle.fromName("Artwork"))
+        assertEquals(com.k4music.desktop.prefs.BackgroundStyle.BlurredArtwork, com.k4music.desktop.prefs.BackgroundStyle.fromName("BlurredArtwork"))
+        assertEquals(com.k4music.desktop.prefs.BackgroundStyle.GlowAura, com.k4music.desktop.prefs.BackgroundStyle.fromName("GlowAura"))
+        assertEquals(com.k4music.desktop.prefs.BackgroundStyle.PureBlack, com.k4music.desktop.prefs.BackgroundStyle.fromName("PureBlack"))
+        assertEquals(com.k4music.desktop.prefs.BackgroundStyle.Accent, com.k4music.desktop.prefs.BackgroundStyle.fromName("Accent"))
+        assertEquals(com.k4music.desktop.prefs.BackgroundStyle.Image, com.k4music.desktop.prefs.BackgroundStyle.fromName("Image"))
+        assertEquals(com.k4music.desktop.prefs.BackgroundStyle.Alpine, com.k4music.desktop.prefs.BackgroundStyle.fromName("Alpine"))
+        assertEquals(com.k4music.desktop.prefs.BackgroundStyle.Aurora, com.k4music.desktop.prefs.BackgroundStyle.fromName("Aurora"))
+        assertEquals(com.k4music.desktop.prefs.BackgroundStyle.LiquidCanvas, com.k4music.desktop.prefs.BackgroundStyle.fromName("LiquidCanvas"))
+        assertEquals(com.k4music.desktop.prefs.BackgroundStyle.MidnightNeon, com.k4music.desktop.prefs.BackgroundStyle.fromName("MidnightNeon"))
+        assertEquals(com.k4music.desktop.prefs.BackgroundStyle.BlurredArtwork, com.k4music.desktop.prefs.BackgroundStyle.fromName("nonexistent_style"))
+    }
 }

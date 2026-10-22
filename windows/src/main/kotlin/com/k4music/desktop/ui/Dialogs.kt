@@ -1,17 +1,28 @@
 package com.k4music.desktop.ui
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -28,8 +39,20 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.k4music.android.models.Playlist
 import com.k4music.android.playlistimport.ImportPhase
 import com.k4music.android.playlistimport.ImportPlan
@@ -46,6 +69,7 @@ import com.k4music.desktop.res.cancel
 import com.k4music.desktop.res.confirm
 import com.k4music.desktop.res.delete
 import com.k4music.desktop.res.desktop_song_count
+import com.k4music.desktop.res.search
 import com.k4music.desktop.res.import_close
 import com.k4music.desktop.res.import_duplicates
 import com.k4music.desktop.res.import_error_title
@@ -56,7 +80,17 @@ import com.k4music.desktop.res.import_playlist
 import com.k4music.desktop.res.import_reading
 import com.k4music.desktop.res.import_result_count
 import com.k4music.desktop.res.import_saving
+import com.k4music.desktop.res.import_not_provided
+import com.k4music.desktop.res.import_maybe_truncated
+import com.k4music.desktop.res.import_retry_failed
 import com.k4music.desktop.res.import_title
+import com.k4music.desktop.res.import_review
+import com.k4music.desktop.res.import_review_title
+import com.k4music.desktop.res.import_review_hint
+import com.k4music.desktop.res.import_review_choose
+import com.k4music.desktop.res.import_review_empty
+import com.k4music.desktop.res.retry
+import com.k4music.desktop.res.back
 import com.k4music.desktop.res.new_playlist
 import com.k4music.desktop.res.rename
 import kotlinx.coroutines.delay
@@ -70,6 +104,7 @@ import com.k4music.desktop.res.desktop_update_now
 import com.k4music.desktop.res.desktop_update_website
 import com.k4music.desktop.res.desktop_update_later
 import org.jetbrains.compose.resources.getString
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import java.io.File
 
@@ -83,10 +118,13 @@ object AppDialogs {
         class Rename(val playlist: Playlist) : Dialog
         data object NewPlaylist : Dialog
         class Update(val update: com.k4music.desktop.Updater.Update) : Dialog
+        data object CommandPalette : Dialog
     }
 
     var current by mutableStateOf<Dialog?>(null)
     var toast by mutableStateOf<String?>(null)
+
+    fun openCommandPalette() { current = Dialog.CommandPalette }
 
     fun newPlaylist() { current = Dialog.NewPlaylist }
     fun renamePlaylist(playlist: Playlist) { current = Dialog.Rename(playlist) }
@@ -125,6 +163,7 @@ fun DialogHost() {
         is AppDialogs.Dialog.AddToPlaylist -> AddToPlaylistDialog(dialog.tracks)
         is AppDialogs.Dialog.Import -> ImportDialog()
         is AppDialogs.Dialog.Update -> UpdateDialog(dialog.update)
+        is AppDialogs.Dialog.CommandPalette -> CommandPaletteDialog { AppDialogs.current = null }
     }
     // Short confirmation message at the bottom of the window.
     AppDialogs.toast?.let { message ->
@@ -183,7 +222,7 @@ private fun AddToPlaylistDialog(tracks: List<Track>) {
                         scope.launch { Db.library.addToPlaylist(p.playlist, tracks); AppDialogs.show(p.name) }
                     }.padding(12.dp)) {
                         Text(p.name, fontWeight = FontWeight.SemiBold)
-                        Text(stringResource(Res.string.desktop_song_count, p.songCount), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(pluralStringResource(Res.plurals.desktop_song_count, p.songCount, p.songCount), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -204,6 +243,26 @@ private fun ImportDialog() {
     var progress by remember { mutableStateOf<Float?>(null) }
     var result by remember { mutableStateOf<List<String>?>(null) }
     var working by remember { mutableStateOf(false) }
+    var importJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    var completed by remember { mutableStateOf<com.k4music.android.playlistimport.FetchedPlaylist?>(null) }
+    var playlistId by remember { mutableStateOf<Long?>(null) }
+    var imported by remember { mutableStateOf(0) }
+    var duplicates by remember { mutableStateOf(0) }
+    var failed by remember { mutableStateOf<List<com.k4music.android.playlistimport.FailedTrack>>(emptyList()) }
+    var reviewIndex by remember { mutableStateOf<Int?>(null) }
+
+    suspend fun showResult() {
+        val fetched = completed ?: return
+        val total = fetched.total ?: (fetched.tracks.size + fetched.failed.size)
+        result = listOfNotNull(
+            getString(Res.string.import_result_count, imported, total),
+            duplicates.takeIf { it > 0 }?.let { getString(Res.string.import_duplicates, it) },
+            fetched.notExposed.takeIf { it > 0 }?.let { getString(Res.string.import_not_provided, it) },
+            if (fetched.truncated) getString(Res.string.import_maybe_truncated) else null,
+            failed.size.takeIf { it > 0 }?.let { getString(Res.string.import_failed_header, it) }
+        )
+        status = fetched.name
+    }
     // Progress callbacks arrive off the UI coroutine; format them where getString can suspend.
     val progressEvents = remember { kotlinx.coroutines.flow.MutableSharedFlow<com.k4music.android.playlistimport.ImportProgress>(extraBufferCapacity = 64) }
     LaunchedEffect(Unit) {
@@ -215,11 +274,22 @@ private fun ImportDialog() {
         }
     }
 
+    val reviewed = reviewIndex?.let { failed.getOrNull(it) }
+    val source = importer.sourceFor(link)
+    if (reviewed != null && source != null) ManualMatchDialog(reviewed, source, onDismiss = { reviewIndex = null }) { candidate ->
+        val id = requireNotNull(playlistId)
+        val added = Db.library.addToPlaylist(Playlist(id = id, name = completed?.name.orEmpty()), listOf(candidate.payload))
+        imported += added
+        if (added == 0) duplicates++
+        failed = failed.filterIndexed { index, _ -> index != reviewIndex }
+        showResult()
+    }
+
     AlertDialog(
-        onDismissRequest = { if (!working) AppDialogs.current = null },
+        onDismissRequest = { importJob?.cancel(); AppDialogs.current = null },
         title = { Text(stringResource(Res.string.import_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.heightIn(max = 380.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     link, { link = it }, singleLine = true, enabled = !working,
                     placeholder = { Text(stringResource(Res.string.import_hint)) }, modifier = Modifier.fillMaxWidth()
@@ -227,12 +297,21 @@ private fun ImportDialog() {
                 status?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 progress?.let { LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth()) }
                 result?.forEach { Text(it) }
+                failed.forEachIndexed { index, track ->
+                    Column {
+                        Text("${track.title} — ${track.artist}", fontWeight = FontWeight.SemiBold)
+                        Text(track.reason, style = MaterialTheme.typography.bodySmall)
+                        if (source?.canRetryFailed == true) TextButton(enabled = !working, onClick = { reviewIndex = index }) {
+                            Text(stringResource(Res.string.import_review))
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
-            TextButton(enabled = !working && link.isNotBlank() && result == null, onClick = {
+            if (result == null) TextButton(enabled = !working && link.isNotBlank(), onClick = {
                 working = true
-                scope.launch {
+                importJob = scope.launch {
                     try {
                         val plan: ImportPlan = importer.prepare(link) { p ->
                             progressEvents.tryEmit(p)
@@ -240,17 +319,18 @@ private fun ImportDialog() {
                         }
                         status = getString(Res.string.import_saving)
                         val fetched = plan.fetched
-                        val (_, added) = Db.library.createPlaylist(
+                        val (id, added) = Db.library.createPlaylist(
                             Playlist(name = fetched.name, browseId = fetched.browseId, thumbnail = fetched.thumbnail),
                             fetched.tracks.map { it.mediaItem }
                         )
-                        val total = fetched.total ?: (fetched.tracks.size + fetched.failed.size)
-                        result = listOfNotNull(
-                            getString(Res.string.import_result_count, added, total),
-                            plan.duplicates.takeIf { it > 0 }?.let { getString(Res.string.import_duplicates, it) },
-                            fetched.failed.size.takeIf { it > 0 }?.let { getString(Res.string.import_failed_header, it) }
-                        ) + fetched.failed.take(10).map { "• ${it.title} — ${it.artist}" }
-                        status = fetched.name
+                        completed = fetched
+                        playlistId = id
+                        imported = added
+                        duplicates = plan.duplicates
+                        failed = fetched.failed
+                        showResult()
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         status = "${getString(Res.string.import_error_title)}: ${e.message}"
                     } finally {
@@ -259,8 +339,78 @@ private fun ImportDialog() {
                     }
                 }
             }) { Text(stringResource(Res.string.import_playlist)) }
+            else if (failed.isNotEmpty() && importer.sourceFor(link)?.canRetryFailed == true) {
+                TextButton(enabled = !working, onClick = {
+                    val source = importer.sourceFor(link) ?: return@TextButton
+                    val id = playlistId ?: return@TextButton
+                    working = true
+                    importJob = scope.launch {
+                        try {
+                            val (matches, remaining) = source.retry(failed) { p -> progressEvents.tryEmit(p) }
+                            imported += Db.library.addToPlaylist(Playlist(id = id, name = completed?.name.orEmpty()), matches.distinctBy { it.key }.map { it.mediaItem })
+                            failed = remaining
+                            showResult()
+                        } catch (error: kotlinx.coroutines.CancellationException) {
+                            throw error
+                        } catch (error: Exception) {
+                            status = "${getString(Res.string.import_error_title)}: ${error.message}"
+                        } finally { working = false }
+                    }
+                }) { Text(stringResource(Res.string.import_retry_failed)) }
+            }
         },
-        dismissButton = { TextButton(enabled = !working, onClick = { AppDialogs.current = null }) { Text(stringResource(Res.string.import_close)) } }
+        dismissButton = { TextButton(onClick = { importJob?.cancel(); AppDialogs.current = null }) { Text(stringResource(if (working) Res.string.cancel else Res.string.import_close)) } }
+    )
+}
+
+@Composable
+private fun ManualMatchDialog(track: com.k4music.android.playlistimport.FailedTrack,
+    source: com.k4music.android.playlistimport.PlaylistSource, onDismiss: () -> Unit,
+    onChoose: suspend (com.k4music.android.playlistimport.Candidate<Track>) -> Unit) {
+    val scope = rememberCoroutineScope()
+    var choices by remember(track) { mutableStateOf<List<com.k4music.android.playlistimport.Candidate<Track>>>(emptyList()) }
+    var loading by remember(track) { mutableStateOf(true) }
+    var saving by remember(track) { mutableStateOf(false) }
+    var failure by remember(track) { mutableStateOf<String?>(null) }
+    var attempt by remember(track) { mutableStateOf(0) }
+    LaunchedEffect(track, attempt) {
+        loading = true; failure = null
+        try { choices = source.candidates(track) }
+        catch (error: kotlinx.coroutines.CancellationException) { throw error }
+        catch (error: Exception) { failure = error.message ?: "Could not load matches" }
+        finally { loading = false }
+    }
+    AlertDialog(
+        onDismissRequest = { if (!saving) onDismiss() },
+        title = { Text(stringResource(Res.string.import_review_title)) },
+        text = {
+            Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("${track.title} — ${track.artist}", fontWeight = FontWeight.SemiBold)
+                track.durationMs?.takeIf { it > 0 }?.let { Text(com.k4music.desktop.player.formatDuration(it)) }
+                Text(stringResource(Res.string.import_review_hint), style = MaterialTheme.typography.bodySmall)
+                if (loading || saving) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                failure?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                if (!loading && choices.isEmpty() && failure == null) Text(stringResource(Res.string.import_review_empty))
+                choices.forEach { candidate ->
+                    Column {
+                        Text(candidate.title, fontWeight = FontWeight.SemiBold)
+                        Text(listOfNotNull(candidate.artist, candidate.durationMs?.let { com.k4music.desktop.player.formatDuration(it) }).joinToString(" • "),
+                            style = MaterialTheme.typography.bodySmall)
+                        TextButton(enabled = !loading && !saving, onClick = {
+                            saving = true
+                            scope.launch {
+                                try { onChoose(candidate); onDismiss() }
+                                catch (error: kotlinx.coroutines.CancellationException) { throw error }
+                                catch (error: Exception) { failure = error.message ?: "Could not save this recording" }
+                                finally { saving = false }
+                            }
+                        }) { Text(stringResource(Res.string.import_review_choose)) }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(enabled = !loading && !saving, onClick = { attempt++ }) { Text(stringResource(Res.string.retry)) } },
+        dismissButton = { TextButton(enabled = !saving, onClick = onDismiss) { Text(stringResource(Res.string.back)) } }
     )
 }
 
@@ -272,12 +422,13 @@ private fun ImportDialog() {
 @Composable
 private fun UpdateDialog(update: com.k4music.desktop.Updater.Update) {
     val scope = rememberCoroutineScope()
+    var transfer by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     var progress by remember { mutableStateOf<Float?>(null) }
     var failed by remember { mutableStateOf(false) }
     var starting by remember { mutableStateOf(false) }
     val busy = progress != null && !failed
     AlertDialog(
-        onDismissRequest = { if (!busy) AppDialogs.current = null },
+        onDismissRequest = { transfer?.cancel(); AppDialogs.current = null },
         title = { Text(stringResource(Res.string.desktop_update_title, update.version)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -299,13 +450,19 @@ private fun UpdateDialog(update: com.k4music.desktop.Updater.Update) {
             if (update.installerUrl != null) K4Button(enabled = !busy, onClick = {
                 failed = false
                 progress = 0f
-                scope.launch {
+                transfer = scope.launch {
+                    try {
                     // Starting the installer can fail too (Windows Smart App Control blocks unsigned installers).
                     runCatching {
                         val file = com.k4music.desktop.Updater.download(update) { progress = it }
                         starting = true
                         com.k4music.desktop.Updater.install(file)
-                    }.onFailure { com.k4music.desktop.AppLog.w("Updater", "Update failed", it); starting = false; failed = true }
+                    }.onSuccess { AppDialogs.current = null }
+                        .onFailure {
+                            if (it is kotlinx.coroutines.CancellationException) throw it
+                            com.k4music.desktop.AppLog.w("Updater", "Update failed", it); starting = false; failed = true
+                        }
+                    } finally { progress = null }
                 }
             }) { Text(stringResource(Res.string.desktop_update_now)) }
             else K4Button(onClick = {
@@ -314,7 +471,188 @@ private fun UpdateDialog(update: com.k4music.desktop.Updater.Update) {
             }) { Text(stringResource(Res.string.desktop_update_website)) }
         },
         dismissButton = {
-            if (!busy) TextButton(onClick = { AppDialogs.current = null }) { Text(stringResource(Res.string.desktop_update_later)) }
+            TextButton(onClick = { transfer?.cancel(); AppDialogs.current = null }) {
+                Text(stringResource(if (busy) Res.string.cancel else Res.string.desktop_update_later))
+            }
         }
     )
+}
+
+private data class PaletteAction(
+    val title: String,
+    val category: String,
+    val shortcut: String? = null,
+    val execute: () -> Unit
+)
+
+@Composable
+private fun CommandPaletteDialog(onDismiss: () -> Unit) {
+    val navigator = LocalNavigator.current
+    val player = LocalPlayer.current
+    val colors = MaterialTheme.colorScheme
+
+    val actions = remember(navigator, player) {
+        listOf(
+            PaletteAction("Go to Home", "Navigation", "Alt+H") { navigator.root(Screen.Home) },
+            PaletteAction("Discover New Music", "Navigation", "Alt+D") { navigator.root(Screen.Discover) },
+            PaletteAction("Search Library & Online", "Navigation", "Ctrl+F") { navigator.go(Screen.Search()) },
+            PaletteAction("Open Library", "Navigation", "Alt+L") { navigator.root(Screen.Library) },
+            PaletteAction("Open Settings", "Navigation", "Ctrl+,") { navigator.root(Screen.Settings) },
+            PaletteAction("Play / Pause", "Playback", "Space") { player.togglePlay() },
+            PaletteAction("Next Track", "Playback", "Ctrl+Right") { player.next() },
+            PaletteAction("Previous Track", "Playback", "Ctrl+Left") { player.previous() },
+            PaletteAction("Toggle Shuffle", "Playback", "S") { player.setShuffle(!com.k4music.desktop.prefs.Settings.shuffleEnabled) },
+            PaletteAction("Toggle Mute", "Playback", "M") { player.setMuted(!com.k4music.desktop.prefs.Settings.muted) },
+            PaletteAction("Volume: 100%", "Audio", null) { player.setVolume(100); player.setMuted(false) },
+            PaletteAction("Volume: 50%", "Audio", null) { player.setVolume(50); player.setMuted(false) },
+            PaletteAction("Volume: 25%", "Audio", null) { player.setVolume(25); player.setMuted(false) },
+            PaletteAction("Cycle Repeat Mode", "Playback", "R") { player.cycleRepeat() },
+            PaletteAction("Equalizer: Bass Boost", "Audio", null) {
+                com.k4music.desktop.player.AudioEffects.setGains(com.k4music.desktop.player.AudioEffects.presets.getValue("Bass Boost"), "Bass Boost")
+                player.applyEffects()
+            },
+            PaletteAction("Equalizer: Vocal", "Audio", null) {
+                com.k4music.desktop.player.AudioEffects.setGains(com.k4music.desktop.player.AudioEffects.presets.getValue("Vocal"), "Vocal")
+                player.applyEffects()
+            },
+            PaletteAction("Equalizer: Electronic", "Audio", null) {
+                com.k4music.desktop.player.AudioEffects.setGains(com.k4music.desktop.player.AudioEffects.presets.getValue("Electronic"), "Electronic")
+                player.applyEffects()
+            },
+            PaletteAction("Equalizer: Flat (Reset)", "Audio", null) {
+                com.k4music.desktop.player.AudioEffects.setGains(com.k4music.desktop.player.AudioEffects.presets.getValue("Flat"), "Flat")
+                player.applyEffects()
+            },
+            PaletteAction("Toggle Sidebar", "View", "Ctrl+B") { com.k4music.desktop.prefs.Settings.sidebarCollapsed = !com.k4music.desktop.prefs.Settings.sidebarCollapsed },
+            PaletteAction("Clear Queue", "Queue", null) { player.clearQueue() }
+        )
+    }
+
+    var query by remember { mutableStateOf("") }
+    val filtered = remember(query, actions) {
+        if (query.isBlank()) actions
+        else actions.filter {
+            it.title.contains(query, ignoreCase = true) || it.category.contains(query, ignoreCase = true)
+        }
+    }
+    var selectedIndex by remember(filtered) { mutableStateOf(0) }
+    val listState = rememberLazyListState()
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = colors.surface.copy(alpha = 0.95f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, colors.primary.copy(alpha = 0.35f)),
+            modifier = Modifier.width(540.dp).padding(16.dp)
+        ) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(12.dp))
+                        .background(colors.surfaceContainer)
+                        .padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        painter = org.jetbrains.compose.resources.painterResource(Res.drawable.search),
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = colors.primary
+                    )
+                    val focusRequester = remember { FocusRequester() }
+                    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+                    BasicTextField(
+                        value = query,
+                        onValueChange = { query = it; selectedIndex = 0 },
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface),
+                        cursorBrush = SolidColor(colors.primary),
+                        modifier = Modifier.weight(1f).focusRequester(focusRequester)
+                            .onPreviewKeyEvent { event ->
+                                if (event.type == KeyEventType.KeyDown) {
+                                    when (event.key) {
+                                        Key.DirectionDown -> {
+                                            if (filtered.isNotEmpty()) {
+                                                selectedIndex = (selectedIndex + 1) % filtered.size
+                                            }
+                                            true
+                                        }
+                                        Key.DirectionUp -> {
+                                            if (filtered.isNotEmpty()) {
+                                                selectedIndex = (selectedIndex - 1 + filtered.size) % filtered.size
+                                            }
+                                            true
+                                        }
+                                        Key.Enter, Key.NumPadEnter -> {
+                                            filtered.getOrNull(selectedIndex)?.let {
+                                                onDismiss()
+                                                it.execute()
+                                            }
+                                            true
+                                        }
+                                        Key.Escape -> {
+                                            onDismiss()
+                                            true
+                                        }
+                                        else -> false
+                                    }
+                                } else false
+                            }
+                    )
+                }
+
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.heightIn(max = 340.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    itemsIndexed(filtered) { index, item ->
+                        val isSelected = index == selectedIndex
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                                .background(if (isSelected) colors.primaryContainer else Color.Transparent)
+                                .clickable {
+                                    onDismiss()
+                                    item.execute()
+                                }
+                                .padding(horizontal = 12.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text(
+                                item.category.uppercase(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isSelected) colors.primary else colors.onSurfaceVariant.copy(alpha = 0.65f),
+                                modifier = Modifier.width(76.dp)
+                            )
+                            Text(
+                                item.title,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) colors.onSurface else colors.onSurface.copy(alpha = 0.85f),
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (item.shortcut != null) {
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = if (isSelected) colors.primary.copy(alpha = 0.2f) else colors.surfaceContainerHigh,
+                                    modifier = Modifier.padding(start = 4.dp)
+                                ) {
+                                    Text(
+                                        item.shortcut,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (isSelected) colors.primary else colors.onSurfaceVariant,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

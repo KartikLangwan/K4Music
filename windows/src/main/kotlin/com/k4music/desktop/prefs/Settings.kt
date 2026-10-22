@@ -46,10 +46,17 @@ abstract class SettingsStore(private val file: () -> java.io.File) {
             val f = file()
             val tmp = f.resolveSibling(f.name + ".tmp")
             tmp.writeText(Json.encodeToString(JsonObject.serializer(), JsonObject(values)))
-            java.nio.file.Files.move(
-                tmp.toPath(), f.toPath(),
-                java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE
-            )
+            runCatching {
+                java.nio.file.Files.move(
+                    tmp.toPath(), f.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE
+                )
+            }.recoverCatching {
+                java.nio.file.Files.move(
+                    tmp.toPath(), f.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING
+                )
+            }.getOrThrow()
         }.onFailure { AppLog.w("Settings", "Could not save settings", it) }
     }
 
@@ -103,8 +110,25 @@ enum class AudioQuality(val saavn: String, val youtubeItags: List<Int>) {
 
 enum class ThemeMode { System, Dark, Light }
 
-/** What sits behind pages: the playing song's colours, the accent, or the user's picture. */
-enum class BackgroundStyle { Artwork, Accent, Image }
+/** What sits behind pages: full blurred artwork, glowing color aura, living liquid canvas, midnight neon, scenic nature landscapes, OLED black, accent, or user picture. */
+enum class BackgroundStyle {
+    BlurredArtwork,
+    LiquidCanvas,
+    GlowAura,
+    MidnightNeon,
+    Alpine,
+    Aurora,
+    PureBlack,
+    Accent,
+    Image;
+
+    companion object {
+        fun fromName(name: String): BackgroundStyle = when (name) {
+            "Artwork" -> BlurredArtwork
+            else -> entries.firstOrNull { it.name.equals(name, ignoreCase = true) } ?: BlurredArtwork
+        }
+    }
+}
 
 /** Where the Home / Discover / Search / Library buttons sit. */
 enum class NavPosition { Side, Bottom }
@@ -122,18 +146,20 @@ object Settings : SettingsStore({ AppPaths.settings }) {
     var muted by boolean(false)
     /** Sound output: "auto" follows the Windows default, else mpv's device id (speakers, Bluetooth…). */
     var audioDevice by string("auto")
-    /** "Playing K4 Music" on Discord (see DiscordPresence). */
-    var discordPresence by boolean(true)
+    /** "Playing K4 Music" on Discord (see DiscordPresence). Off by default: it shares what you listen to. */
+    var discordPresence by boolean(false)
     /** Daily update check: when it last ran, and the version already offered (asked once). */
     var updateCheckedAt by long(0L)
     var updateOfferedVersion by string("")
     var speed by float(1f)
     var pitch by float(1f)
     var skipSilence by boolean(false)
-    var volumeNormalization by boolean(false)
+    var volumeNormalization by boolean(true)
     var sponsorBlockEnabled by boolean(false)
     var sponsorBlockCategories by string("sponsor,selfpromo,intro,outro,music_offtopic")
     var resumeOnStart by boolean(false)
+    var launchAtStartup by boolean(false)
+    var startMinimizedOnStartup by boolean(true)
 
     // Audio effects (mpv filter chain; same choices as Android's AudioScreen)
     var equalizerEnabled by boolean(false)
@@ -146,6 +172,9 @@ object Settings : SettingsStore({ AppPaths.settings }) {
 
     var isShowingLyrics by boolean(false)
     var isShowingSynchronizedLyrics by boolean(true)
+    /** Active line scaling and vocal glow with bouncy spring scrolling. */
+    var kineticLyrics by boolean(true)
+    var reducedMotion by boolean(false)
 
     // Library
     var localFolders by string("")
@@ -153,6 +182,8 @@ object Settings : SettingsStore({ AppPaths.settings }) {
     // Appearance
     var themeMode by enum(ThemeMode.Dark)
     var accentColorHex by string("#7B5CFF")
+    /** Dynamic theme accent extracted directly from currently playing album art. */
+    var syncAccentWithArtwork by boolean(true)
     var minimizeToTray by boolean(false)
     var navPosition by enum(NavPosition.Side)
     /** Side panel shrunk to icons only (Ctrl+B). */
@@ -161,7 +192,19 @@ object Settings : SettingsStore({ AppPaths.settings }) {
     var hiddenNav by string("")
     /** Shows your playlists under the navigation buttons, like a music library. */
     var sidebarPlaylists by boolean(true)
-    var backgroundStyle by enum(BackgroundStyle.Artwork)
+    var backgroundStyle by enumPref(BackgroundStyle.BlurredArtwork) { BackgroundStyle.fromName(it) }
+    /** Backdrop blur radius (dp) for BlurredArtwork: 20, 45, 70, 95. */
+    var backdropBlur by int(45)
+    /** Backdrop darkness scrim percentage (35%, 50%, 65%, 80%) for contrast. */
+    var backdropDim by int(55)
+    /** Frosted acrylic glassmorphic panels with subtle borders. */
+    var glassmorphism by boolean(true)
+    /** Panel transparency/opacity percentage: 15% to 100%. */
+    var panelOpacity by int(70)
+    /** Ambient glow and gradient rings around artist avatars. */
+    var artistGlow by boolean(true)
+    /** Pure black surfaces for OLED displays. */
+    var oledBlack by boolean(false)
     /** Picture file for BackgroundStyle.Image. */
     var backgroundImage by string("")
     /** Side panel and queue/lyrics panel widths (dp), set by dragging their edges. */

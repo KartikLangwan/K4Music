@@ -123,8 +123,16 @@ class PlaylistImportTest {
 
     @Test
     fun repeatedTokenDoesNotLoopForever() = runBlocking {
-        val all = collectAllPages(listOf(1), "same") { listOf(2) to "same" }
-        assertEquals(listOf(1, 2), all)
+        expectError(ImportError.Network) {
+            collectAllPages(listOf(1), "same") { listOf(2) to "same" }
+        }
+    }
+
+    @Test
+    fun pageLimitReportsIncompleteImport() = runBlocking {
+        expectError(ImportError.Network) {
+            collectAllPages(listOf(1), "first", maxPages = 1) { listOf(2) to "next" }
+        }
     }
 
     // ---- matching ----
@@ -154,11 +162,28 @@ class PlaylistImportTest {
     }
 
     @Test
-    fun matchingAcceptsDurationWhenArtistNamesDiffer() {
-        assertNotNull(pickBestMatch("Tum Hi Ho", "Arijit Singh", 262_000, listOf(cand("Tum Hi Ho", "T-Series", 263_000))))
+    fun matchingRequiresArtistAgreementWhenBothAreKnown() {
+        assertNull(pickBestMatch("Tum Hi Ho", "Arijit Singh", 262_000, listOf(cand("Tum Hi Ho", "T-Series", 263_000))))
+        assertNotNull(pickBestMatch("Tum Hi Ho", "Arijit Singh", 262_000, listOf(cand("Tum Hi Ho", "", 263_000))))
+        assertNull(pickBestMatch("Song", "Arijit Singh", null, listOf(cand("Song", "Someone Singh"))))
+    }
+
+    @Test
+    fun matchingRejectsDifferentTitlesAndRecordingEditionsDespiteEqualDuration() {
+        assertNull(pickBestMatch("One", "Metallica", 240_000, listOf(cand("One Thing", "Metallica", 240_000))))
+        assertNull(pickBestMatch("Believer", "Imagine Dragons", 204_000, listOf(cand("Believer (Live)", "Imagine Dragons", 204_000))))
+        assertNotNull(pickBestMatch("Believer (Live)", "Imagine Dragons", 204_000, listOf(cand("Believer (Live)", "Imagine Dragons", 204_000))))
     }
 
     // ---- importer ----
+
+    @Test
+    fun matchingPreservesPartsSubtitlesAndRejectsConflictingDurations() {
+        assertNull(pickBestMatch("Title - Part 1", "Artist", 180_000, listOf(cand("Title - Part 2", "Artist", 180_000))))
+        assertNull(pickBestMatch("Title (Part 1)", "Artist", null, listOf(cand("Title (Part 2)", "Artist"))))
+        assertNull(pickBestMatch("Title", "Artist", 180_000, listOf(cand("Title", "Artist", 240_000))))
+        assertNotNull(pickBestMatch("Title", "Artist", 180_000, listOf(cand("Title - 2020 Remaster", "Artist", 182_000))))
+    }
 
     private class FakeSource(private val result: FetchedPlaylist) : PlaylistSource {
         override val name = "fake"
@@ -298,6 +323,17 @@ class PlaylistImportTest {
         }).build()
 
     private val link = "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"
+
+    @Test
+    fun manualReviewOffersBoundedDistinctAlternativesWithoutAutomaticallyImportingThem() = runBlocking {
+        val alternatives = (0..11).map { index -> Candidate("Alternative $index", "Artist", 200_000L,
+            MediaItem.Builder().setMediaId("option-$index").build()) }
+        val source = SpotifySource(spotifyClient(null, null), { alternatives + alternatives })
+        val options = source.candidates(FailedTrack("Wanted", "Artist", "No confident match"))
+        assertEquals(8, options.size)
+        assertEquals((0..7).map { "option-$it" }, options.map { it.payload.mediaId })
+        assertNull(pickBestMatch("Wanted", "Artist", 200_000, options))
+    }
     private val titles = listOf("Patient Zero", "the cure", "Nicole Kidman", "Earrings", "BbY WOW")
     private val ALL_ARTISTS = "Taylor Swift Beyonce Jay-Z ADELA Malcolm Todd KAROL G Judeline rusowsky"
     private val resolveAll: suspend (String) -> List<Candidate<MediaItem>> = { query ->

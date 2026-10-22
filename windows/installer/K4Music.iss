@@ -88,8 +88,10 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; AppUserModelID: "
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
-; yt-dlp updates itself in place; remove whatever it left behind.
-Type: filesandordirs; Name: "{app}"
+; yt-dlp updates itself in place; remove only tool leftovers.
+Type: filesandordirs; Name: "{app}\tools\yt-dlp"
+Type: dirifempty; Name: "{app}\tools"
+Type: dirifempty; Name: "{app}"
 
 [Code]
 var

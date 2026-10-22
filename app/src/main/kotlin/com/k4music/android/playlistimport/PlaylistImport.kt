@@ -46,6 +46,9 @@ interface PlaylistSource {
     /** True when [retry] can try the failed tracks again (matching problems, unlike YouTube-hidden videos). */
     val canRetryFailed: Boolean get() = false
 
+    /** Alternatives for explicit user review only; never substitute these automatically. */
+    suspend fun candidates(track: FailedTrack): List<Candidate<MediaItem>> = emptyList()
+
     suspend fun retry(failed: List<FailedTrack>, progress: (ImportProgress) -> Unit): Pair<List<ImportedTrack>, List<FailedTrack>> =
         emptyList<ImportedTrack>() to failed
 }
@@ -128,15 +131,21 @@ suspend fun <T> collectAllPages(
         onProgress(all.size)
         token = next
     }
+    if (token != null) throw PlaylistImportException(
+        ImportError.Network,
+        "Playlist loading stopped after ${all.size} tracks before the final page. Retry to import the complete playlist."
+    )
     return all
 }
 
 /** A catalogue candidate for a wanted track. */
 data class Candidate<T>(val title: String, val artist: String, val durationMs: Long?, val payload: T)
 
-private val EDITION_PAREN = Regex("""\s[(\[].*?[)\]]""")
-private val EDITION_DASH = Regex("""\s[-–—|/].*""")
+// Strip known presentation metadata only. Part numbers and subtitles identify different songs.
+private val EDITION_PAREN = Regex("""\s[(\[]\s*(?:from\s+.*|(?:\d{4}\s+)?remaster(?:ed)?(?:\s+\d{4})?|official\s+(?:audio|video|music video)|lyrics?(?:\s+video)?)\s*[)\]]""", RegexOption.IGNORE_CASE)
+private val EDITION_DASH = Regex("""\s[-–—|]\s*(?:(?:\d{4}\s+)?remaster(?:ed)?(?:\s+\d{4})?|official\s+(?:audio|video|music video)|lyrics?(?:\s+video)?)\s*$""", RegexOption.IGNORE_CASE)
 private val EDITION_FEAT = Regex("""\b(feat|ft|featuring)\b.*""")
+private val RECORDING_EDITION = Regex("""\b(live|remix|cover|karaoke|instrumental|acoustic|slowed|nightcore|sped up)\b""", RegexOption.IGNORE_CASE)
 private val SPACES = Regex("""\s+""")
 
 private fun coreTitle(raw: String): String {
@@ -147,7 +156,8 @@ private fun coreTitle(raw: String): String {
 
 /**
  * Picks the candidate that really is the wanted song, or null. The title must match (ignoring
- * "(Live)", "- Remastered" style tails) and either an artist word or the duration (within 6 s) must agree.
+ * album/remaster tails); recording editions must agree. Artist phrases must match when both are
+ * known; a missing artist can be corroborated by duration (within 6 s).
  */
 fun <T> pickBestMatch(
     title: String,
@@ -157,20 +167,22 @@ fun <T> pickBestMatch(
 ): Candidate<T>? {
     val wantTitle = coreTitle(title)
     if (wantTitle.isEmpty()) return null
-    val wantArtists = normalizeForMatch(artist).split(' ').filter { it.length > 2 }
+    val wantArtists = artist.split(Regex("""\s*(?:,|&|;|\bfeat\.?|\bfeaturing|\bft\.?)\s*""", RegexOption.IGNORE_CASE))
+        .map(::normalizeForMatch).filter { it.isNotBlank() }
+    val wantedEdition = RECORDING_EDITION.findAll(title).map { it.value.lowercase() }.toSet()
 
     return candidates.mapIndexedNotNull { index, c ->
-        val have = coreTitle(c.title)
-        val titleScore = when {
-            have == wantTitle -> 3
-            have.isNotEmpty() && (have.contains(wantTitle) || wantTitle.contains(have)) -> 1
-            else -> return@mapIndexedNotNull null
-        }
+        // Duration coincidence cannot turn a different title or recording edition into this song.
+        if (coreTitle(c.title) != wantTitle) return@mapIndexedNotNull null
+        val candidateEdition = RECORDING_EDITION.findAll(c.title).map { it.value.lowercase() }.toSet()
+        if (candidateEdition != wantedEdition) return@mapIndexedNotNull null
         val haveArtist = normalizeForMatch(c.artist)
-        val artistOk = wantArtists.isEmpty() || wantArtists.any { it in haveArtist }
+        val artistOk = wantArtists.any { " $it " in " $haveArtist " }
         val durationOk = durationMs != null && c.durationMs != null && kotlin.math.abs(durationMs - c.durationMs) <= 6_000
+        if (durationMs != null && c.durationMs != null && kotlin.math.abs(durationMs - c.durationMs) > 10_000) return@mapIndexedNotNull null
+        if (wantArtists.isNotEmpty() && haveArtist.isNotBlank() && !artistOk) return@mapIndexedNotNull null
         if (!artistOk && !durationOk) return@mapIndexedNotNull null
-        Triple(titleScore + (if (artistOk) 2 else 0) + (if (durationOk) 2 else 0), index, c)
+        Triple(3 + (if (artistOk) 2 else 0) + (if (durationOk) 2 else 0), index, c)
     }.sortedWith(compareByDescending<Triple<Int, Int, Candidate<T>>> { it.first }.thenBy { it.second })
         .firstOrNull()?.third
 }

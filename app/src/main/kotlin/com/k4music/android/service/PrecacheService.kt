@@ -237,6 +237,20 @@ class PrecacheService : DownloadService(
                         download: Download,
                         finalException: Exception?
                     ) {
+                        if (download.state == Download.STATE_COMPLETED) {
+                            val id = download.request.id
+                            val length = download.contentLength.takeIf { it > 0 } ?: download.bytesDownloaded
+                            if (length > 0) {
+                                val mutations = ContentMetadataMutations()
+                                ContentMetadataMutations.setContentLength(mutations, length)
+                                cache.applyContentMetadataMutations(id, mutations)
+                                transaction {
+                                    if (Database.updateDownloadedLength(id, length) == 0) {
+                                        Database.insert(com.k4music.android.models.Format(songId = id, contentLength = length))
+                                    }
+                                }
+                            }
+                        }
                         if (download.state == Download.STATE_FAILED) {
                             val id = download.request.id
                             mutableDownloadProgress.update { it + (id to DownloadProgress(id, 0, Download.STATE_FAILED)) }
@@ -294,6 +308,7 @@ class PrecacheService : DownloadService(
 
         unregisterReceiver(notificationActionReceiver)
         mutableDownloadState.update { false }
+        progressUpdaterJob?.cancel()
         mainScope.cancel()
         manager = null
         mutableDownloadProgress.update { it.filterValues(DownloadProgress::failed) }

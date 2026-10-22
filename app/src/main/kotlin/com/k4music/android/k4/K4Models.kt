@@ -19,7 +19,9 @@ data class K4Song(
     val artworkUri: String?,
     val isLocal: Boolean = false,
     val isFavorite: Boolean = false,
-    val filePath: String? = null
+    val filePath: String? = null,
+    /** Proven existing library/cache key; catalogue id above remains unchanged. */
+    val playbackKey: String? = null
 )
 
 fun K4Song.isOwnedLocally(): Boolean =

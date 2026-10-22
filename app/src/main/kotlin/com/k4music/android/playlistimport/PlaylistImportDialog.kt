@@ -76,7 +76,8 @@ private sealed interface ImportState {
         val truncated: Boolean,
         val failed: List<FailedTrack>,
         val canRetryFailed: Boolean,
-        val retrying: Boolean = false
+        val retrying: Boolean = false,
+        val error: String? = null
     ) : ImportState
 }
 
@@ -89,6 +90,7 @@ fun PlaylistImportDialog(onDismiss: () -> Unit) {
     var link by rememberSaveable { mutableStateOf("") }
     var state by remember { mutableStateOf<ImportState>(ImportState.Input) }
     var job by remember { mutableStateOf<Job?>(null) }
+    var reviewIndex by remember { mutableStateOf<Int?>(null) }
 
     fun start() {
         if (job?.isActive == true || link.isBlank()) return
@@ -129,7 +131,7 @@ fun PlaylistImportDialog(onDismiss: () -> Unit) {
     fun retryFailed(done: ImportState.Done) {
         if (job?.isActive == true) return
         val source = importer.sourceFor(link) ?: return
-        state = done.copy(retrying = true)
+        state = done.copy(retrying = true, error = null)
         job = scope.launch {
             state = try {
                 val (tracks, stillFailed) = source.retry(done.failed) { }
@@ -148,12 +150,25 @@ fun PlaylistImportDialog(onDismiss: () -> Unit) {
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                done.copy(retrying = false)
+                done.copy(retrying = false, error = error.message ?: "Could not retry these tracks")
             }
         }
     }
 
     val source = importer.sourceFor(link)
+
+    val done = state as? ImportState.Done
+    val reviewed = reviewIndex?.let { done?.failed?.getOrNull(it) }
+    if (reviewed != null && done != null && source != null) {
+        ManualMatchDialog(reviewed, source, onDismiss = { reviewIndex = null }) { candidate ->
+            val added = withContext(Dispatchers.IO) {
+                Database.addToPlaylist(Playlist(id = done.playlistId, name = done.name), listOf(candidate.payload))
+            }
+            val remaining = done.failed.filterIndexed { index, _ -> index != reviewIndex }
+            state = done.copy(imported = done.imported + added, duplicates = done.duplicates + (if (added == 0) 1 else 0),
+                failed = remaining, canRetryFailed = remaining.isNotEmpty())
+        }
+    }
 
     DefaultDialog(
         onDismiss = { job?.cancel(); onDismiss() },
@@ -322,6 +337,7 @@ fun PlaylistImportDialog(onDismiss: () -> Unit) {
             }
 
             is ImportState.Done -> {
+                current.error?.let { Note(it, warning = true) }
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
@@ -357,17 +373,21 @@ fun PlaylistImportDialog(onDismiss: () -> Unit) {
                             .padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        current.failed.forEach {
+                        current.failed.forEachIndexed { index, failed ->
                             Column {
                                 BasicText(
-                                    text = listOf(it.title, it.artist).filter(String::isNotBlank).joinToString(" — "),
+                                    text = listOf(failed.title, failed.artist).filter(String::isNotBlank).joinToString(" — "),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     style = typography.xxs.semiBold.copy(color = colorPalette.text)
                                 )
                                 BasicText(
-                                    text = it.reason,
+                                    text = failed.reason,
                                     style = typography.xxs.medium.copy(color = colorPalette.textSecondary)
+                                )
+                                if (current.canRetryFailed) DialogTextButton(
+                                    text = stringResource(R.string.import_review), enabled = !current.retrying,
+                                    onClick = { reviewIndex = index }
                                 )
                             }
                         }
@@ -382,6 +402,55 @@ fun PlaylistImportDialog(onDismiss: () -> Unit) {
                     DialogTextButton(text = stringResource(R.string.done), primary = true, onClick = onDismiss)
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ManualMatchDialog(track: FailedTrack, source: PlaylistSource, onDismiss: () -> Unit,
+    onChoose: suspend (Candidate<androidx.media3.common.MediaItem>) -> Unit) {
+    val (palette, typography) = LocalAppearance.current
+    val scope = rememberCoroutineScope()
+    var choices by remember(track) { mutableStateOf<List<Candidate<androidx.media3.common.MediaItem>>>(emptyList()) }
+    var loading by remember(track) { mutableStateOf(true) }
+    var saving by remember(track) { mutableStateOf(false) }
+    var failure by remember(track) { mutableStateOf<String?>(null) }
+    var attempt by remember(track) { mutableStateOf(0) }
+    androidx.compose.runtime.LaunchedEffect(track, attempt) {
+        loading = true; failure = null
+        try { choices = source.candidates(track) }
+        catch (error: CancellationException) { throw error }
+        catch (error: Exception) { failure = error.message ?: "Could not load matches" }
+        finally { loading = false }
+    }
+    DefaultDialog(onDismiss = { if (!saving) onDismiss() }, horizontalAlignment = Alignment.Start, horizontalPadding = 20.dp) {
+        DialogHeader(R.drawable.search, palette.accent, stringResource(R.string.import_review_title), "${track.title} — ${track.artist}")
+        Note(stringResource(R.string.import_review_hint))
+        track.durationMs?.takeIf { it > 0 }?.let { Note(com.k4music.android.k4.formatDurationMs(it).orEmpty()) }
+        if (loading || saving) CircularProgressIndicator(modifier = Modifier.padding(12.dp).size(28.dp))
+        failure?.let { Note(it, warning = true) }
+        if (!loading && choices.isEmpty() && failure == null) Note(stringResource(R.string.import_review_empty))
+        Column(Modifier.fillMaxWidth().heightIn(max = 300.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            choices.forEach { candidate ->
+                Column {
+                    BasicText(candidate.title, style = typography.s.semiBold.copy(color = palette.text))
+                    BasicText(listOfNotNull(candidate.artist, candidate.durationMs?.let { com.k4music.android.k4.formatDurationMs(it) }).joinToString(" • "),
+                        style = typography.xs.medium.copy(color = palette.textSecondary))
+                    DialogTextButton(stringResource(R.string.import_review_choose), enabled = !loading && !saving, onClick = {
+                        saving = true
+                        scope.launch {
+                            try { onChoose(candidate); onDismiss() }
+                            catch (error: CancellationException) { throw error }
+                            catch (error: Exception) { failure = error.message ?: "Could not save this recording" }
+                            finally { saving = false }
+                        }
+                    })
+                }
+            }
+        }
+        DialogActions {
+            DialogTextButton(stringResource(R.string.retry), enabled = !loading && !saving, onClick = { attempt++ })
+            DialogTextButton(stringResource(R.string.back), enabled = !saving, onClick = onDismiss)
         }
     }
 }

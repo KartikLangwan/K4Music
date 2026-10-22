@@ -9,6 +9,7 @@ import com.k4music.desktop.res.add
 import com.k4music.desktop.res.add_to_playlist
 import com.k4music.desktop.res.desktop_copy_link
 import com.k4music.desktop.res.desktop_unlike
+import com.k4music.desktop.res.desktop_download_cancel
 import com.k4music.desktop.res.download
 import com.k4music.desktop.res.heart
 import com.k4music.desktop.res.heart_outline
@@ -46,6 +47,7 @@ fun songActions(extra: (Track) -> List<MenuAction> = { emptyList() }): (Track) -
     val like = stringResource(Res.string.like)
     val unlike = stringResource(Res.string.desktop_unlike)
     val addToPlaylist = stringResource(Res.string.add_to_playlist)
+    val cancelDownload = stringResource(Res.string.desktop_download_cancel)
     val download = stringResource(Res.string.download)
     val removeDownload = stringResource(Res.string.remove_download)
 
@@ -58,7 +60,8 @@ fun songActions(extra: (Track) -> List<MenuAction> = { emptyList() }): (Track) -
             add(MenuAction(if (liked) unlike else like, if (liked) Res.drawable.heart else Res.drawable.heart_outline) { LibraryHooks.toggleLike(track) })
             add(MenuAction(addToPlaylist, Res.drawable.add) { AppDialogs.addToPlaylist(listOf(track)) })
             if (!track.isLocal) {
-                if (Downloads.isDownloaded(track.id)) add(MenuAction(removeDownload, Res.drawable.trash) { Downloads.delete(track.id) })
+                if (track.id in Downloads.progress.value) add(MenuAction(cancelDownload, Res.drawable.trash) { Downloads.cancel(track.id) })
+                else if (Downloads.isDownloaded(track.id)) add(MenuAction(removeDownload, Res.drawable.trash) { Downloads.delete(track.id) })
                 else add(MenuAction(download, Res.drawable.download) { Downloads.download(track) })
             }
             addAll(extra(track))

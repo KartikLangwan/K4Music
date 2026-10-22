@@ -89,6 +89,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 private enum class LibraryTab(val title: StringResource) {
@@ -135,6 +136,7 @@ fun SongList(
     tracks: List<Track>,
     header: @Composable () -> Unit = {},
     extra: (Track) -> List<MenuAction> = { emptyList() },
+    footer: @Composable () -> Unit = {},
     onMove: ((Int, Int) -> Unit)? = null
 ) {
     val player = LocalPlayer.current
@@ -149,6 +151,7 @@ fun SongList(
                 leading = onMove?.let { { ReorderHandle(reorder, i, tracks.size) } }
             )
         }
+        item { footer() }
     }
 }
 
@@ -163,7 +166,7 @@ private fun SongsTab(local: Boolean) {
     val tracks = songs.orEmpty()
     SongList(tracks, header = {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(Res.string.desktop_song_count, tracks.size), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+            Text(pluralStringResource(Res.plurals.desktop_song_count, tracks.size, tracks.size), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
             if (local) {
                 OutlinedButton(onClick = { AppDialogs.pickFolder { LocalMusic.addFolder(it); scope.launch { LocalMusic.scan() } } }) {
                     Text(stringResource(Res.string.desktop_add_folder))
@@ -213,7 +216,7 @@ private fun PlaylistsTab() {
                 BuiltInCard(stringResource(title), glyph) { navigator.go(Screen.BuiltIn(kind)) }
             }
             items(playlists, key = { "pl-${it.id}" }) { p ->
-                MediaCard(p.name, stringResource(Res.string.desktop_song_count, p.songCount), p.thumbnail) { navigator.go(Screen.LocalPlaylist(p.id)) }
+                MediaCard(p.name, pluralStringResource(Res.plurals.desktop_song_count, p.songCount, p.songCount), p.thumbnail) { navigator.go(Screen.LocalPlaylist(p.id)) }
             }
             item(key = "piped", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) { Column { PipedPlaylistsShelves() } }
         }
@@ -292,7 +295,7 @@ fun BuiltInScreen(kind: BuiltInKind) {
         songs,
         header = {
             Text(stringResource(title), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
-            Text(stringResource(Res.string.desktop_song_count, songs.size), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(pluralStringResource(Res.plurals.desktop_song_count, songs.size, songs.size), color = MaterialTheme.colorScheme.onSurfaceVariant)
             PlayRow(songs)
         },
         extra = { t -> if (kind == BuiltInKind.Downloads) listOf(MenuAction(removeDownload, Res.drawable.trash) { Downloads.delete(t.id) }) else emptyList() }
@@ -311,7 +314,7 @@ fun LocalPlaylistScreen(id: Long) {
     SongList(
         songs,
         header = {
-            CollectionHeader(playlist?.name.orEmpty(), stringResource(Res.string.desktop_song_count, songs.size), songs.firstOrNull()?.thumbnailUrl ?: playlist?.thumbnail) {
+            CollectionHeader(playlist?.name.orEmpty(), pluralStringResource(Res.plurals.desktop_song_count, songs.size, songs.size), songs.firstOrNull()?.thumbnailUrl ?: playlist?.thumbnail) {
                 PlayButtons(songs)
                 OutlinedButton(onClick = { playlist?.let { AppDialogs.renamePlaylist(it) } }) { Text(stringResource(Res.string.rename)) }
                 OutlinedButton(onClick = {

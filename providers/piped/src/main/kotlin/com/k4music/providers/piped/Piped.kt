@@ -78,6 +78,7 @@ object Piped {
         endpoint: String,
         block: HttpRequestBuilder.() -> Unit = { }
     ) = mutex.withLock {
+        require(session.apiBaseUrl.protocol.name.equals("https", true)) { "Use an HTTPS API URL to protect your account." }
         client.request(url = session.apiBaseUrl / endpoint) {
             block()
             header("Authorization", session.token)
@@ -93,6 +94,7 @@ object Piped {
 
     suspend fun login(apiBaseUrl: Url, username: String, password: String) =
         runCatchingCancellable {
+            require(apiBaseUrl.protocol.name.equals("https", true)) { "Use an HTTPS API URL to protect your account." }
             apiBaseUrl authenticatedWith (
                 client.post(apiBaseUrl / "login") {
                     setBody(mapOf("username" to username, "password" to password))

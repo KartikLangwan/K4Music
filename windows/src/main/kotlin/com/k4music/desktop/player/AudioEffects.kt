@@ -47,7 +47,7 @@ object AudioEffects {
             Reverb.SmallRoom -> lavfi += "aecho=0.8:0.7:40:0.25"
             Reverb.LargeHall -> lavfi += "aecho=0.8:0.85:70|130:0.3|0.2"
         }
-        if (Settings.volumeNormalization) lavfi += "loudnorm=I=-16:TP=-1.5:LRA=11"
+        if (Settings.volumeNormalization) lavfi += "dynaudnorm=f=150:g=15:m=10:p=0.95:r=0.9"
         if (Settings.skipSilence) lavfi += "silenceremove=start_periods=1:start_threshold=-50dB:stop_periods=-1:stop_duration=1.5:stop_threshold=-50dB"
         val filters = lavfi.map { "lavfi=[$it]" }.toMutableList()
         if (Settings.pitch != 1f) filters += "rubberband=pitch-scale=${fmt(Settings.pitch)}"

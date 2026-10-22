@@ -51,6 +51,7 @@ data class Release(
         @SerialName("content_type")
         val contentType: String,
         val size: Long,
+        val digest: String? = null,
         @SerialName("download_count")
         val downloads: Int,
         @SerialName("created_at")

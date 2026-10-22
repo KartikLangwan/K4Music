@@ -1,7 +1,17 @@
 package com.k4music.desktop.ui
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +51,7 @@ import com.k4music.desktop.res.refetch_lyrics
 import com.k4music.desktop.res.sync
 import kotlinx.coroutines.launch
 import com.k4music.desktop.res.lyrics_not_available
+import com.k4music.desktop.res.lyrics_refresh_failed
 import com.k4music.desktop.res.show_synchronized_lyrics
 import com.k4music.providers.lrclib.LrcParser
 import com.k4music.providers.lrclib.toLrcFile
@@ -66,7 +77,14 @@ fun LyricsPanel(modifier: Modifier = Modifier) {
             Text(stringResource(Res.string.lyrics), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             if (track != null) {
                 ToggleIcon(Res.drawable.sync, stringResource(Res.string.refetch_lyrics), false) {
-                    scope.launch { LyricsRepository.refetch(track); version++ }
+                    scope.launch {
+                        try { LyricsRepository.refetch(track); version++ }
+                        catch (error: kotlinx.coroutines.CancellationException) { throw error }
+                        catch (error: Exception) {
+                            com.k4music.desktop.AppLog.w("Lyrics", "Refresh failed; saved lyrics retained", error)
+                            AppDialogs.show(org.jetbrains.compose.resources.getString(Res.string.lyrics_refresh_failed))
+                        }
+                    }
                 }
                 ToggleIcon(Res.drawable.pencil, editTitle, false) {
                     val current = lyrics
@@ -106,25 +124,69 @@ private fun SyncedLyrics(raw: String) {
     val position by player.position.collectAsState()
     val active = lines.indexOfLast { it.first <= (position * 1000).toLong() + 300 }
     val listState = rememberLazyListState()
-    LaunchedEffect(active) { if (active >= 0) listState.animateScrollToItem((active - 3).coerceAtLeast(0)) }
+    LaunchedEffect(active) {
+        if (active >= 0) {
+            val target = (active - 2).coerceAtLeast(0)
+            if (Settings.reducedMotion) listState.scrollToItem(target) else listState.animateScrollToItem(target)
+        }
+    }
 
-    LazyColumn(state = listState, contentPadding = PaddingValues(vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    val colors = MaterialTheme.colorScheme
+    val kinetic = Settings.kineticLyrics && !Settings.reducedMotion
+
+    LazyColumn(
+        state = listState,
+        contentPadding = PaddingValues(vertical = 24.dp, horizontal = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
         itemsIndexed(lines) { index, (at, line) ->
-            val color by animateColorAsState(
-                when {
-                    index == active -> MaterialTheme.colorScheme.onBackground
-                    index < active -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+            val isActive = index == active
+            val interactionSource = remember { MutableInteractionSource() }
+            val isHovered by interactionSource.collectIsHoveredAsState()
+
+            val scale by animateFloatAsState(
+                targetValue = if (isActive && kinetic) 1.04f else 1.0f,
+                animationSpec = tween(300),
+                label = "lyricScale"
+            )
+
+            val textColor by animateColorAsState(
+                targetValue = when {
+                    isActive -> colors.onBackground
+                    isHovered -> colors.onBackground.copy(alpha = 0.85f)
+                    index < active -> colors.onSurfaceVariant.copy(alpha = 0.45f)
+                    else -> colors.onSurfaceVariant.copy(alpha = 0.75f)
                 },
+                animationSpec = tween(250),
                 label = "lyricColor"
             )
-            Text(
-                line,
-                style = if (index == active) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleMedium,
-                fontWeight = if (index == active) FontWeight.Bold else FontWeight.SemiBold,
-                color = color,
-                modifier = Modifier.fillMaxWidth().clickable { player.seek(at / 1000.0) }.padding(horizontal = 8.dp, vertical = 2.dp)
+
+            val bgAlpha by animateFloatAsState(
+                targetValue = when {
+                    isActive && kinetic -> 0.14f
+                    isHovered -> 0.06f
+                    else -> 0f
+                },
+                animationSpec = tween(200),
+                label = "lyricBg"
             )
+
+            Box(
+                Modifier.fillMaxWidth()
+                    .scale(scale)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(colors.primary.copy(alpha = bgAlpha))
+                    .hoverable(interactionSource)
+                    .clickable { player.seek(at / 1000.0) }
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = line,
+                    style = if (isActive) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium,
+                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.SemiBold,
+                    color = textColor
+                )
+            }
         }
     }
 }

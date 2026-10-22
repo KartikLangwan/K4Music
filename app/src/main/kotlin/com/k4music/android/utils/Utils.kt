@@ -137,10 +137,9 @@ val Song.asMediaItem: MediaItem
         )
         .setMediaId(id)
         .setUri(
-            if (isLocal) ContentUris.withAppendedId(
-                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                id.substringAfter(LOCAL_KEY_PREFIX).toLong()
-            ) else id.toUri()
+            if (isLocal) localMediaStoreId(id)?.let {
+                ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, it)
+            } ?: Uri.EMPTY else id.toUri()
         )
         .setCustomCacheKey(id)
         .build()

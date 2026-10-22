@@ -151,17 +151,17 @@ fun HomeLocalSongs(onSearchClick: () -> Unit) = with(OrderPreferences) {
 }
 
 fun Context.musicFilesAsFlow(): Flow<List<Song>> = flow {
-    var version: String? = null
-
+    val dirty = java.util.concurrent.atomic.AtomicBoolean(true)
+    val observer = object : android.database.ContentObserver(null) {
+        override fun onChange(selfChange: Boolean) { dirty.set(true) }
+    }
+    contentResolver.registerContentObserver(AudioMediaCursor.uri, true, observer)
+    try {
     while (currentCoroutineContext().isActive) {
         if (!hasPermission(permission)) throw SecurityException("Audio permission revoked")
-        val newVersion = runCatching { MediaStore.getVersion(applicationContext) }.getOrNull()
+        val shouldRescan = dirty.getAndSet(false)
 
-        if (version == null || version != newVersion) {
-
-            // A MediaStore query can throw (revoked permission, OEM cursor
-            // bugs). Skip this round and retry on the next tick instead of
-            // taking the app down with it.
+        if (shouldRescan) {
             runCatching {
                 AudioMediaCursor.query(contentResolver) {
                     buildList<Song> {
@@ -181,14 +181,18 @@ fun Context.musicFilesAsFlow(): Flow<List<Song>> = flow {
                         }
                     }
                 }
-            }.onFailure { Log.e("HomeLocalSongs", "Local music query failed", it) }
+            }.onFailure { dirty.set(true); Log.e("HomeLocalSongs", "Local music query failed", it) }
                 .getOrNull()
                 ?.let { songs ->
-                    Database.internal.withTransaction { songs.forEach(Database::insert) }
-                    version = newVersion
+                    val activeIds = songs.map { it.id }.toSet()
+                    Database.internal.withTransaction {
+                        songs.forEach(Database::upsertLocalSong)
+                        Database.pruneLocalSongs(activeIds)
+                    }
                     emit(songs)
                 }
         }
-        delay(5.seconds)
+        delay(1.seconds)
     }
+    } finally { contentResolver.unregisterContentObserver(observer) }
 }.distinctUntilChanged().flowOn(Dispatchers.IO)

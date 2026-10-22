@@ -1,5 +1,6 @@
 package com.k4music.desktop.ui.screens
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,17 +16,31 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -65,6 +80,7 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.getString
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import java.awt.Desktop
 import java.io.File
@@ -72,17 +88,18 @@ import java.net.URI
 import java.text.DateFormat
 import java.util.Date
 
-private val accents = listOf("#7B5CFF", "#4472CF", "#E0559B", "#21B07A", "#F08A24", "#E54B4B", "#19A7B5", "#B98A2E")
+private val accents = listOf("#7B5CFF", "#00D2FF", "#FF5E62", "#00E676", "#BD00FF", "#FFB300", "#FF6584", "#4472CF")
 
-private enum class SettingsPage(val title: StringResource, val icon: DrawableResource) {
-    Appearance(Res.string.appearance, Res.drawable.color_palette),
-    Layout(Res.string.desktop_layout, Res.drawable.grid),
-    Player(Res.string.player, Res.drawable.play),
-    Effects(Res.string.audio_effects, Res.drawable.equalizer),
-    Library(Res.string.settings_section_library, Res.drawable.library),
-    Sync(Res.string.sync, Res.drawable.sync),
-    Advanced(Res.string.desktop_advanced, Res.drawable.server),
-    About(Res.string.about, Res.drawable.information)
+private enum class SettingsPage(val title: StringResource, val subtitle: String, val icon: DrawableResource) {
+    Appearance(Res.string.appearance, "Themes & Scenery", Res.drawable.color_palette),
+    System(Res.string.desktop_system_title, "Windows & Startup", Res.drawable.settings),
+    Playback(Res.string.player, "Audio & Engine", Res.drawable.play),
+    Effects(Res.string.audio_effects, "Equalizer & DSP", Res.drawable.equalizer),
+    Layout(Res.string.desktop_layout, "Sidebar & View", Res.drawable.grid),
+    Library(Res.string.settings_section_library, "Folders & Data", Res.drawable.library),
+    Sync(Res.string.sync, "Piped Accounts", Res.drawable.sync),
+    Advanced(Res.string.desktop_advanced, "yt-dlp & Logs", Res.drawable.server),
+    About(Res.string.about, "Kartik Langwan", Res.drawable.information)
 }
 
 /** Kept while the app runs, so Settings reopens on the page you were looking at. */
@@ -94,28 +111,36 @@ fun SettingsScreen() {
     Column(Modifier.fillMaxSize()) {
         Text(stringResource(Res.string.settings), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 16.dp))
         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-            // Categories, like a desktop app's preferences window.
-            Column(Modifier.width(220.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            // Accessible sidebar categories with icons and subtitles
+            Column(Modifier.width(230.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 SettingsPage.entries.forEach { page ->
                     val selected = page == lastPage
                     Row(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
-                            .background(if (selected) colors.primaryContainer else Color.Transparent)
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                            .background(if (selected) colors.primaryContainer.copy(alpha = 0.85f) else Color.Transparent)
+                            .then(if (selected) Modifier.border(1.dp, colors.primary.copy(alpha = 0.45f), RoundedCornerShape(12.dp)) else Modifier)
                             .clickable { lastPage = page }
-                            .padding(horizontal = 14.dp, vertical = 11.dp),
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         androidx.compose.material3.Icon(
                             painterResource(page.icon), null, Modifier.size(20.dp),
-                            tint = if (selected) colors.primary else colors.onSurfaceVariant
+                            tint = if (selected) colors.onPrimaryContainer else colors.onSurfaceVariant
                         )
-                        Text(
-                            stringResource(page.title),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (selected) colors.onSurface else colors.onSurfaceVariant
-                        )
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                stringResource(page.title),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                                color = if (selected) colors.onPrimaryContainer else colors.onSurfaceVariant
+                            )
+                            Text(
+                                page.subtitle,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (selected) colors.onPrimaryContainer.copy(alpha = 0.75f) else colors.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                        }
                     }
                 }
             }
@@ -126,9 +151,10 @@ fun SettingsScreen() {
                     Column(Modifier.widthIn(max = 860.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         when (lastPage) {
                             SettingsPage.Appearance -> AppearanceSection()
-                            SettingsPage.Layout -> LayoutSection()
-                            SettingsPage.Player -> PlaybackSection()
+                            SettingsPage.System -> SystemSection()
+                            SettingsPage.Playback -> PlaybackSection()
                             SettingsPage.Effects -> EffectsSection()
+                            SettingsPage.Layout -> LayoutSection()
                             SettingsPage.Library -> LibrarySection()
                             SettingsPage.Sync -> Section(Res.string.sync) {
                                 Text(stringResource(Res.string.sync_description), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -169,9 +195,60 @@ private fun LayoutSection() = Section(Res.string.desktop_layout) {
     }
     SwitchRow(stringResource(Res.string.desktop_compact_sidebar), stringResource(Res.string.desktop_compact_sidebar_description), Settings.sidebarCollapsed) { Settings.sidebarCollapsed = it }
     SwitchRow(stringResource(Res.string.desktop_sidebar_playlists), stringResource(Res.string.desktop_sidebar_playlists_description), Settings.sidebarPlaylists) { Settings.sidebarPlaylists = it }
-    SwitchRow(stringResource(Res.string.desktop_tray_title), stringResource(Res.string.desktop_minimize_to_tray), Settings.minimizeToTray) { Settings.minimizeToTray = it }
     Label(stringResource(Res.string.desktop_shortcuts))
     Text(stringResource(Res.string.desktop_shortcuts_list), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+@Composable
+private fun SystemSection() = Section(Res.string.desktop_system_title) {
+    val startupFailure = stringResource(Res.string.desktop_startup_failed)
+    val scope = rememberCoroutineScope()
+    var registering by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        Settings.launchAtStartup = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            com.k4music.desktop.StartupManager.isEnabled()
+        }
+    }
+    SwitchRow(
+        stringResource(Res.string.desktop_startup_title),
+        stringResource(Res.string.desktop_startup_hint),
+        Settings.launchAtStartup
+    ) {
+        if (!registering) {
+            registering = true
+            scope.launch {
+                try {
+                    val success = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        com.k4music.desktop.StartupManager.setEnabled(it)
+                    }
+                    if (success) Settings.launchAtStartup = it
+                    else AppDialogs.show(startupFailure)
+                } finally { registering = false }
+            }
+        }
+    }
+    SwitchRow(
+        stringResource(Res.string.desktop_start_minimized),
+        stringResource(Res.string.desktop_start_minimized_hint),
+        Settings.startMinimizedOnStartup
+    ) { Settings.startMinimizedOnStartup = it }
+    SwitchRow(
+        stringResource(Res.string.desktop_tray_title),
+        stringResource(Res.string.desktop_minimize_to_tray),
+        Settings.minimizeToTray
+    ) { Settings.minimizeToTray = it }
+    SwitchRow(
+        stringResource(Res.string.desktop_resume_on_start),
+        stringResource(Res.string.desktop_resume_on_start_hint),
+        Settings.resumeOnStart
+    ) { Settings.resumeOnStart = it }
+    if (com.k4music.desktop.DiscordPresence.available) {
+        SwitchRow(
+            stringResource(Res.string.desktop_discord),
+            stringResource(Res.string.desktop_discord_hint),
+            Settings.discordPresence
+        ) { Settings.discordPresence = it }
+    }
 }
 
 @Composable
@@ -220,6 +297,9 @@ private fun <T> Choices(options: List<Pair<T, String>>, selected: T, onSelect: (
 
 @Composable
 private fun AppearanceSection() = Section(Res.string.appearance) {
+    SwitchRow(stringResource(Res.string.desktop_reduced_motion), stringResource(Res.string.desktop_reduced_motion_hint), Settings.reducedMotion) {
+        Settings.reducedMotion = it
+    }
     Label(stringResource(Res.string.desktop_theme))
     Choices(
         listOf(
@@ -229,10 +309,17 @@ private fun AppearanceSection() = Section(Res.string.appearance) {
         ),
         Settings.themeMode
     ) { Settings.themeMode = it }
+
     Label(stringResource(Res.string.desktop_background))
     Choices(
         listOf(
-            BackgroundStyle.Artwork to stringResource(Res.string.desktop_bg_artwork),
+            BackgroundStyle.BlurredArtwork to stringResource(Res.string.desktop_bg_blurred_artwork),
+            BackgroundStyle.LiquidCanvas to "Liquid Canvas",
+            BackgroundStyle.GlowAura to stringResource(Res.string.desktop_bg_glow_aura),
+            BackgroundStyle.MidnightNeon to "Midnight Neon",
+            BackgroundStyle.Alpine to stringResource(Res.string.desktop_bg_alpine),
+            BackgroundStyle.Aurora to stringResource(Res.string.desktop_bg_aurora),
+            BackgroundStyle.PureBlack to stringResource(Res.string.desktop_bg_pure_black),
             BackgroundStyle.Accent to stringResource(Res.string.desktop_bg_accent),
             BackgroundStyle.Image to stringResource(Res.string.desktop_bg_image)
         ),
@@ -240,10 +327,91 @@ private fun AppearanceSection() = Section(Res.string.appearance) {
     ) { style ->
         if (style == BackgroundStyle.Image && Settings.backgroundImage.isBlank()) pickPicture() else Settings.backgroundStyle = style
     }
-    if (Settings.backgroundStyle == BackgroundStyle.Image) Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        OutlinedButton(onClick = { pickPicture() }) { Text(stringResource(Res.string.desktop_choose_picture)) }
-        Text(File(Settings.backgroundImage).name, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+    if (Settings.backgroundStyle == BackgroundStyle.BlurredArtwork) {
+        Label(stringResource(Res.string.desktop_backdrop_blur), "${Settings.backdropBlur} dp")
+        Choices(
+            listOf(
+                20 to "Subtle (20 dp)",
+                45 to "Balanced (45 dp)",
+                70 to "Deep (70 dp)",
+                95 to "Ultra (95 dp)"
+            ),
+            Settings.backdropBlur
+        ) { Settings.backdropBlur = it }
+
+        Label(stringResource(Res.string.desktop_backdrop_dim), "${Settings.backdropDim}%")
+        Choices(
+            listOf(
+                35 to "Light (35%)",
+                55 to "Balanced (55%)",
+                70 to "High Contrast (70%)",
+                85 to "Night (85%)"
+            ),
+            Settings.backdropDim
+        ) { Settings.backdropDim = it }
+    } else if (Settings.backgroundStyle in listOf(BackgroundStyle.Alpine, BackgroundStyle.Aurora, BackgroundStyle.LiquidCanvas)) {
+        Label(stringResource(Res.string.desktop_backdrop_dim), "${Settings.backdropDim}%")
+        Choices(
+            listOf(
+                35 to "Light (35%)",
+                55 to "Balanced (55%)",
+                70 to "High Contrast (70%)",
+                85 to "Night (85%)"
+            ),
+            Settings.backdropDim
+        ) { Settings.backdropDim = it }
+    } else if (Settings.backgroundStyle == BackgroundStyle.Image) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(onClick = { pickPicture() }) { Text(stringResource(Res.string.desktop_choose_picture)) }
+            Text(File(Settings.backgroundImage).name, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Label(stringResource(Res.string.desktop_backdrop_dim), "${Settings.backdropDim}%")
+        Choices(
+            listOf(
+                35 to "Light (35%)",
+                55 to "Balanced (55%)",
+                70 to "High Contrast (70%)",
+                85 to "Night (85%)"
+            ),
+            Settings.backdropDim
+        ) { Settings.backdropDim = it }
     }
+
+    Label(stringResource(Res.string.desktop_panel_transparency), "${Settings.panelOpacity}%")
+    K4Slider(
+        value = (Settings.panelOpacity - 15) / 85f,
+        onChange = { Settings.panelOpacity = (15 + it * 85).toInt() },
+        modifier = Modifier.fillMaxWidth()
+    )
+    Choices(
+        listOf(
+            35 to "Glassy (35%)",
+            60 to "Balanced (60%)",
+            78 to "Frosted (78%)",
+            100 to "Solid (100%)"
+        ),
+        Settings.panelOpacity
+    ) { Settings.panelOpacity = it }
+
+    SwitchRow(
+        stringResource(Res.string.desktop_glassmorphism),
+        stringResource(Res.string.desktop_glassmorphism_desc),
+        Settings.glassmorphism
+    ) { Settings.glassmorphism = it }
+
+    SwitchRow(
+        stringResource(Res.string.desktop_artist_glow),
+        stringResource(Res.string.desktop_artist_glow_desc),
+        Settings.artistGlow
+    ) { Settings.artistGlow = it }
+
+    SwitchRow(
+        stringResource(Res.string.desktop_oled_black),
+        stringResource(Res.string.desktop_oled_black_desc),
+        Settings.oledBlack
+    ) { Settings.oledBlack = it }
+
     Label(stringResource(Res.string.desktop_accent))
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         accents.forEach { hex ->
@@ -255,6 +423,18 @@ private fun AppearanceSection() = Section(Res.string.appearance) {
             )
         }
     }
+
+    SwitchRow(
+        "Sync Accent with Artwork",
+        "Dynamically adjust theme accent color to match currently playing song album artwork",
+        Settings.syncAccentWithArtwork
+    ) { Settings.syncAccentWithArtwork = it }
+
+    SwitchRow(
+        "Kinetic Lyrics",
+        "Enable active line scaling, smooth spring scrolling, and vocal highlight glow in lyrics panel",
+        Settings.kineticLyrics
+    ) { Settings.kineticLyrics = it }
 }
 
 @Composable
@@ -311,6 +491,7 @@ private fun EffectsSection() = Section(Res.string.audio_effects) {
             AudioEffects.setGains(gains, name)
             player.applyEffects()
         }
+        EqualizerCurveView(gains, MaterialTheme.colorScheme.primary, Modifier.padding(vertical = 4.dp))
         AudioEffects.bands.forEachIndexed { i, hz ->
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(if (hz >= 1000) "${hz / 1000} kHz" else "$hz Hz", style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(64.dp))
@@ -343,6 +524,7 @@ private fun EffectsSection() = Section(Res.string.audio_effects) {
 private fun LibrarySection() = Section(Res.string.settings_section_library) {
     val scope = rememberCoroutineScope()
     val downloads by Downloads.done.collectAsState()
+    val activeDownloads by Downloads.progress.collectAsState()
     var pendingRestore by remember { mutableStateOf(Maintenance.hasPendingRestore()) }
     val deleteAllLabel = stringResource(Res.string.delete_all_downloads)
     Label(stringResource(Res.string.settings_backup_title))
@@ -367,12 +549,29 @@ private fun LibrarySection() = Section(Res.string.settings_section_library) {
             }
         }) { Text(stringResource(Res.string.restore)) }
     }
-    if (pendingRestore) Text(stringResource(Res.string.desktop_restore_pending), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+    if (pendingRestore) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+            Text(stringResource(Res.string.desktop_restore_pending), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+            FilledTonalButton(onClick = { Maintenance.restartApp() }) {
+                Text(stringResource(Res.string.desktop_restart_now))
+            }
+            OutlinedButton(onClick = {
+                scope.launch {
+                    try { Maintenance.cancelPendingRestore(); pendingRestore = false }
+                    catch (error: kotlinx.coroutines.CancellationException) { throw error }
+                    catch (error: Exception) { AppDialogs.show(error.message ?: getString(Res.string.restore_failed)) }
+                }
+            }) { Text(stringResource(Res.string.desktop_cancel_restore)) }
+            Maintenance.lastRestoreError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        }
+    }
 
-    Label(stringResource(Res.string.offline), stringResource(Res.string.desktop_downloads_count, downloads.size))
-    OutlinedButton(enabled = downloads.isNotEmpty(), onClick = { AppDialogs.confirm(deleteAllLabel) { Downloads.deleteAll() } }) {
+    Label(stringResource(Res.string.offline), pluralStringResource(Res.plurals.desktop_downloads_count, downloads.size, downloads.size))
+    OutlinedButton(enabled = downloads.isNotEmpty() || activeDownloads.isNotEmpty(), onClick = { AppDialogs.confirm(deleteAllLabel) { Downloads.deleteAll() } }) {
         Text(stringResource(Res.string.delete_all_downloads))
     }
+
+    DownloadFailures()
 
     Label(stringResource(Res.string.desktop_music_folders))
     LocalMusic.folders().forEach { Text(it.absolutePath, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -398,10 +597,15 @@ private fun AdvancedSection() = Section(Res.string.desktop_advanced) {
         FilledTonalButton(enabled = !updating, onClick = {
             updating = true
             scope.launch {
-                val result = Maintenance.updateYtDlp()
-                version = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Maintenance.ytDlpVersion() }
-                AppDialogs.show(result.ifBlank { version })
-                updating = false
+                try {
+                    val result = Maintenance.updateYtDlp()
+                    version = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Maintenance.ytDlpVersion() }
+                    AppDialogs.show(result.ifBlank { version })
+                } catch (error: kotlinx.coroutines.CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    AppDialogs.show(error.message ?: getString(Res.string.desktop_extractor_update_failed))
+                } finally { updating = false }
             }
         }) { Text(stringResource(Res.string.desktop_update)) }
         OutlinedButton(onClick = { open(AppPaths.logs) }) { Text(stringResource(Res.string.desktop_open_logs)) }
@@ -414,22 +618,181 @@ private fun AdvancedSection() = Section(Res.string.desktop_advanced) {
 private fun AboutSection() = Section(Res.string.about) {
     val scope = rememberCoroutineScope()
     var checking by remember { mutableStateOf(false) }
-    Text("${Brand.APP_NAME} $APP_VERSION", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-    Text("${stringResource(Res.string.desktop_creator_site)}: ${Brand.CREATOR}", color = MaterialTheme.colorScheme.primary)
-    Text("@${Brand.INSTAGRAM_HANDLE}", color = MaterialTheme.colorScheme.onSurfaceVariant)
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilledTonalButton(enabled = !checking, onClick = {
-            checking = true
-            scope.launch {
-                checkForUpdate()
-                checking = false
+    val colors = MaterialTheme.colorScheme
+
+    // Creator Showcase Card
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = colors.surfaceContainerHighest.copy(alpha = 0.55f),
+        border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.35f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column {
+            // Hero Banner Image with curved top corners (Alpine nature scene)
+            Box(Modifier.fillMaxWidth().height(160.dp)) {
+                androidx.compose.foundation.Image(
+                    painter = painterResource(Res.drawable.scenery_mountain),
+                    contentDescription = "K4 Music Alpine Landscape",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                )
+                // Bottom fade scrim to blend into the card surface
+                Box(
+                    Modifier.fillMaxSize().background(
+                        Brush.verticalGradient(
+                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.65f))
+                        )
+                    )
+                )
+                // App Version Pill in top-right corner
+                Surface(
+                    color = Color.Black.copy(alpha = 0.65f),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                    modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)
+                ) {
+                    Text(
+                        "${Brand.APP_NAME} v$APP_VERSION",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
             }
-        }) { Text(stringResource(Res.string.desktop_check_updates)) }
-        OutlinedButton(onClick = { browse(WEBSITE) }) { Text(stringResource(Res.string.desktop_website)) }
-        OutlinedButton(onClick = { browse(CREATOR_SITE) }) { Text(CREATOR_SITE.removePrefix("https://")) }
-        OutlinedButton(onClick = { browse(GITHUB) }) { Text("GitHub") }
+
+            // Creator Details with Avatar
+            Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Holographic Monogram Avatar Badge
+                    androidx.compose.foundation.Image(
+                        painter = painterResource(Res.drawable.creator_avatar),
+                        contentDescription = Brand.CREATOR,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .border(2.5.dp, colors.primary, CircleShape)
+                    )
+
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                Brand.CREATOR,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = colors.onSurface
+                            )
+                            // Verified Creator Badge with sparkles icon
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = colors.primary.copy(alpha = 0.18f),
+                                border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.45f))
+                            ) {
+                                Row(
+                                    Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        painterResource(Res.drawable.sparkles),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(11.dp),
+                                        tint = colors.primary
+                                    )
+                                    Text(
+                                        "VERIFIED",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.primary
+                                    )
+                                }
+                            }
+                        }
+                        Text(
+                            stringResource(Res.string.desktop_creator_title),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.primary
+                        )
+                        Text(
+                            "@${Brand.INSTAGRAM_HANDLE}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colors.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // Bio
+                Text(
+                    stringResource(Res.string.desktop_creator_bio),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.onSurfaceVariant
+                )
+
+                // Tech Stack Badges
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("Compose Multiplatform", "Kotlin Coroutines", "libmpv Engine", "Material 3 Expressive", "JioSaavn & YT", "GPL-3.0").forEach { tag ->
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = colors.surfaceContainer,
+                            border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.3f))
+                        ) {
+                            Text(
+                                tag,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = colors.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.3f), modifier = Modifier.padding(vertical = 4.dp))
+
+                // Action Buttons
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilledTonalButton(
+                        enabled = !checking,
+                        onClick = {
+                            checking = true
+                            scope.launch {
+                                checkForUpdate()
+                                checking = false
+                            }
+                        }
+                    ) {
+                        Icon(painterResource(Res.drawable.sync), contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(Res.string.desktop_check_updates))
+                    }
+                    Button(
+                        onClick = { browse(WEBSITE) },
+                        colors = ButtonDefaults.buttonColors(containerColor = colors.primary)
+                    ) {
+                        Icon(painterResource(Res.drawable.globe), contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(Res.string.desktop_website))
+                    }
+                    OutlinedButton(onClick = { browse(CREATOR_SITE) }) {
+                        Icon(painterResource(Res.drawable.person), contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(Brand.CREATOR)
+                    }
+                    OutlinedButton(onClick = { browse(Brand.INSTAGRAM_URL) }) {
+                        Text("@${Brand.INSTAGRAM_HANDLE}")
+                    }
+                    OutlinedButton(onClick = { browse(GITHUB) }) {
+                        Text("GitHub")
+                    }
+                }
+            }
+        }
     }
-    Text("GPL-3.0", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 const val WEBSITE = "https://k4music.vercel.app"
@@ -484,4 +847,108 @@ private fun saveFile(name: String, onPicked: (File) -> Unit) = javax.swing.Swing
 private fun openFile(onPicked: (File) -> Unit) = javax.swing.SwingUtilities.invokeLater {
     val chooser = javax.swing.JFileChooser()
     if (chooser.showOpenDialog(null) == javax.swing.JFileChooser.APPROVE_OPTION) onPicked(chooser.selectedFile)
+}
+
+@Composable
+private fun EqualizerCurveView(gains: List<Float>, color: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier.fillMaxWidth().height(90.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceContainer)) {
+        val w = size.width
+        val h = size.height
+        val midY = h / 2f
+
+        drawLine(
+            color = color.copy(alpha = 0.20f),
+            start = Offset(0f, midY),
+            end = Offset(w, midY),
+            strokeWidth = 1.dp.toPx()
+        )
+
+        if (gains.isEmpty()) return@Canvas
+        val step = w / (gains.size - 1).coerceAtLeast(1)
+        val points = gains.mapIndexed { i, g ->
+            val norm = (g / AudioEffects.MAX_GAIN).coerceIn(-1f, 1f)
+            val y = midY - norm * (h * 0.38f)
+            Offset(i * step, y)
+        }
+
+        val path = Path()
+        val fillPath = Path()
+        path.moveTo(points.first().x, points.first().y)
+        fillPath.moveTo(points.first().x, midY)
+        fillPath.lineTo(points.first().x, points.first().y)
+
+        for (i in 0 until points.size - 1) {
+            val p0 = points[i]
+            val p1 = points[i + 1]
+            val cx = (p0.x + p1.x) / 2f
+            path.cubicTo(cx, p0.y, cx, p1.y, p1.x, p1.y)
+            fillPath.cubicTo(cx, p0.y, cx, p1.y, p1.x, p1.y)
+        }
+        fillPath.lineTo(points.last().x, midY)
+        fillPath.close()
+
+        drawPath(
+            fillPath,
+            Brush.verticalGradient(
+                listOf(color.copy(alpha = 0.35f), color.copy(alpha = 0.05f)),
+                startY = 0f,
+                endY = h
+            )
+        )
+        drawPath(
+            path,
+            color = color,
+            style = Stroke(width = 2.5f.dp.toPx(), cap = StrokeCap.Round)
+        )
+
+        points.forEach { pt ->
+            drawCircle(color = color, radius = 3.5f.dp.toPx(), center = pt)
+            drawCircle(color = Color.White, radius = 1.5f.dp.toPx(), center = pt)
+        }
+    }
+}
+
+/** Failed downloads stay actionable after progress disappears. */
+@Composable
+private fun DownloadFailures() {
+    val failed by Downloads.failed.collectAsState()
+    val transfers by Downloads.transfers.collectAsState()
+    if (transfers.isNotEmpty()) {
+        Label(stringResource(Res.string.desktop_download_active), "${transfers.size}")
+        transfers.values.forEach { transfer ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(transfer.track.title, style = MaterialTheme.typography.titleSmall)
+                    val phase = when (transfer.phase) {
+                        Downloads.Phase.Queued -> Res.string.desktop_download_queued
+                        Downloads.Phase.Resolving -> Res.string.desktop_download_preparing
+                        Downloads.Phase.Downloading -> Res.string.desktop_download_receiving
+                    }
+                    val bytes = java.text.NumberFormat.getNumberInstance().apply { maximumFractionDigits = 1 }
+                    val detail = if (transfer.phase == Downloads.Phase.Downloading) {
+                        " • ${bytes.format(transfer.bytes / 1048576.0)} MB" +
+                            (transfer.total?.let { " / ${bytes.format(it / 1048576.0)} MB" } ?: "")
+                    } else ""
+                    Text(stringResource(phase) + detail, style = MaterialTheme.typography.bodySmall)
+                    val total = transfer.total
+                    if (total != null && total > 0) androidx.compose.material3.LinearProgressIndicator(
+                        progress = { (transfer.bytes.toFloat() / total).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth()
+                    ) else androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+                TextButton(onClick = { Downloads.cancel(transfer.track.id) }) { Text(stringResource(Res.string.cancel)) }
+            }
+        }
+    }
+    if (failed.isEmpty()) return
+    Label(stringResource(Res.string.desktop_download_failures), "${failed.size}")
+    failed.values.forEach { failure ->
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(failure.track.title, style = MaterialTheme.typography.titleSmall)
+                Text(failure.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+            TextButton(onClick = { Downloads.retry(failure.track.id) }) { Text(stringResource(Res.string.retry)) }
+            TextButton(onClick = { Downloads.dismissFailure(failure.track.id) }) { Text(stringResource(Res.string.desktop_download_dismiss)) }
+        }
+    }
 }

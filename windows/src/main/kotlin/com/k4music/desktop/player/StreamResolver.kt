@@ -6,6 +6,7 @@ import com.k4music.desktop.k4.StreamFallback
 import com.k4music.desktop.k4.findSaavnStream
 import com.k4music.desktop.k4.resolveSaavnStream
 import com.k4music.desktop.prefs.Settings
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -37,8 +38,9 @@ class UnplayableException(message: String) : Exception(message)
  */
 class StreamResolver {
     private data class Cached(val stream: Stream, val at: Long)
-    private val cache = ConcurrentHashMap<String, Cached>()
+    private val cache = com.k4music.desktop.BoundedCache<String, Cached>(128)
     fun forget(id: String) { cache.remove(id) }
+    fun close() { background.cancel() }
 
     /** The current [Stream] of [track] was refused; the next resolve picks the next source. */
     fun reject(track: Track, stream: Stream) {
@@ -62,7 +64,10 @@ class StreamResolver {
     /** Resolves [track] ahead of a likely click (hover, next in queue); errors are ignored. */
     fun prefetch(track: Track) {
         if (track.isLocal || cache[track.id]?.let { System.currentTimeMillis() - it.at < TTL_MS } == true || inFlight.containsKey(track.id)) return
-        background.launch { prefetchSlots.withPermit { runCatching { resolve(track) } } }
+        if (!prefetchSlots.tryAcquire()) return // Drop speculation instead of accumulating an unbounded hover backlog.
+        background.launch {
+            try { runCatching { resolve(track) } } finally { prefetchSlots.release() }
+        }
     }
 
     private suspend fun resolveNow(track: Track): Stream = withContext(Dispatchers.IO) {
@@ -143,9 +148,14 @@ class StreamResolver {
         try {
             val output = StringBuilder()
             val errors = StringBuilder()
-            val reader = Thread { output.append(process.inputStream.bufferedReader().readText()) }.apply { start() }
-            val errorReader = Thread { errors.append(process.errorStream.bufferedReader().readText().takeLast(2_000)) }.apply { start() }
+            val reader = kotlin.concurrent.thread(isDaemon = true, name = "ytdlp-stdout") {
+                runCatching { output.append(process.inputStream.bufferedReader().readText()) }
+            }
+            val errorReader = kotlin.concurrent.thread(isDaemon = true, name = "ytdlp-stderr") {
+                runCatching { errors.append(process.errorStream.bufferedReader().readText().takeLast(2_000)) }
+            }
             if (!process.waitFor(YT_DLP_TIMEOUT_S, TimeUnit.SECONDS)) {
+                process.destroyForcibly()
                 AppLog.w(TAG, "yt-dlp timed out for $videoId")
                 return@runInterruptible null
             }

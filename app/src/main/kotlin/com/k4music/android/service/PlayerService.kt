@@ -489,6 +489,12 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
             mediaSession.release()
             cache.release()
 
+            if (isAtLeastAndroid6) {
+                audioDeviceCallback?.let {
+                    audioManager?.unregisterAudioDeviceCallback(it)
+                    audioDeviceCallback = null
+                }
+            }
             loudnessEnhancer?.release()
             audioEffects.release()
             preferenceUpdaterJob?.cancel()
@@ -742,28 +748,32 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                 fun Float?.toMb() = ((this ?: 0f) * 100).toInt()
 
                 Database.loudnessDb(songId).cancellable().collectLatest { loudness ->
-                    val loudnessMb = loudness.toMb().let {
-                        if (it !in -2000..2000) {
+                    // Calibrated baseline (-9 dB) for tracks without loudness metadata (Saavn, Local, Piped)
+                    val nominalLoudnessMb = -900
+                    val loudnessMb = loudness?.let {
+                        val mb = (it * 100).toInt()
+                        if (mb !in -2000..2000) {
                             withContext(Dispatchers.Main) {
                                 toast(
                                     getString(
                                         R.string.loudness_normalization_extreme,
-                                        getString(R.string.format_db, (it / 100f).toString())
+                                        getString(R.string.format_db, (mb / 100f).toString())
                                     )
                                 )
                             }
-
-                            0
+                            nominalLoudnessMb
                         } else {
-                            it
+                            mb
                         }
-                    }
+                    } ?: nominalLoudnessMb
 
                     Database.loudnessBoost(songId).cancellable().collectLatest { boost ->
                         withContext(Dispatchers.Main) {
-                            loudnessEnhancer?.setTargetGain(
-                                PlayerPreferences.volumeNormalizationBaseGain.toMb() + boost.toMb() - loudnessMb
-                            )
+                            val boostMb = boost.toMb()
+                            val baseGainMb = PlayerPreferences.volumeNormalizationBaseGain.toMb()
+                            // Smoothly clamp target gain between 0 and 15 dB to prevent digital clipping
+                            val targetGain = (baseGainMb + boostMb - loudnessMb).coerceIn(0, 1500)
+                            loudnessEnhancer?.setTargetGain(targetGain)
                             loudnessEnhancer?.enabled = true
                         }
                     }
@@ -818,7 +828,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                         @Suppress("LoopWithTooManyJumpStatements")
                         do {
                             if (lastSegmentEnd < posMillis()) {
-                                yield()
+                                delay(1000.milliseconds)
                                 continue
                             }
 
@@ -835,8 +845,8 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                             }
 
                             if (posMillis().milliseconds !in nextSegment.start..nextSegment.end) {
-                                // Player is not in the segment for some reason, maybe the user seeked in the meantime
-                                yield()
+                                // Player is not in the segment for some reason, maybe the user seeked or paused
+                                delay(100.milliseconds)
                                 continue
                             }
 
@@ -876,14 +886,15 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
     private fun maybeResumePlaybackWhenDeviceConnected() {
         if (!isAtLeastAndroid6) return
 
-        if (!PlayerPreferences.resumePlaybackWhenDeviceConnected) {
-            audioManager?.unregisterAudioDeviceCallback(audioDeviceCallback)
+        audioDeviceCallback?.let {
+            audioManager?.unregisterAudioDeviceCallback(it)
             audioDeviceCallback = null
-            return
         }
+
+        if (!PlayerPreferences.resumePlaybackWhenDeviceConnected) return
         if (audioManager == null) audioManager = getSystemService<AudioManager>()
 
-        audioDeviceCallback = object : AudioDeviceCallback() {
+        val callback = object : AudioDeviceCallback() {
             private fun canPlayMusic(audioDeviceInfo: AudioDeviceInfo) =
                 audioDeviceInfo.isSink && (
                     audioDeviceInfo.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
@@ -905,7 +916,8 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
             override fun onAudioDevicesRemoved(removedDevices: Array<AudioDeviceInfo>) = Unit
         }
 
-        audioManager?.registerAudioDeviceCallback(audioDeviceCallback, handler)
+        audioDeviceCallback = callback
+        audioManager?.registerAudioDeviceCallback(callback, handler)
     }
 
     private fun openEqualizer() =
@@ -1478,12 +1490,31 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                     return null
                 }
                 Log.i(TAG, "Playing $mediaId from JioSaavn fallback")
-                uriCache.push(key = mediaId, meta = null, uri = url.toUri())
-                return dataSpec.withUri(url.toUri())
+                val fallbackLen: Long? = null // Download completion records the actual byte length.
+                transaction {
+                    runCatching {
+                        item?.let(Database::insert)
+                        Database.insert(
+                            Format(
+                                songId = mediaId,
+                                itag = null,
+                                mimeType = "audio/mp4",
+                                bitrate = null,
+                                loudnessDb = null,
+                                contentLength = fallbackLen,
+                                lastModified = null
+                            )
+                        )
+                    }
+                }
+                uriCache.push(key = mediaId, meta = fallbackLen, uri = url.toUri())
+                return dataSpec.withUri(url.toUri()).ranged(fallbackLen)
             }
 
+            val cachedLength = androidx.media3.datasource.cache.ContentMetadata.getContentLength(cache.getContentMetadata(mediaId))
+            val fullyCached = cachedLength > 0 && cache.isCached(mediaId, 0, cachedLength)
             val fallbackOn = PlayerPreferences.smartFallback
-            if (StreamFallback.url(mediaId) != null &&
+            if (!fullyCached && StreamFallback.url(mediaId) != null &&
                 (!fallbackOn || (dataSpec.position == 0L && StreamFallback.isStale(mediaId)))
             ) {
                 // Fallback turned off, or the pin is a day old (YouTube first, always): forget the
@@ -1494,7 +1525,9 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                 runCatching { cache.removeResource(mediaId) }
             }
 
-            if (!dataSpec.isLocal && fallbackOn && StreamFallback.isForced(mediaId)) {
+            if (fullyCached) {
+                dataSpec // Completed audio stays playable offline, independent of source-pin expiry.
+            } else if (!dataSpec.isLocal && fallbackOn && StreamFallback.isForced(mediaId)) {
                 saavnFallback() ?: throw UnplayableException()
             } else if (
                 dataSpec.isLocal || (
@@ -1521,8 +1554,26 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                         // and remember it, skipping the YouTube/yt-dlp path entirely.
                         val cdn = runBlocking(Dispatchers.IO) { resolveSaavnStream(mediaId, PlayerPreferences.audioQuality.saavn) }
                             ?: throw UnplayableException()
-                        uriCache.push(key = mediaId, meta = null, uri = cdn.toUri())
-                        return@run dataSpec.withUri(cdn.toUri())
+                        val mediaItem = runCatching { runBlocking(Dispatchers.IO) { findMediaItem(mediaId) } }.getOrNull()
+                        val saavnLen: Long? = null // Avoid a blocking HEAD request before playback.
+                        transaction {
+                            runCatching {
+                                mediaItem?.let(Database::insert)
+                                Database.insert(
+                                    Format(
+                                        songId = mediaId,
+                                        itag = null,
+                                        mimeType = "audio/mp4",
+                                        bitrate = null,
+                                        loudnessDb = null,
+                                        contentLength = saavnLen,
+                                        lastModified = null
+                                    )
+                                )
+                            }
+                        }
+                        uriCache.push(key = mediaId, meta = saavnLen, uri = cdn.toUri())
+                        return@run dataSpec.withUri(cdn.toUri()).ranged(saavnLen)
                     }
 
                     StreamFallback.url(mediaId)?.let { saved ->

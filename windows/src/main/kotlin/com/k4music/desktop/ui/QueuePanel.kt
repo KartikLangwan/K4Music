@@ -43,14 +43,7 @@ fun QueuePanel(modifier: Modifier = Modifier) {
     val removeLabel = stringResource(Res.string.remove_from_queue)
     val upLabel = stringResource(Res.string.desktop_move_up)
     val downLabel = stringResource(Res.string.desktop_move_down)
-    val actions = songActions { track ->
-        val index = player.state.value.queue.indexOf(track)
-        buildList {
-            if (index != player.state.value.index) add(MenuAction(removeLabel, Res.drawable.remove_circle_outline) { player.removeAt(index) })
-            if (index > 0) add(MenuAction(upLabel, Res.drawable.arrow_up) { player.move(index, index - 1) })
-            if (index in 0 until player.state.value.queue.lastIndex) add(MenuAction(downLabel, Res.drawable.chevron_down) { player.move(index, index + 1) })
-        }
-    }
+    val baseActions = songActions()
 
     LaunchedEffect(state.index) { if (state.index >= 0) listState.animateScrollToItem(state.index) }
     val reorder = rememberReorderState { from, to -> player.move(from, to) }
@@ -72,7 +65,14 @@ fun QueuePanel(modifier: Modifier = Modifier) {
                 SongRow(
                     track = track,
                     onPlay = { player.playAt(index) },
-                    actions = { actions(track) },
+                    actions = {
+                        val queueActions = buildList {
+                            if (index != player.state.value.index) add(MenuAction(removeLabel, Res.drawable.remove_circle_outline) { player.removeAt(index) })
+                            if (index > 0) add(MenuAction(upLabel, Res.drawable.arrow_up) { player.move(index, index - 1) })
+                            if (index in 0 until player.state.value.queue.lastIndex) add(MenuAction(downLabel, Res.drawable.chevron_down) { player.move(index, index + 1) })
+                        }
+                        baseActions(track) + queueActions
+                    },
                     current = index == state.index,
                     modifier = Modifier.reorderItem(reorder, index),
                     leading = { ReorderHandle(reorder, index, state.queue.size) }

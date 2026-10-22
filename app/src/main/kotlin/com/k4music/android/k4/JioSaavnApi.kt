@@ -4,7 +4,9 @@ import android.util.Base64
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withTimeoutOrNull
+import com.k4music.providers.utils.useCancellable
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
@@ -22,6 +24,13 @@ import javax.crypto.spec.SecretKeySpec
  * Self-contained on [K4Song] so no Room/K4Music-model changes are needed.
  */
 class JioSaavnApi(client: OkHttpClient? = null) {
+    private val knownStreams = object : LinkedHashMap<String, String>(128, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean = size > 128
+    }
+
+    private fun rememberStream(id: String, url: String) {
+        if (url.isNotBlank()) synchronized(knownStreams) { knownStreams[id] = url }
+    }
 
     private val http: OkHttpClient = client ?: OkHttpClient.Builder()
         .protocols(listOf(Protocol.HTTP_1_1))
@@ -30,12 +39,9 @@ class JioSaavnApi(client: OkHttpClient? = null) {
         .callTimeout(8, TimeUnit.SECONDS)
         .build()
 
-    @Volatile
-    var preferredQuality: String = "320"
-
     suspend fun searchSongs(query: String, limit: Int = 40, page: Int = 1): List<K4Song> =
         withContext(Dispatchers.IO) {
-            withTimeoutOrNull(8_000L) { fetch(query, limit, page) }.orEmpty()
+            fetch(query, limit, page)
         }
 
     suspend fun searchMore(query: String, page: Int, limit: Int = 40): List<K4Song> {
@@ -43,13 +49,35 @@ class JioSaavnApi(client: OkHttpClient? = null) {
         return searchSongs(query, limit, page)
     }
 
+    /** Expand reader: both new catalogue keys and all existing URL/cache identities remain valid. */
+    suspend fun resolveMediaKey(key: String, quality: String = "320"): String? = try {
+        withTimeoutOrNull(12_000) {
+            if (!key.startsWith("saavn:")) return@withTimeoutOrNull null
+            if (!key.startsWith(SAAVN_CATALOG_PREFIX)) return@withTimeoutOrNull bestVariant(key.removePrefix("saavn:"), quality = quality)
+            val id = saavnCatalogueId(key) ?: return@withTimeoutOrNull null
+            val cached = synchronized(knownStreams) { knownStreams[id] }
+            if (cached != null) bestVariant(cached, quality = quality)?.let { return@withTimeoutOrNull it }
+            val url = "https://www.jiosaavn.com/api.php?__call=song.getDetails&_format=json&pids=${URLEncoder.encode(id, "UTF-8")}"
+            val json = http.newCall(Request.Builder().url(url).header("User-Agent", UA).build()).useCancellable {
+                if (it.isSuccessful) it.body.string() else null
+            } ?: return@withTimeoutOrNull null
+            val song = JSONObject(json).optJSONObject(id) ?: return@withTimeoutOrNull null
+            if (song.optString("id") != id) return@withTimeoutOrNull null
+            val encrypted = song.optString("encrypted_media_url").ifBlank { song.optString("encrypted_drm_media_url") }
+            val stream = decryptSaavn(encrypted)?.takeIf { it.isNotBlank() } ?: return@withTimeoutOrNull null
+            rememberStream(id, stream)
+            bestVariant(stream, quality = quality)
+        }
+    } catch (error: CancellationException) { throw error }
+    catch (_: Exception) { null }
+
     /** Best verified CDN file for a Saavn stream URL, or null when none serve. */
-    fun bestVariant(url: String, excluded: Set<String> = emptySet()): String? {
+    suspend fun bestVariant(url: String, excluded: Set<String> = emptySet(), quality: String = "320"): String? {
         if (isPreviewUrl(url)) return null
         // Unknown naming scheme: the url itself is the only candidate.
         val base = saavnBase(url) ?: return url.takeIf { it.startsWith("http") && it !in excluded }
         val ladder = listOf("320", "160", "96")
-        val i = ladder.indexOf(preferredQuality).coerceAtLeast(0)
+        val i = ladder.indexOf(quality).coerceAtLeast(0)
         val order = ladder.drop(i) + ladder.take(i).reversed()
         for (q in order) {
             val cand = "${base}_$q.mp4"
@@ -61,7 +89,7 @@ class JioSaavnApi(client: OkHttpClient? = null) {
 
     fun isSaavnStream(url: String): Boolean = url.contains("saavncdn.com")
 
-    private fun fetch(query: String, limit: Int, page: Int): List<K4Song> {
+    private suspend fun fetch(query: String, limit: Int, page: Int): List<K4Song> {
         val q = query.trim()
         if (q.isBlank()) return emptyList()
         val enc = URLEncoder.encode(q, "UTF-8")
@@ -72,8 +100,9 @@ class JioSaavnApi(client: OkHttpClient? = null) {
                 Request.Builder().url(url)
                     .header("User-Agent", UA)
                     .build()
-            ).execute().use { r -> if (!r.isSuccessful) return emptyList() else r.body?.string() }
-        } catch (_: Exception) {
+            ).useCancellable { r -> if (r.isSuccessful) r.body.string() else null }
+        } catch (error: CancellationException) { throw error }
+        catch (_: Exception) {
             return emptyList()
         } ?: return emptyList()
         return try {
@@ -93,6 +122,7 @@ class JioSaavnApi(client: OkHttpClient? = null) {
                 val encUrl = r.optString("encrypted_media_url")
                     .ifBlank { r.optString("encrypted_drm_media_url") }
                 val stream = if (encUrl.isNotBlank()) decryptSaavn(encUrl).orEmpty() else ""
+                rememberStream(id, stream)
                 out += K4Song(
                     id = "saavn_$id",
                     title = title,
@@ -113,14 +143,15 @@ class JioSaavnApi(client: OkHttpClient? = null) {
     // A CDN probe is a 2-byte read; a slow answer is as bad as none.
     private val probe by lazy { http.newBuilder().callTimeout(3, TimeUnit.SECONDS).build() }
 
-    private fun reachable(url: String): Boolean = try {
+    private suspend fun reachable(url: String): Boolean = try {
         probe.newCall(
             Request.Builder().url(url)
                 .addHeader("User-Agent", UA)
                 .addHeader("Range", "bytes=0-1")
                 .get().build()
-        ).execute().use { r -> r.isSuccessful || r.code == 206 }
-    } catch (_: Exception) {
+        ).useCancellable { r -> r.isSuccessful || r.code == 206 }
+    } catch (error: CancellationException) { throw error }
+    catch (_: Exception) {
         false
     }
 
