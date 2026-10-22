@@ -103,8 +103,12 @@ private fun visibleDestinations(): List<NavDestination> {
 }
 
 /** Which navigation button to highlight: the nearest navigation screen below the current page. */
-private fun Navigator.section(): Screen =
-    stack.lastOrNull { s -> navDestinations.any { sameRoot(s, it.screen) } } ?: stack.first()
+private fun Navigator.section(): Screen {
+    // Favorites, History, Downloads and your playlists live in the library.
+    fun inLibrary(s: Screen) = s is Screen.BuiltIn || s is Screen.LocalPlaylist
+    val s = stack.lastOrNull { s -> inLibrary(s) || navDestinations.any { sameRoot(s, it.screen) } } ?: stack.first()
+    return if (inLibrary(s)) Screen.Library else s
+}
 
 private fun sameRoot(a: Screen, b: Screen) = a == b || (a is Screen.Search && b is Screen.Search)
 
@@ -227,7 +231,7 @@ fun Shell(
             NowPlayingBar(panel.value, { panel.value = it }, onOpenPlayer = { playerOpen.value = true }, ambient = ambient)
         }
         AnimatedVisibility(playerOpen.value, enter = slideInVertically { it }, exit = slideOutVertically { it }) {
-            NowPlaying(panel.value) { playerOpen.value = false }
+            NowPlaying(panel.value, { panel.value = it }) { playerOpen.value = false }
         }
         DialogHost()
     }

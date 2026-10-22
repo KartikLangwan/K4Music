@@ -748,8 +748,10 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                 fun Float?.toMb() = ((this ?: 0f) * 100).toInt()
 
                 Database.loudnessDb(songId).cancellable().collectLatest { loudness ->
-                    // Calibrated baseline (-9 dB) for tracks without loudness metadata (Saavn, Local, Piped)
-                    val nominalLoudnessMb = -900
+                    // Tracks without loudness metadata (Saavn, local, Piped) are commercial masters, which
+                    // YouTube rates around +6 dB over its reference: treat them so, not as quiet (-9 dB
+                    // boosted them 14 dB over YouTube songs and clipped).
+                    val nominalLoudnessMb = 600
                     val loudnessMb = loudness?.let {
                         val mb = (it * 100).toInt()
                         if (mb !in -2000..2000) {

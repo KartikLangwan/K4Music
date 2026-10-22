@@ -154,7 +154,7 @@ fun DiscoverScreen() {
             SectionHeader(stringResource(Res.string.pick_your_mood))
             TileGrid(moods.take(24)) { mood ->
                 MoodTile(mood.title, Color(mood.stripeColor)) {
-                    navigator.go(Screen.Mood(mood.endpoint.browseId!!, mood.endpoint.params, mood.title))
+                    mood.endpoint.browseId?.let { navigator.go(Screen.Mood(it, mood.endpoint.params, mood.title)) }
                 }
             }
         }

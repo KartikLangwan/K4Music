@@ -77,6 +77,8 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
     @Volatile private var listenedTrack: Track? = null
     @Volatile private var listenedMs = 0L
     @Volatile private var lastPosition = 0.0
+    @Volatile private var lastTick = -1.0
+    private var lastSavedPosition = 0.0
 
     /** Called when the queue changes (for persistence) and when a song starts (for history). */
     var onQueueChanged: (List<Track>, Int, Double) -> Unit = { _, _, _ -> }
@@ -102,16 +104,28 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
         mpv.setAudioDevice(Settings.audioDevice)
         applyEffects()
         mpv.setListener(object : Mpv.Listener {
-            override fun onPosition(seconds: Double) = dispatchEvent {
+            override fun onPosition(seconds: Double) {
+                // mpv reports every decoded audio chunk (dozens a second); five updates a second keep
+                // the seek bar, cover ring and lyrics smooth for a fraction of the redraws.
+                if (kotlin.math.abs(seconds - lastTick) < 0.2) return
+                lastTick = seconds
+                dispatchEvent { onTick(seconds) }
+            }
+            private fun onTick(seconds: Double) {
                 // SponsorBlock: jump over a non-music segment the moment playback enters it.
                 skipSegments.firstOrNull { seconds >= it.first && seconds < it.second - 0.5 }?.let { (_, end) ->
                     mpv.seek(end)
-                    return@dispatchEvent
+                    return
                 }
                 val step = seconds - lastPosition
                 if (step > 0 && step < 1.5 && _state.value.playing) listenedMs += (step * 1000).toLong()
                 lastPosition = seconds
                 _position.value = seconds
+                // Keep the saved resume point fresh, so a crash or power cut resumes near here.
+                if (kotlin.math.abs(seconds - lastSavedPosition) >= 10) {
+                    lastSavedPosition = seconds
+                    _state.value.let { onQueueChanged(it.queue, it.index, seconds) }
+                }
             }
             override fun onDuration(seconds: Double) = dispatchEvent { _state.update { it.copy(durationSeconds = seconds) } }
             override fun onPaused(paused: Boolean) = dispatchEvent { _state.update { it.copy(playing = !paused) } }

@@ -24,6 +24,11 @@
     <string name="desktop_saved">Saved</string>
     <string name="desktop_follow">Follow</string>
     <string name="desktop_following">Following</string>
+    <string name="desktop_synced">Synced</string>
+    <string name="desktop_empty_favorites">No liked songs yet. Tap the heart on any song to keep it here.</string>
+    <string name="desktop_empty_history">Songs you listen to will show up here.</string>
+    <string name="desktop_empty_downloads">Download songs to play them offline, even without internet.</string>
+    <string name="desktop_empty_local">Add a music folder in Settings → Library &amp; storage to see your files here.</string>
     <plurals name="desktop_song_count">
         <item quantity="one">%1$d song</item>
         <item quantity="other">%1$d songs</item>

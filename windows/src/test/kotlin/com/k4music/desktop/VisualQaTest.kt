@@ -31,6 +31,11 @@ class VisualQaTest {
                     assertTrue(File(output, "$name.png").length() > 1_000, "Missing rendered $name frame")
                     assertTrue(File(output, "$name-queue.png").length() > 1_000, "Missing rendered $name queue frame")
                 }
+                // Lyrics panel, full player, light theme and a narrow window, through real clicks.
+                val flows = File(output, "flows")
+                DevTools.uitest(flows, player, listOf("go favorites", "click 1124 851", "shot lyrics", "click 1393 851", "wait 1200", "shot player"))
+                DevTools.uitest(flows, player, listOf("theme light", "go favorites", "shot light"))
+                DevTools.uitest(flows, player, listOf("size 960 640", "go favorites", "shot narrow"))
             } finally {
                 player.close()
                 // Repeated runs must not pile up fixture playlists in the sidebar.

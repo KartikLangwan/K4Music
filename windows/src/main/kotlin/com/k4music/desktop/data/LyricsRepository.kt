@@ -20,6 +20,7 @@ object LyricsRepository {
     data class Result(val fixed: String, val synced: String)
 
     private val memory = com.k4music.desktop.BoundedCache<String, Result>(64)
+    private const val FETCH_TIMEOUT_MS = 15_000L
     /** Persistent store hook (the library database); null until the database is ready. */
     @Volatile var store: Store? = null
 
@@ -29,10 +30,13 @@ object LyricsRepository {
     }
 
     suspend fun get(track: Track): Result = withContext(Dispatchers.IO) {
-        memory[track.id] ?: store?.load(track.id)?.also { memory[track.id] = it } ?: fetch(track).also {
-            memory[track.id] = it
-            if (it.fixed.isNotBlank() || it.synced.isNotBlank()) store?.save(track, it)
-        }
+        memory[track.id] ?: store?.load(track.id)?.also { memory[track.id] = it }
+            // A slow or offline provider ends as "no lyrics", not an endless spinner; not cached, so a later visit retries.
+            ?: kotlinx.coroutines.withTimeoutOrNull(FETCH_TIMEOUT_MS) { fetch(track) }?.also {
+                memory[track.id] = it
+                if (it.fixed.isNotBlank() || it.synced.isNotBlank()) store?.save(track, it)
+            }
+            ?: Result("", "")
     }
 
     /** Replaces the lyrics of [track] (edit / refetch). */

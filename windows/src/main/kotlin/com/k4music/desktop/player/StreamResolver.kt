@@ -88,12 +88,12 @@ class StreamResolver {
         }
         cache[track.id]?.takeIf { System.currentTimeMillis() - it.at < TTL_MS }?.let { return@withContext it.stream }
 
+        val pinned = if (fallbackOn) StreamFallback.url(track.id) else null // read once: another thread may drop it
         val stream = when {
             track.isSaavn -> resolveSaavnStream(track.id, Settings.audioQuality.saavn)
                 ?.let { Stream(it, StreamSource.Saavn) }
                 ?: throw UnplayableException("JioSaavn stream unavailable")
-            fallbackOn && StreamFallback.url(track.id) != null ->
-                Stream(StreamFallback.url(track.id)!!, StreamSource.Saavn)
+            pinned != null -> Stream(pinned, StreamSource.Saavn)
             else -> {
                 val youtube = when {
                     youtubeBlocked() -> null // don't keep knocking while YouTube is blocking this network

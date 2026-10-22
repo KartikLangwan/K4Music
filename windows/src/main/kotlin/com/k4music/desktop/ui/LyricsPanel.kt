@@ -52,7 +52,7 @@ import com.k4music.desktop.res.sync
 import kotlinx.coroutines.launch
 import com.k4music.desktop.res.lyrics_not_available
 import com.k4music.desktop.res.lyrics_refresh_failed
-import com.k4music.desktop.res.show_synchronized_lyrics
+import com.k4music.desktop.res.desktop_synced
 import com.k4music.providers.lrclib.LrcParser
 import com.k4music.providers.lrclib.toLrcFile
 import org.jetbrains.compose.resources.stringResource
@@ -74,7 +74,7 @@ fun LyricsPanel(modifier: Modifier = Modifier) {
 
     Column(modifier.fillMaxSize().padding(12.dp)) {
         Row(Modifier.fillMaxWidth().padding(start = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(Res.string.lyrics), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Text(stringResource(Res.string.lyrics), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false, modifier = Modifier.weight(1f))
             if (track != null) {
                 ToggleIcon(Res.drawable.sync, stringResource(Res.string.refetch_lyrics), false) {
                     scope.launch {
@@ -96,7 +96,7 @@ fun LyricsPanel(modifier: Modifier = Modifier) {
             FilterChip(
                 selected = synced,
                 onClick = { synced = !synced; Settings.isShowingSynchronizedLyrics = synced },
-                label = { Text(stringResource(Res.string.show_synchronized_lyrics)) }
+                label = { Text(stringResource(Res.string.desktop_synced), maxLines = 1) }
             )
         }
         val result = lyrics
@@ -121,8 +121,11 @@ private fun SyncedLyrics(raw: String) {
     val lines = remember(raw) {
         LrcParser.parse(raw)?.toLrcFile()?.lines?.toSortedMap()?.entries?.filter { it.value.isNotBlank() }?.map { it.key to it.value }.orEmpty()
     }
-    val position by player.position.collectAsState()
-    val active = lines.indexOfLast { it.first <= (position * 1000).toLong() + 300 }
+    val position = player.position.collectAsState()
+    // Recompose only when the active line changes, not on every position tick.
+    val active by remember(lines) {
+        androidx.compose.runtime.derivedStateOf { lines.indexOfLast { it.first <= (position.value * 1000).toLong() + 300 } }
+    }
     val listState = rememberLazyListState()
     LaunchedEffect(active) {
         if (active >= 0) {

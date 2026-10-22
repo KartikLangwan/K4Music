@@ -51,7 +51,7 @@ fun MediaCard(
         horizontalAlignment = if (circle) Alignment.CenterHorizontally else Alignment.Start
     ) {
         Box(Modifier.fillMaxWidth().aspectRatio(1f).graphicsLayer { scaleX = scale; scaleY = scale; if (disc) rotationZ = if (hovered) 12f else 0f }, contentAlignment = Alignment.Center) {
-            Artwork(image, 160.dp, Modifier.fillMaxSize(), corner = if (circle || disc) 999.dp else 14.dp)
+            Artwork(image, 160.dp, Modifier.fillMaxSize(), corner = if (circle || disc) 999.dp else 14.dp, person = circle)
             // A song shows as a small record: round art with a spindle hole.
             if (disc) Box(Modifier.fillMaxSize(0.13f).clip(CircleShape).background(MaterialTheme.colorScheme.surface))
         }

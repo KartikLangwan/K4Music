@@ -51,7 +51,7 @@ import kotlin.math.sin
 
 /** Full-window player: large artwork over the living backdrop, with the queue or lyrics beside it. */
 @Composable
-fun NowPlaying(panel: SidePanel?, onClose: () -> Unit) {
+fun NowPlaying(panel: SidePanel?, onPanel: (SidePanel?) -> Unit, onClose: () -> Unit) {
     val player = LocalPlayer.current
     val state by player.state.collectAsState()
     val track = state.current
@@ -99,6 +99,17 @@ fun NowPlaying(panel: SidePanel?, onClose: () -> Unit) {
                 )
                 SeekBar(player, state.durationSeconds, enabled = track != null, modifier = Modifier.widthIn(max = 560.dp))
                 Transport(player, state.playing, state.buffering, enabled = track != null, large = true)
+                // The rest of the bar's controls in one quiet row, so nothing needs the player closed.
+                Row(
+                    Modifier.padding(top = 14.dp).widthIn(max = 560.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (track != null) LikeButton(track, large = true)
+                    PanelToggles(panel, onPanel, large = true)
+                    AudioOutputButton(player)
+                    Volume(player, Modifier.widthIn(max = 180.dp))
+                }
                 val stats by androidx.compose.runtime.produceState<String?>(null, state.current?.id, state.buffering) {
                     while (true) { value = player.stats(); kotlinx.coroutines.delay(2_000) }
                 }
@@ -188,7 +199,7 @@ fun Vinyl(url: String?, playing: Boolean, modifier: Modifier = Modifier) {
             },
         contentAlignment = Alignment.Center
     ) {
-        Artwork(url, 260.dp, Modifier.fillMaxSize(0.58f), corner = 999.dp)
+        Artwork(url, 260.dp, Modifier.fillMaxSize(0.58f), corner = 999.dp, person = false)
         Box(Modifier.fillMaxSize(0.045f).clip(CircleShape).background(vinyl))
     }
 }

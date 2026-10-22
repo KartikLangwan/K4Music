@@ -40,13 +40,16 @@ fun k4ImageLoader(context: PlatformContext) = ImageLoader.Builder(context)
     .crossfade(true)
     .build()
 
-/** Square cover art or circular artist avatar with placeholder while loading or when there is none. */
+/**
+ * Square cover art or circular artist avatar with placeholder while loading or when there is none.
+ * [person]: an artist (person placeholder, glow ring); false for round song "discs".
+ */
 @Composable
-fun Artwork(url: String?, size: Dp, modifier: Modifier = Modifier, corner: Dp = 8.dp) {
+fun Artwork(url: String?, size: Dp, modifier: Modifier = Modifier, corner: Dp = 8.dp, person: Boolean = corner >= 100.dp) {
     val isCircle = corner >= 100.dp
     val shape = if (isCircle) CircleShape else RoundedCornerShape(corner)
     val colors = MaterialTheme.colorScheme
-    val glowBorder = if (isCircle && Settings.artistGlow) {
+    val glowBorder = if (person && Settings.artistGlow) {
         Modifier.border(
             2.dp,
             Brush.sweepGradient(
@@ -68,10 +71,10 @@ fun Artwork(url: String?, size: Dp, modifier: Modifier = Modifier, corner: Dp = 
         contentAlignment = Alignment.Center
     ) {
         Icon(
-            painterResource(if (isCircle) Res.drawable.person else Res.drawable.musical_notes),
+            painterResource(if (person) Res.drawable.person else Res.drawable.musical_notes),
             null,
             tint = colors.onSurfaceVariant.copy(alpha = 0.5f),
-            modifier = Modifier.padding(if (isCircle) size / 3 else size / 4).fillMaxSize()
+            modifier = Modifier.padding(if (person) size / 3 else size / 4).fillMaxSize()
         )
         if (url != null) AsyncImage(
             model = url,

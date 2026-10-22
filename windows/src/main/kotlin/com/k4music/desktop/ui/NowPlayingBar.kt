@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
@@ -147,13 +148,7 @@ fun NowPlayingBar(
                     )
                 }
                 if (track != null) {
-                    val liked by com.k4music.desktop.data.LibraryHooks.liked.collectAsState()
-                    val isLiked = track.id in liked
-                    ToggleIcon(
-                        if (isLiked) Res.drawable.heart else Res.drawable.heart_outline,
-                        stringResource(Res.string.like),
-                        isLiked
-                    ) { com.k4music.desktop.data.LibraryHooks.toggleLike(track) }
+                    LikeButton(track)
                     CurrentSongMenu(track)
                 }
             }
@@ -170,33 +165,50 @@ fun NowPlayingBar(
                 horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val isLyrics = panel == SidePanel.Lyrics || panel == SidePanel.Both
-                val isQueue = panel == SidePanel.Queue || panel == SidePanel.Both
-
-                ToggleIcon(Res.drawable.text, stringResource(Res.string.lyrics), isLyrics) {
-                    val next = when {
-                        isLyrics && isQueue -> SidePanel.Queue
-                        isLyrics -> null
-                        isQueue -> SidePanel.Both
-                        else -> SidePanel.Lyrics
-                    }
-                    onPanel(next)
-                }
-                ToggleIcon(Res.drawable.list, stringResource(Res.string.up_next), isQueue) {
-                    val next = when {
-                        isQueue && isLyrics -> SidePanel.Lyrics
-                        isQueue -> null
-                        isLyrics -> SidePanel.Both
-                        else -> SidePanel.Queue
-                    }
-                    onPanel(next)
-                }
+                PanelToggles(panel, onPanel)
                 AudioOutputButton(player)
-                Volume(player)
+                // Shrinks first when the window is narrow, so no button gets squeezed out.
+                Volume(player, Modifier.weight(1f, fill = false))
                 ToggleIcon(Res.drawable.expand, stringResource(Res.string.desktop_open_player), false) { if (track != null) onOpenPlayer() }
             }
         }
     }
+    }
+}
+
+/** Heart for [track]: likes or unlikes it. */
+@Composable
+fun LikeButton(track: com.k4music.desktop.player.Track, large: Boolean = false) {
+    val liked by com.k4music.desktop.data.LibraryHooks.liked.collectAsState()
+    val isLiked = track.id in liked
+    ToggleIcon(
+        if (isLiked) Res.drawable.heart else Res.drawable.heart_outline,
+        stringResource(Res.string.like),
+        isLiked,
+        large = large
+    ) { com.k4music.desktop.data.LibraryHooks.toggleLike(track) }
+}
+
+/** Lyrics and Up next buttons: each opens or closes its panel; both can be open side by side. */
+@Composable
+fun PanelToggles(panel: SidePanel?, onPanel: (SidePanel?) -> Unit, large: Boolean = false) {
+    val isLyrics = panel == SidePanel.Lyrics || panel == SidePanel.Both
+    val isQueue = panel == SidePanel.Queue || panel == SidePanel.Both
+    ToggleIcon(Res.drawable.text, stringResource(Res.string.lyrics), isLyrics, large = large) {
+        onPanel(when {
+            isLyrics && isQueue -> SidePanel.Queue
+            isLyrics -> null
+            isQueue -> SidePanel.Both
+            else -> SidePanel.Lyrics
+        })
+    }
+    ToggleIcon(Res.drawable.list, stringResource(Res.string.up_next), isQueue, large = large) {
+        onPanel(when {
+            isQueue && isLyrics -> SidePanel.Lyrics
+            isQueue -> null
+            isLyrics -> SidePanel.Both
+            else -> SidePanel.Queue
+        })
     }
 }
 
@@ -206,8 +218,8 @@ fun NowPlayingBar(
  */
 @Composable
 private fun DiscCover(url: String?, player: PlayerController, duration: Double, enabled: Boolean, onClick: () -> Unit) {
-    val position by player.position.collectAsState()
-    val progress = if (duration > 0) (position / duration).toFloat().coerceIn(0f, 1f) else 0f
+    // Read in the draw phase only: ticks redraw the ring without recomposing the cover.
+    val position = player.position.collectAsState()
     val colors = MaterialTheme.colorScheme
     Box(
         Modifier.size(60.dp).clip(CircleShape)
@@ -215,6 +227,7 @@ private fun DiscCover(url: String?, player: PlayerController, duration: Double, 
         contentAlignment = Alignment.Center
     ) {
         androidx.compose.foundation.Canvas(Modifier.matchParentSize()) {
+            val progress = if (duration > 0) (position.value / duration).toFloat().coerceIn(0f, 1f) else 0f
             val stroke = 3.dp.toPx()
             val inset = androidx.compose.ui.geometry.Offset(stroke / 2, stroke / 2)
             val arc = androidx.compose.ui.geometry.Size(size.width - stroke, size.height - stroke)
@@ -255,11 +268,11 @@ fun Transport(player: PlayerController, playing: Boolean, buffering: Boolean, en
     val colors = MaterialTheme.colorScheme
     val repeat = Settings.repeatMode
     val shuffle = Settings.shuffleEnabled
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (large) 16.dp else 8.dp)) {
-        ToggleIcon(Res.drawable.shuffle, stringResource(Res.string.shuffle), shuffle) { player.setShuffle(!shuffle) }
-        PlainIcon(Res.drawable.play_skip_back, stringResource(Res.string.previous_track), enabled) { player.previous() }
-        PlayButton(playing, buffering, enabled, if (large) 68.dp else 44.dp) { player.togglePlay() }
-        PlainIcon(Res.drawable.play_skip_forward, stringResource(Res.string.next_track), enabled) { player.next() }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (large) 20.dp else 8.dp)) {
+        ToggleIcon(Res.drawable.shuffle, stringResource(Res.string.shuffle), shuffle, large = large) { player.setShuffle(!shuffle) }
+        PlainIcon(Res.drawable.play_skip_back, stringResource(Res.string.previous_track), enabled, large) { player.previous() }
+        PlayButton(playing, buffering, enabled, if (large) 72.dp else 44.dp) { player.togglePlay() }
+        PlainIcon(Res.drawable.play_skip_forward, stringResource(Res.string.next_track), enabled, large) { player.next() }
         ToggleIcon(
             when (repeat) {
                 RepeatMode.Off -> Res.drawable.repeat
@@ -273,7 +286,8 @@ fun Transport(player: PlayerController, playing: Boolean, buffering: Boolean, en
                     RepeatMode.One -> Res.string.repeat_one
                 }
             ),
-            repeat != RepeatMode.Off
+            repeat != RepeatMode.Off,
+            large = large
         ) { player.cycleRepeat() }
     }
 }
@@ -300,11 +314,11 @@ fun SeekBar(player: PlayerController, duration: Double, enabled: Boolean, modifi
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun Volume(player: PlayerController) {
+fun Volume(player: PlayerController, modifier: Modifier = Modifier) {
     val muted = Settings.muted
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.onPointerEvent(PointerEventType.Scroll) { event ->
+        modifier = modifier.onPointerEvent(PointerEventType.Scroll) { event ->
             val delta = event.changes.firstOrNull()?.scrollDelta?.y ?: 0f
             if (delta != 0f) {
                 val step = if (delta < 0) 5 else -5
@@ -323,7 +337,7 @@ private fun Volume(player: PlayerController) {
         K4Slider(
             value = if (muted) 0f else Settings.volume / 100f,
             onChange = { player.setVolume((it * 100).toInt()); if (muted) player.setMuted(false) },
-            modifier = Modifier.width(110.dp)
+            modifier = Modifier.weight(1f, fill = false).widthIn(min = 48.dp, max = 110.dp)
         )
     }
 }
@@ -335,6 +349,7 @@ fun ToggleIcon(
     label: String,
     active: Boolean,
     modifier: Modifier = Modifier,
+    large: Boolean = false,
     onClick: () -> Unit
 ) {
     TooltipBox(
@@ -343,11 +358,11 @@ fun ToggleIcon(
         state = rememberTooltipState()
     ) {
         Box {
-            IconButton(onClick = onClick, modifier = modifier.size(36.dp)) {
+            IconButton(onClick = onClick, modifier = modifier.size(if (large) 44.dp else 36.dp)) {
                 Icon(
                     painterResource(icon),
                     label,
-                    Modifier.size(20.dp),
+                    Modifier.size(if (large) 24.dp else 20.dp),
                     tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -356,9 +371,9 @@ fun ToggleIcon(
 }
 
 @Composable
-private fun PlainIcon(icon: DrawableResource, label: String, enabled: Boolean, onClick: () -> Unit) {
-    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(36.dp)) {
-        Icon(painterResource(icon), label, Modifier.size(22.dp))
+private fun PlainIcon(icon: DrawableResource, label: String, enabled: Boolean, large: Boolean = false, onClick: () -> Unit) {
+    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(if (large) 52.dp else 36.dp)) {
+        Icon(painterResource(icon), label, Modifier.size(if (large) 32.dp else 22.dp))
     }
 }
 

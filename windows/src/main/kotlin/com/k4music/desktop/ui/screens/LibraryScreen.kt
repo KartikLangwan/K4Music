@@ -46,6 +46,10 @@ import com.k4music.desktop.player.Downloads
 import com.k4music.desktop.player.Track
 import com.k4music.desktop.player.toTrack
 import com.k4music.desktop.res.Res
+import com.k4music.desktop.res.desktop_empty_local
+import com.k4music.desktop.res.desktop_empty_downloads
+import com.k4music.desktop.res.desktop_empty_history
+import com.k4music.desktop.res.desktop_empty_favorites
 import com.k4music.desktop.res.desktop_move_up
 import com.k4music.desktop.res.desktop_move_down
 import com.k4music.desktop.res.arrow_up
@@ -289,14 +293,28 @@ fun BuiltInScreen(kind: BuiltInKind) {
             }
         }
     }
-    val songs by source.map { it.map(Song::toTrack) }.collectAsState(initial = emptyList())
+    val loaded by remember(source) { source.map { it.map(Song::toTrack) } }.collectAsState(initial = null)
+    val songs = loaded.orEmpty()
     val removeDownload = stringResource(Res.string.delete)
+    val emptyHint = when (kind) {
+        BuiltInKind.Favorites -> Res.string.desktop_empty_favorites
+        BuiltInKind.History -> Res.string.desktop_empty_history
+        BuiltInKind.Downloads -> Res.string.desktop_empty_downloads
+        BuiltInKind.Top -> Res.string.desktop_empty_history
+        BuiltInKind.Local -> Res.string.desktop_empty_local
+    }
     SongList(
         songs,
         header = {
             Text(stringResource(title), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
             Text(pluralStringResource(Res.plurals.desktop_song_count, songs.size, songs.size), color = MaterialTheme.colorScheme.onSurfaceVariant)
             PlayRow(songs)
+            if (loaded?.isEmpty() == true) Text(
+                stringResource(emptyHint),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 32.dp)
+            )
         },
         extra = { t -> if (kind == BuiltInKind.Downloads) listOf(MenuAction(removeDownload, Res.drawable.trash) { Downloads.delete(t.id) }) else emptyList() }
     )
