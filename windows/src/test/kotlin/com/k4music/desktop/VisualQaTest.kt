@@ -36,6 +36,8 @@ class VisualQaTest {
                 DevTools.uitest(flows, player, listOf("go favorites", "click 1124 851", "shot lyrics", "click 1393 851", "wait 1200", "shot player"))
                 DevTools.uitest(flows, player, listOf("theme light", "go favorites", "shot light"))
                 DevTools.uitest(flows, player, listOf("size 960 640", "go favorites", "shot narrow"))
+                DevTools.uitest(flows, player, listOf("size 1900 700", "go favorites", "shot wide"))
+                DevTools.uitest(flows, player, listOf("size 900 600", "go favorites", "click 1124 560", "shot small-lyrics"))
                 // Every Settings page and the online screens (they show their offline state without network).
                 DevTools.uitest(flows, player, listOf(
                     "click 1410 32", "shot settings-appearance", "click 440 232", "shot settings-windows",

@@ -58,11 +58,15 @@ fun K4Slider(
     val fill = if (enabled) colors.primary else colors.onSurfaceVariant.copy(alpha = 0.4f)
     val rest = colors.onSurfaceVariant.copy(alpha = 0.25f)
 
-    Slider(
+    // Compact: Material reserves a 48dp touch height, which overflowed the player capsule.
+    androidx.compose.runtime.CompositionLocalProvider(
+        androidx.compose.material3.LocalMinimumInteractiveComponentSize provides androidx.compose.ui.unit.Dp.Unspecified
+    ) { Slider(
         value = value.coerceIn(0f, 1f),
         onValueChange = { pending = it; onChange(it) },
         onValueChangeFinished = { onCommit(pending) },
         modifier = modifier
+            .height(20.dp)
             .hoverable(interaction, enabled)
             .pointerHoverIcon(if (enabled) PointerIcon.Hand else PointerIcon.Default),
         enabled = enabled,
@@ -80,5 +84,5 @@ fun K4Slider(
                 drawRoundRect(fill, Offset.Zero, Size(size.width * state.value.coerceIn(0f, 1f), size.height), r)
             }
         }
-    )
+    ) }
 }
