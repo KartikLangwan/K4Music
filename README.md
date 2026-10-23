@@ -28,7 +28,7 @@ Downloads are in this repository's [**Releases**](https://github.com/KartikLangw
 | **File** | [K4Music-v2.14.26-RELEASE.apk](https://github.com/KartikLangwan/K4Music/releases/download/v2.14.26/K4Music-v2.14.26-RELEASE.apk) | [K4Music-Setup-2.14.26.exe](https://github.com/KartikLangwan/K4Music/releases/download/v2.14.26/K4Music-Setup-2.14.26.exe) |
 | **Requires** | Android 7.0+, 64-bit ARM (arm64-v8a) | Windows 10 / 11, 64-bit |
 | **Size** | 26.8 MB | 115.8 MB |
-| **SHA-256** | `9DF480CCA77070C736334A4888CE5330BAA0C229F3D8FF84F0B7713A1BF2E8C9` | `D392B2712130F8A3CF5F2E053F64F2C5263F6140008E055695627D371BD35395` |
+| **SHA-256** | `9DF480CCA77070C736334A4888CE5330BAA0C229F3D8FF84F0B7713A1BF2E8C9` | `E4AE96AA95729937F6B88884F978E8D01DE4BD556C4B2DC19CDF0F1BDBF67DBA` |
 
 2.14.26 installs over 2.12.14 and keeps your library, likes, downloads and history. Libraries backed up from 2.14.26 need 2.14.26 or newer to restore.
 

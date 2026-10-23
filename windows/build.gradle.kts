@@ -191,11 +191,31 @@ tasks.withType<JavaExec>().configureEach {
 
 // ---- Installer: app image (createDistributable) + Inno Setup -> one K4Music-Setup-x.y.z.exe ----
 
+// jlink takes the runtime's DLLs from the jmods, which are unsigned; Smart App Control then blocks
+// awt.dll / freetype.dll at random ("An Application Control policy has blocked this file") and the
+// app dies at start. The same JDK's bin\ holds the identical files signed by Microsoft: use those.
+val signRuntimeDlls by tasks.registering {
+    description = "Replaces the app image's unsigned runtime DLLs with the JDK's signed copies"
+    dependsOn("createDistributable")
+    val jdk = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(libs.versions.jvm.get().toInt())) }
+        .map { it.metadata.installationPath.asFile.resolve("bin") }
+    val runtimeBin = layout.buildDirectory.dir("compose/binaries/main/app/K4 Music/runtime/bin").get().asFile
+    doLast {
+        val signedBin = jdk.get()
+        var replaced = 0
+        runtimeBin.walkTopDown().filter { it.isFile && it.extension.lowercase() in setOf("dll", "exe") }.forEach { file ->
+            val signed = signedBin.resolve(file.relativeTo(runtimeBin).path)
+            if (signed.isFile && signed.length() != file.length()) { signed.copyTo(file, overwrite = true); replaced++ }
+        }
+        logger.lifecycle("Signed runtime: replaced $replaced DLLs with the JDK's signed copies")
+    }
+}
+
 // The trimmed runtime ships without the JDK's class-data archive; baking one in lets the JVM
 // map its core classes instead of loading them, so the window opens sooner (~2.4 s -> ~1.9 s).
 val bakeCdsArchive by tasks.registering(Exec::class) {
     description = "Creates the runtime's default CDS archive (classes.jsa) in the app image"
-    dependsOn("createDistributable")
+    dependsOn("createDistributable", signRuntimeDlls)
     val appImage = layout.buildDirectory.dir("compose/binaries/main/app/K4 Music").get().asFile
     outputs.file(appImage.resolve("runtime/bin/server/classes.jsa"))
     // The launcher starts the bundled JVM, which dumps the archive and exits before main().
