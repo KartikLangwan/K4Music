@@ -170,7 +170,12 @@ Esc  Close player / go back</string>
     <string name="desktop_reduced_motion">Reduce motion</string>
     <string name="desktop_reduced_motion_hint">Keep decorative backgrounds and artwork still</string>
     <string name="desktop_cancel_restore">Cancel staged restore</string>
-    <string name="desktop_sync_connect">Connect</string>
-    <string name="desktop_sync_copy">Copy code</string>
-    <string name="desktop_sync_type_on_phone">Type this code on your other device (Settings → Backup &amp; restore). Anyone with it can read your synced library, so keep it private.</string>
+    <string name="desktop_transfer_title">Phone transfer</string>
+    <string name="desktop_transfer_description">Bring your phone's likes and playlists to this PC. Nothing goes over the internet: the phone sends them straight here, so both must be on the same Wi-Fi. Nothing on this PC is removed.</string>
+    <string name="desktop_transfer_start">Show QR code</string>
+    <string name="desktop_transfer_waiting">On your phone: Settings → Backup &amp; restore → Send library to PC, then scan this code. It works for 5 minutes. If Windows Firewall asks, tick both Private and Public networks and click Allow, or the phone cannot reach this PC.</string>
+    <string name="desktop_transfer_done">New from your phone. Likes: %1$d · Playlists: %2$d · Songs: %3$d</string>
+    <string name="desktop_transfer_nothing_new">Your phone sent its library. Everything in it was already on this PC.</string>
+    <string name="desktop_transfer_expired">The code expired. Show a new one to try again.</string>
+    <string name="desktop_transfer_no_network">This PC is not on a local network. Connect it to the same Wi-Fi as your phone.</string>
 </resources>

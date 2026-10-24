@@ -68,6 +68,7 @@ dependencies {
     implementation(projects.providers.translate)
 
     implementation(compose.desktop.currentOs)
+    implementation(libs.zxing.core) // the QR code for Phone transfer
     implementation(compose.material3)
     implementation(compose.components.resources)
 

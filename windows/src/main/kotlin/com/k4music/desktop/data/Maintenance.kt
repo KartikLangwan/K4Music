@@ -97,9 +97,7 @@ object Maintenance {
 
     /** Only the owning process calls this, before any library connections/background writers start. */
     fun applyPendingRestore() {
-        val restoring = pending.isFile
         lastRestoreError = applyRestore(AppPaths.database, pending)
-        if (restoring && lastRestoreError == null) LibrarySync.databaseReplaced()
     }
 
     internal fun applyRestore(database: File, candidate: File, verify: (File) -> Unit = ::validateBackup): String? {

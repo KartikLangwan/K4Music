@@ -27,8 +27,8 @@ Downloads are in this repository's [**Releases**](https://github.com/KartikLangw
 | --- | --- | --- |
 | **File** | [K4Music-v2.14.26-RELEASE.apk](https://github.com/KartikLangwan/K4Music/releases/download/v2.14.26/K4Music-v2.14.26-RELEASE.apk) | [K4Music-Setup-2.14.26.exe](https://github.com/KartikLangwan/K4Music/releases/download/v2.14.26/K4Music-Setup-2.14.26.exe) |
 | **Requires** | Android 7.0+, 64-bit ARM (arm64-v8a) | Windows 10 / 11, 64-bit |
-| **Size** | 26.8 MB | 115.8 MB |
-| **SHA-256** | `5C49D0D6BE429C47BDE5E11496295C9BB1A51AB3E7AD9CDD8B8112D736CCEC6A` | `BF3A5C3779B896CF4202A273BADE23D5CE9E8334904E03BCBE0DB3F66FEE6E62` |
+| **Size** | 26.9 MB | 116.3 MB |
+| **SHA-256** | `B0B576B83001E2A16D51B2E21F227DAC01DDE09F6CC0799977117860451B3431` | `05EF52196C5719E50CEAD94D0035BE4FCDC7673D0B01B13B88F1FA655E1F41F4` |
 
 2.14.26 installs over 2.12.14 and keeps your library, likes, downloads and history. Libraries backed up from 2.14.26 need 2.14.26 or newer to restore.
 
@@ -47,7 +47,7 @@ Downloads are in this repository's [**Releases**](https://github.com/KartikLangw
 - **Mini player stays put (Android):** it can no longer be swiped away by accident.
 - **The right lyrics:** synced lyrics now match the song that is playing instead of falling back to another song's words.
 - **PC fixes:** a second launch brings the window back, Add to playlist → New playlist works, Esc closes menus first, the search box takes typing straight away, and yt-dlp keeps itself up to date every week.
-- **Phone ↔ PC library sync (preview):** likes and playlists stay in step with an encrypted pairing code, once the sync server is switched on.
+- **Phone → PC transfer:** the PC shows a QR code (Settings → Phone transfer), the phone scans it (Settings → Backup & restore → Send library to PC) and your likes and playlists go straight to the PC over your Wi-Fi, encrypted, with no server in between.
 
 Every fix and how it was verified: [AUDIT.md](docs/AUDIT.md) and [AUDIT-2026-10-24.md](docs/AUDIT-2026-10-24.md).
 

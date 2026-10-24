@@ -32,6 +32,8 @@ chaquo = { id = "com.chaquo.python", version = "17.0.0" }
 core_ktx = { module = "androidx.core:core-ktx", version = "1.19.1" }
 
 kotlin_coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version = "1.11.0" }
+zxing_core = { module = "com.google.zxing:core", version = "3.5.3" }
+zxing_android = { module = "com.journeyapps:zxing-android-embedded", version = "4.3.0" }
 kotlin_datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version = "0.8.0" }
 kotlin_immutable = { module = "org.jetbrains.kotlinx:kotlinx-collections-immutable", version = "0.5.2" }
 

@@ -278,6 +278,7 @@ dependencies {
     implementation(projects.providers.translate)
     implementation(projects.core.data)
     implementation(projects.core.ui)
+    implementation(libs.zxing.android) // scans the PC's QR code for Send library to PC
 }
 
 listOf("release", "nightly").forEach { variant ->

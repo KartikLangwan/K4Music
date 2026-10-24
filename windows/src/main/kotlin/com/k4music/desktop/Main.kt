@@ -135,8 +135,6 @@ fun main(args: Array<String>) {
         Thread.sleep(60_000)
         runCatching { com.k4music.desktop.data.Maintenance.updateYtDlpIfDue() }
     }, "k4-housekeeping").apply { isDaemon = true }.start()
-    // Phone sync starts a little after launch (only when paired).
-    Thread({ Thread.sleep(8_000); com.k4music.desktop.data.LibrarySync.start() }, "k4-sync-start").apply { isDaemon = true }.start()
     // Warm yt-dlp once (Windows scans a program on its first launch), so the first song starts faster.
     Thread({ Thread.sleep(5_000); com.k4music.desktop.data.Maintenance.ytDlpVersion() }, "k4-warmup").apply { isDaemon = true }.start()
     openLink = { Links.open(it, navigator, player) }
@@ -282,7 +280,7 @@ fun main(args: Array<String>) {
             composeWindow = window
             val focused = androidx.compose.ui.platform.LocalWindowInfo.current.isWindowFocused
             androidx.compose.runtime.LaunchedEffect(focused) {
-                if (focused) { com.k4music.desktop.player.Downloads.reconcile(); com.k4music.desktop.data.LibrarySync.onFocus() }
+                if (focused) com.k4music.desktop.player.Downloads.reconcile()
             }
             androidx.compose.runtime.LaunchedEffect(Unit) {
                 val ms = System.currentTimeMillis() - java.lang.management.ManagementFactory.getRuntimeMXBean().startTime

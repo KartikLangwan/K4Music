@@ -546,18 +546,6 @@ interface K4Dao {
     @Query("UPDATE Playlist SET name = :name WHERE id = :id")
     suspend fun renamePlaylist(id: Long, name: String)
 
-    @Query("DELETE FROM Playlist WHERE id = :id")
-    suspend fun deletePlaylistById(id: Long)
-
-    @Query(
-        """
-        SELECT (SELECT COUNT(*) || ':' || IFNULL(SUM(likedAt), 0) FROM Song WHERE likedAt IS NOT NULL)
-            || '|' || (SELECT COUNT(*) || ':' || IFNULL(SUM(position * rowid), 0) FROM SongPlaylistMap)
-            || '|' || (SELECT IFNULL(group_concat(name || id), '') FROM Playlist WHERE browseId IS NULL)
-        """
-    )
-    fun syncSignal(): Flow<String>
-
     @Query("DELETE FROM SongAlbumMap WHERE albumId = :id")
     suspend fun clearAlbum(id: String)
 

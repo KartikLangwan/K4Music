@@ -666,7 +666,6 @@ class MainApplication : Application(), SingletonImageLoader.Factory, Configurati
         super.onCreate()
         Dependencies.init(this)
         CrashGuard.install(filesDir)
-        com.k4music.android.k4.LibrarySync.init(this)
 
         if (BuildConfig.DEBUG) {
             StrictMode.setVmPolicy(

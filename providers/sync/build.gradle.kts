@@ -7,9 +7,7 @@ plugins {
 dependencies {
     implementation(libs.kotlin.coroutines)
 
-    implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.cio)
-    implementation(libs.ktor.serialization.json)
+    implementation(libs.ktor.serialization.json) // kotlinx-serialization-json, as in the other providers
 }
 
 kotlin {

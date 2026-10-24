@@ -9,20 +9,15 @@ import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * The pairing code is a random 128-bit secret. The server only ever sees [room] (a hash of it) and
- * ciphertext, so it can neither read nor link a library to anyone.
+ * A one-time random 128-bit secret, carried in the QR code the PC shows. Only a device that scanned it
+ * can make data the PC accepts, and nobody else on the network can read it.
  */
 class SyncCrypto private constructor(private val secret: ByteArray) {
-    /** The code to type on the other device, in groups of four. */
+    /** The secret as text (Base32 in groups of four), as the QR code carries it. */
     val code: String get() = Base32.encode(secret).chunked(4).joinToString("-")
 
+    /** Binds the encrypted data to this secret (used as associated data). */
     val room: String by lazy { MessageDigest.getInstance("SHA-256").digest("k4:room:".toByteArray() + secret).hex() }
-
-    /** Proves to the relay that a writer knows the code, without revealing it; the relay keeps the first one it sees. */
-    val writeKey: String by lazy {
-        val mac = Mac.getInstance("HmacSHA256").apply { init(SecretKeySpec(secret, "HmacSHA256")) }
-        mac.doFinal("k4:write".toByteArray()).hex()
-    }
 
     private val key by lazy {
         val mac = Mac.getInstance("HmacSHA256").apply { init(SecretKeySpec(secret, "HmacSHA256")) }

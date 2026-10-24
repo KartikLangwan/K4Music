@@ -97,7 +97,7 @@ private enum class SettingsPage(val title: StringResource, val subtitle: String,
     Effects(Res.string.audio_effects, "Equalizer & DSP", Res.drawable.equalizer),
     Layout(Res.string.desktop_layout, "Sidebar & View", Res.drawable.grid),
     Library(Res.string.settings_section_library, "Folders & Data", Res.drawable.library),
-    Sync(Res.string.sync, "Phone & PC", Res.drawable.sync),
+    Transfer(Res.string.desktop_transfer_title, "Phone → PC", Res.drawable.sync),
     Advanced(Res.string.desktop_advanced, "yt-dlp & Logs", Res.drawable.server),
     About(Res.string.about, "Kartik Langwan", Res.drawable.information)
 }
@@ -156,7 +156,7 @@ fun SettingsScreen() {
                             SettingsPage.Effects -> EffectsSection()
                             SettingsPage.Layout -> LayoutSection()
                             SettingsPage.Library -> LibrarySection()
-                            SettingsPage.Sync -> SyncSection()
+                            SettingsPage.Transfer -> TransferSection()
                             SettingsPage.Advanced -> AdvancedSection()
                             SettingsPage.About -> AboutSection()
                         }
@@ -625,47 +625,52 @@ private fun LibrarySection() = Section(Res.string.settings_section_library) {
     }
 }
 
-/** Pair this PC with the phone using a code; likes and playlists then stay in step over an encrypted relay. */
+/** Phone transfer: a QR code the phone scans to send its likes and playlists here, over the local network only. */
 @Composable
-private fun SyncSection() = Section(Res.string.sync) {
-    val sync by com.k4music.desktop.data.LibrarySync.state.collectAsState()
-    val status by com.k4music.desktop.data.LibrarySync.status.collectAsState()
-    var typed by remember { mutableStateOf("") }
-    var invalid by remember { mutableStateOf(false) }
+private fun TransferSection() = Section(Res.string.desktop_transfer_title) {
+    val state by com.k4music.desktop.data.PhoneTransfer.state.collectAsState()
     val secondary = MaterialTheme.colorScheme.onSurfaceVariant
-    Text(stringResource(Res.string.sync_description), style = MaterialTheme.typography.bodySmall, color = secondary)
-    if (!sync.paired) {
-        FilledTonalButton(onClick = { com.k4music.desktop.data.LibrarySync.pairNew() }) { Text(stringResource(Res.string.sync_create_code)) }
-        Text(stringResource(Res.string.sync_enter_code_description), style = MaterialTheme.typography.bodySmall, color = secondary)
-        androidx.compose.material3.OutlinedTextField(
-            value = typed, onValueChange = { typed = it; invalid = false }, singleLine = true, isError = invalid,
-            label = { Text(stringResource(Res.string.sync_code_hint)) }, modifier = Modifier.fillMaxWidth()
+    // Nothing keeps listening once the user leaves this page.
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { com.k4music.desktop.data.PhoneTransfer.stop() } }
+    Text(stringResource(Res.string.desktop_transfer_description), style = MaterialTheme.typography.bodySmall, color = secondary)
+    when (val st = state) {
+        is com.k4music.desktop.data.PhoneTransfer.State.Waiting -> {
+            QrCode(st.invite.text(), Modifier.size(220.dp))
+            Text(stringResource(Res.string.desktop_transfer_waiting), style = MaterialTheme.typography.bodyMedium)
+            OutlinedButton(onClick = { com.k4music.desktop.data.PhoneTransfer.stop() }) { Text(stringResource(Res.string.cancel)) }
+        }
+        else -> {
+            when (st) {
+                is com.k4music.desktop.data.PhoneTransfer.State.Done -> Text(
+                    if (st.imported.likes == 0 && st.imported.playlists == 0) stringResource(Res.string.desktop_transfer_nothing_new)
+                    else stringResource(Res.string.desktop_transfer_done, st.imported.likes, st.imported.playlists, st.imported.songs),
+                    style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold
+                )
+                com.k4music.desktop.data.PhoneTransfer.State.Expired -> Text(stringResource(Res.string.desktop_transfer_expired), style = MaterialTheme.typography.bodyMedium)
+                com.k4music.desktop.data.PhoneTransfer.State.NoNetwork -> Text(stringResource(Res.string.desktop_transfer_no_network), color = MaterialTheme.colorScheme.error)
+                else -> Unit
+            }
+            FilledTonalButton(onClick = { com.k4music.desktop.data.PhoneTransfer.start() }) { Text(stringResource(Res.string.desktop_transfer_start)) }
+        }
+    }
+}
+
+/** Black modules on a white square (with a quiet border), as phone scanners expect in light or dark theme. */
+@Composable
+private fun QrCode(text: String, modifier: Modifier) {
+    val matrix = remember(text) {
+        com.google.zxing.qrcode.QRCodeWriter().encode(
+            text, com.google.zxing.BarcodeFormat.QR_CODE, 0, 0, mapOf(com.google.zxing.EncodeHintType.MARGIN to 2)
         )
-        Button(enabled = typed.isNotBlank(), onClick = { invalid = !com.k4music.desktop.data.LibrarySync.pairWith(typed) }) { Text(stringResource(Res.string.desktop_sync_connect)) }
-        if (invalid) Text(stringResource(Res.string.sync_code_invalid), color = MaterialTheme.colorScheme.error)
-    } else {
-        Label(stringResource(Res.string.sync_code_title))
-        androidx.compose.foundation.text.selection.SelectionContainer {
-            Text(sync.code, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        }
-        Text(stringResource(Res.string.desktop_sync_type_on_phone), style = MaterialTheme.typography.bodySmall, color = secondary)
-        val statusText = when (val st = status) {
-            is com.k4music.desktop.data.LibrarySync.Status.Syncing -> stringResource(Res.string.sync_syncing)
-            is com.k4music.desktop.data.LibrarySync.Status.Failed -> stringResource(Res.string.sync_failed, st.message)
-            else -> if (sync.lastSyncAt == 0L) stringResource(Res.string.sync_never)
-            else stringResource(Res.string.sync_last, DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(sync.lastSyncAt)))
-        }
-        Text(statusText, style = MaterialTheme.typography.bodyMedium)
-        val confirmText = stringResource(Res.string.sync_unpair_description)
-        val unpairTitle = stringResource(Res.string.sync_unpair)
-        val copiedText = stringResource(Res.string.sync_code_copied)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilledTonalButton(onClick = { com.k4music.desktop.data.LibrarySync.sync() }) { Text(stringResource(Res.string.sync_now)) }
-            OutlinedButton(onClick = {
-                runCatching { java.awt.Toolkit.getDefaultToolkit().systemClipboard.setContents(java.awt.datatransfer.StringSelection(sync.code), null) }
-                    .onSuccess { AppDialogs.show(copiedText) }
-            }) { Text(stringResource(Res.string.desktop_sync_copy)) }
-            OutlinedButton(onClick = { AppDialogs.confirm(confirmText, unpairTitle) { com.k4music.desktop.data.LibrarySync.unpair() } }) { Text(stringResource(Res.string.sync_unpair)) }
+    }
+    Canvas(modifier.background(androidx.compose.ui.graphics.Color.White)) {
+        val cell = size.minDimension / matrix.width
+        for (y in 0 until matrix.height) for (x in 0 until matrix.width) if (matrix.get(x, y)) {
+            drawRect(
+                androidx.compose.ui.graphics.Color.Black,
+                topLeft = androidx.compose.ui.geometry.Offset(x * cell, y * cell),
+                size = androidx.compose.ui.geometry.Size(cell + 0.5f, cell + 0.5f)
+            )
         }
     }
 }
