@@ -16,6 +16,7 @@ import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 import java.io.File
 import java.security.MessageDigest
+import java.util.Properties
 import java.util.logging.Level
 import java.util.logging.Logger
 
@@ -65,17 +66,33 @@ object LocalMusic {
         try {
             val scan = collectFiles(configuredFolders())
             val files = scan.files
+            // Files unchanged since the last scan (same size and time) are not read again.
+            val known = Db.library.localSongIds().toHashSet()
+            val signatures = loadSignatures()
+            val fresh = Properties()
             files.forEach { file ->
                 kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                Db.library.upsertLocal(read(file))
+                val id = LOCAL_KEY_PREFIX + file.absolutePath
+                val signature = "${file.lastModified()}|${file.length()}"
+                if (id !in known || signatures.getProperty(file.absolutePath) != signature) Db.library.upsertLocal(read(file))
+                fresh.setProperty(file.absolutePath, signature)
             }
+            saveSignatures(fresh)
             val activeIds = files.mapTo(HashSet()) { LOCAL_KEY_PREFIX + it.absolutePath }
-            Db.library.pruneLocalSongs(activeIds, scan.completeRoots)
+            Db.library.pruneLocalSongs(activeIds, scan.completeRoots, configuredFolders().map { it.absolutePath })
             AppLog.i("LocalMusic", "Scanned ${files.size} files")
             files.size
         } finally {
             _scanning.value = false
         }
+    }
+
+    private val signatureFile get() = AppPaths.local.resolve("local-scan.properties")
+
+    private fun loadSignatures() = Properties().also { p -> runCatching { signatureFile.inputStream().use(p::load) } }
+
+    private fun saveSignatures(signatures: Properties) {
+        runCatching { signatureFile.outputStream().use { signatures.store(it, "K4 Music local scan") } }
     }
 
     private fun read(file: File): Track {

@@ -1,5 +1,6 @@
 package com.k4music.android.ui.components.themed
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,7 +33,7 @@ import kotlinx.coroutines.Dispatchers
 @Composable
 fun ActiveDownloads(modifier: Modifier = Modifier) {
     val (colorPalette, typography) = LocalAppearance.current
-    val downloads by downloadProgress.collectAsState()
+    val downloads by downloadProgress.collectAsStateWithLifecycle()
     if (downloads.isEmpty()) return
 
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {

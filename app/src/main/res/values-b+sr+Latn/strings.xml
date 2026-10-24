@@ -84,7 +84,6 @@
     <string name="hide_from_quick_picks">Sakrij iz "Brzi izbor"</string>
     <string name="confirm_hide_song">Zaista želite da sakrijete ovu pesmu? Vreme reprodukcije i keš će biti obrisani.\nOva radnja je nepovratna.</string>
     <string name="confirm_delete_playlist">Da li stvarno želite da obrišete ovu plejlistu?</string>
-    <string name="confirm_delete_piped_session">Da li zaista želite da obrišete ovu Piped sesiju?</string>
     <string name="other_versions">Druge verzije</string>
     <string name="no_alternative_version">Ovaj album nema alternativnu verziju</string>
     <string name="from_wikipedia">Iz Wikipedije</string>
@@ -104,8 +103,6 @@
     <string name="error_server_restrictions">Ova pesma se ne može reprodukovati zbog ograničenja servera</string>
     <string name="error_id_mismatch">Vraćeni video ID se ne podudara sa traženim</string>
     <string name="error_unknown_playback">Došlo je do nepoznate greške prilikom reprodukcije</string>
-    <string name="error_piped_link">Došlo je do nepoznate greške prilikom povezivanja sa vašim Piped nalogom. Pokušajte ponovo.</string>
-    <string name="error_piped_instances_unavailable">Lista Piped instanci trenutno nije dostupna</string>
     <string name="error_pre_cache">Došlo je do nepoznate greške prilikom pred-keširanja. Pokušajte ponovo.</string>
     <string name="error_url">Nije moguće otvoriti url URL %1$s</string>
     <string name="media_permission_declined">Dozvola odbijena, molimo da omogućite medijske dozvole u podešavanjima uređaja.</string>
@@ -191,8 +188,6 @@
     <string name="player">Plejer</string>
     <string name="previous_button_while_collapsed">Predhodno dugme dok je minimalizirano</string>
     <string name="previous_button_while_collapsed_description">Prikazuje dugme za prethodnu pesmu dok je plejer minimiziran</string>
-    <string name="swipe_horizontally_to_close">Prevuci horizontalno za zatvaranje</string>
-    <string name="swipe_horizontally_to_close_description">Zatvara plejer kada prevučete levo/desno po minimiziranom plejeru. Korisno za korisnike sa Android režimom za korišćenje jednom rukom.</string>
     <string name="show_like_button">Prikaži dugme za sviđanje</string>
     <string name="show_like_button_description">Prikaži dugme za sviđanje direktno u plejeru</string>
     <string name="swipe_to_remove_item">Prevuci da ukloniš stavku</string>
@@ -284,21 +279,15 @@
     <string name="quick_picks_source">Izvor brzih izbora</string>
     <string name="quick_picks_cache">Keš za brze izbore</string>
     <string name="quick_picks_cache_description">Čuva podatke brzih izbora na disku za pristup van mreže</string>
-    <string name="piped">Piped</string>
     <string name="instance">Instanca</string>
     <string name="click_to_select">Klikni za izbor</string>
     <string name="username">Korisničko ime</string>
     <string name="password">Lozinka</string>
     <string name="login">Prijava</string>
-    <string name="sync_description">Možete hostovati plejliste na drugom mestu i sinhronizovati ih sa K4 Music. Trenutno podržava samo Piped.</string>
     <string name="add_account">Dodaj nalog</string>
-    <string name="add_account_description">Poveži Piped nalog sa instancom, korisničkim imenom i lozinkom.</string>
     <string name="learn_more">Saznaj više</string>
-    <string name="learn_more_description">Ne znate šta je Piped ili nemate nalog? Kliknite ovde za preusmerenje na njihovu dokumentaciju</string>
-    <string name="piped_sessions">Piped sesije</string>
     <string name="custom_instance">Koristi prilagođenu instancu</string>
     <string name="base_api_url">API URL instance</string>
-    <string name="piped_session_created_successfully">Piped sesija uspešno kreirana</string>
     <string name="seek_bar_style">Stil trake za pretraživanje</string>
     <string name="static_seek_bar_name">Statik</string>
     <string name="wavy_seek_bar_name">Talasasta</string>

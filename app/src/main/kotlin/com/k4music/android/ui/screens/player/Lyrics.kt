@@ -757,11 +757,10 @@ fun LrcLibSearchDialog(
                 }
             },
             valueText = {
-                "${it.artistName} - ${it.trackName} (${
-                    it.duration.seconds.toComponents { minutes, seconds, _ ->
-                        "$minutes:${seconds.toString().padStart(2, '0')}"
-                    }
-                })"
+                val length = it.duration?.seconds?.toComponents { minutes, seconds, _ ->
+                    "$minutes:${seconds.toString().padStart(2, '0')}"
+                }
+                "${it.artistName} - ${it.trackName}" + (length?.let { l -> " ($l)" } ?: "")
             }
         )
     }

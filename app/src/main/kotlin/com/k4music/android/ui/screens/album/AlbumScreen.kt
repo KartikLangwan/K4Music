@@ -1,5 +1,6 @@
 package com.k4music.android.ui.screens.album
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Spacer
@@ -67,7 +68,7 @@ fun AlbumScreen(browseId: String) {
     val saveableStateHolder = rememberSaveableStateHolder()
 
     val tabIndexState = rememberSaveable(saver = stateFlowSaver()) { MutableStateFlow(0) }
-    val tabIndex by tabIndexState.collectAsState()
+    val tabIndex by tabIndexState.collectAsStateWithLifecycle()
 
     var album by persist<Album?>("album/$browseId/album")
     var albumPage by persist<Innertube.PlaylistOrAlbumPage?>("album/$browseId/albumPage")

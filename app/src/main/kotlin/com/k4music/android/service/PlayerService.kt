@@ -800,7 +800,8 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                 poiTimestamp = null
                 val videoId = mediaItem?.mediaId
                     ?.removePrefix("https://youtube.com/watch?v=")
-                    ?.takeIf { it.isNotBlank() } ?: return@collectLatest
+                    // Only YouTube videos have segments; files and JioSaavn songs must not be sent to SponsorBlock.
+                    ?.takeIf { it.isNotBlank() && !mediaItem.isLocal && !isSaavnKey(it) } ?: return@collectLatest
 
                 SponsorBlock
                     .segments(videoId)
@@ -834,9 +835,12 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                                 continue
                             }
 
-                            val nextSegment =
-                                segments.firstOrNull { posMillis() < it.end.inWholeMilliseconds }
-                                    ?: continue
+                            val nextSegment = segments.firstOrNull { posMillis() < it.end.inWholeMilliseconds }
+                            if (nextSegment == null) {
+                                // Past the last segment (or paused exactly on its end): wait instead of spinning.
+                                delay(1000.milliseconds)
+                                continue
+                            }
 
                             // Wait for next segment
                             if (nextSegment.start.inWholeMilliseconds > posMillis()) {

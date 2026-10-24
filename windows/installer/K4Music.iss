@@ -75,6 +75,11 @@ Name: "catalan"; MessagesFile: "compiler:Languages\Catalan.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
+Name: "startup"; Description: "Start K4 Music (minimized) when I sign in to Windows"; GroupDescription: "Startup:"; Flags: unchecked
+
+[Registry]
+; The same value the app's own "Start with Windows" switch writes (StartupManager.kt); unchecked unless chosen here.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "K4Music"; ValueData: """{app}\{#AppExe}"" --startup"; Flags: uninsdeletevalue; Tasks: startup
 
 [Files]
 Source: "{#AppImage}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -88,9 +93,11 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; AppUserModelID: "
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
-; yt-dlp updates itself in place; remove only tool leftovers.
-Type: filesandordirs; Name: "{app}\tools\yt-dlp"
-Type: dirifempty; Name: "{app}\tools"
+; yt-dlp updates itself in place (app\resources\yt-dlp): remove what Setup did not install there, never the whole folder.
+Type: filesandordirs; Name: "{app}\app\resources\yt-dlp"
+Type: dirifempty; Name: "{app}\app\resources"
+Type: dirifempty; Name: "{app}\app"
+Type: dirifempty; Name: "{app}\runtime"
 Type: dirifempty; Name: "{app}"
 
 [Code]
@@ -227,6 +234,9 @@ end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
+  // The app's own "Start with Windows" switch writes this too, not only the installer task: never leave it pointing at nothing.
+  if CurUninstallStep = usUninstall then
+    RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'K4Music');
   // The library is the user's data: keep it unless they say otherwise (never asked in silent mode).
   if (CurUninstallStep = usPostUninstall) and (not UninstallSilent) then
     if MsgBox('Also delete your K4 Music library, playlists, settings and downloads?' + #13#10 +

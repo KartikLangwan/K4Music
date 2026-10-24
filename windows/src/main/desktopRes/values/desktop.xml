@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Strings only the Windows app needs; everything else comes from the Android app's resources. -->
 <resources>
-    <string name="desktop_piped_https">Use an HTTPS API URL to protect your account.</string>
-    <string name="desktop_piped_missing_session">This account is no longer signed in. Add it again in Settings → Sync.</string>
     <string name="desktop_copy_link">Copy link</string>
     <string name="desktop_link_copied">Link copied</string>
     <string name="desktop_open_player">Open player</string>
@@ -28,10 +26,16 @@
     <string name="desktop_empty_favorites">No liked songs yet. Tap the heart on any song to keep it here.</string>
     <string name="desktop_empty_history">Songs you listen to will show up here.</string>
     <string name="desktop_empty_downloads">Download songs to play them offline, even without internet.</string>
+    <string name="desktop_empty_artists">Artists you follow show up here. Open an artist and tap Follow.</string>
+    <string name="desktop_empty_albums">Albums you save show up here. Open an album and tap Save to library.</string>
     <string name="desktop_empty_local">Add a music folder in Settings → Library &amp; storage to see your files here.</string>
     <plurals name="desktop_song_count">
         <item quantity="one">%1$d song</item>
         <item quantity="other">%1$d songs</item>
+    </plurals>
+    <plurals name="desktop_scan_found">
+        <item quantity="one">Found %1$d music file</item>
+        <item quantity="other">Found %1$d music files</item>
     </plurals>
     <string name="desktop_add_folder">Add folder</string>
     <string name="desktop_scan">Scan for music</string>
@@ -66,7 +70,6 @@
     <string name="desktop_restore_pending">Restart K4 Music to finish restoring your library</string>
     <string name="desktop_done">Done</string>
     <string name="desktop_tray_title">System tray</string>
-    <string name="desktop_piped_add">Add Piped account</string>
     <string name="desktop_username">Username</string>
     <string name="desktop_password">Password</string>
     <string name="desktop_forward">Forward</string>
@@ -94,6 +97,8 @@
 Ctrl+K  Quick actions
 Ctrl+→ / Ctrl+←  Next / previous
 Ctrl+F  Search
+Alt+H / Alt+D / Alt+L  Home / Discover / Library
+Ctrl+,  Settings
 Ctrl+B  Collapse side panel
 Alt+← / Alt+→  Back / forward
 F11  Full screen
@@ -165,4 +170,7 @@ Esc  Close player / go back</string>
     <string name="desktop_reduced_motion">Reduce motion</string>
     <string name="desktop_reduced_motion_hint">Keep decorative backgrounds and artwork still</string>
     <string name="desktop_cancel_restore">Cancel staged restore</string>
+    <string name="desktop_sync_connect">Connect</string>
+    <string name="desktop_sync_copy">Copy code</string>
+    <string name="desktop_sync_type_on_phone">Type this code on your other device (Settings → Backup &amp; restore). Anyone with it can read your synced library, so keep it private.</string>
 </resources>

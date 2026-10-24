@@ -64,6 +64,7 @@ import com.k4music.core.data.enums.SortOrder
 import com.k4music.desktop.data.Db
 import com.k4music.desktop.player.Track
 import com.k4music.desktop.res.Res
+import com.k4music.desktop.res.desktop_scan_found
 import com.k4music.desktop.res.add_to_playlist
 import com.k4music.desktop.res.cancel
 import com.k4music.desktop.res.confirm
@@ -111,7 +112,8 @@ import java.io.File
 /** App-wide dialogs and short messages, opened from anywhere and shown by [DialogHost]. */
 object AppDialogs {
     sealed interface Dialog {
-        class Text(val title: String?, val initial: String, val multiline: Boolean = false, val onConfirm: (String) -> Unit) : Dialog
+        // Runs in DialogHost's scope: the screen or dialog that opened this one may be gone by then.
+        class Text(val title: String?, val initial: String, val multiline: Boolean = false, val onConfirm: suspend (String) -> Unit) : Dialog
         class Confirm(val subject: String, val title: String?, val onYes: () -> Unit) : Dialog
         class AddToPlaylist(val tracks: List<Track>) : Dialog
         data object Import : Dialog
@@ -133,6 +135,13 @@ object AppDialogs {
     fun importPlaylist() { current = Dialog.Import }
     fun show(message: String) { toast = message }
 
+    /** Scans the music folders and says how many files were found (a scan already running is left alone). */
+    suspend fun scanLocalMusic() {
+        if (com.k4music.desktop.data.LocalMusic.scanning.value) return
+        val found = com.k4music.desktop.data.LocalMusic.scan()
+        show(org.jetbrains.compose.resources.getPluralString(Res.plurals.desktop_scan_found, found, found))
+    }
+
     /** Native Windows folder picker (runs on the AWT thread, never blocks the UI). */
     fun pickFolder(onPicked: (File) -> Unit) = javax.swing.SwingUtilities.invokeLater {
         runCatching { javax.swing.UIManager.setLookAndFeel(javax.swing.UIManager.getSystemLookAndFeelClassName()) }
@@ -146,7 +155,7 @@ fun DialogHost() {
     val scope = rememberCoroutineScope()
     when (val dialog = AppDialogs.current) {
         null -> Unit
-        is AppDialogs.Dialog.Text -> TextDialog(dialog.title.orEmpty(), dialog.initial, dialog.multiline) { dialog.onConfirm(it) }
+        is AppDialogs.Dialog.Text -> TextDialog(dialog.title.orEmpty(), dialog.initial, dialog.multiline) { scope.launch { dialog.onConfirm(it) } }
         is AppDialogs.Dialog.NewPlaylist -> TextDialog(stringResource(Res.string.new_playlist), "") { name ->
             scope.launch { Db.library.insert(Playlist(name = name.trim())) }
         }
@@ -178,18 +187,30 @@ fun DialogHost() {
 
 @Composable
 private fun TextDialog(title: String, initial: String, multiline: Boolean = false, onConfirm: (String) -> Unit) {
-    var text by remember { mutableStateOf(initial) }
+    // A one-line value (a name to rename) starts selected, so typing replaces it.
+    var value by remember {
+        mutableStateOf(androidx.compose.ui.text.input.TextFieldValue(initial, androidx.compose.ui.text.TextRange(if (multiline) initial.length else 0, initial.length)))
+    }
+    val text = value.text
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+    fun confirm() { if (text.isNotBlank()) { AppDialogs.current = null; onConfirm(text) } }
     AlertDialog(
         onDismissRequest = { AppDialogs.current = null },
         title = { Text(title) },
         text = {
             OutlinedTextField(
-                text, { text = it }, singleLine = !multiline, minLines = if (multiline) 10 else 1, maxLines = if (multiline) 18 else 1,
-                modifier = Modifier.fillMaxWidth()
+                value, { value = it }, singleLine = !multiline, minLines = if (multiline) 10 else 1, maxLines = if (multiline) 18 else 1,
+                // Enter confirms a name; in the multi-line lyrics editor it must stay a new line.
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { if (!multiline) confirm() }),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    imeAction = if (multiline) androidx.compose.ui.text.input.ImeAction.Default else androidx.compose.ui.text.input.ImeAction.Done
+                ),
+                modifier = Modifier.fillMaxWidth().focusRequester(focus)
             )
         },
         confirmButton = {
-            TextButton(enabled = text.isNotBlank(), onClick = { AppDialogs.current = null; onConfirm(text) }) { Text(stringResource(Res.string.confirm)) }
+            TextButton(enabled = text.isNotBlank(), onClick = ::confirm) { Text(stringResource(Res.string.confirm)) }
         },
         dismissButton = { TextButton(onClick = { AppDialogs.current = null }) { Text(stringResource(Res.string.cancel)) } }
     )
@@ -198,6 +219,7 @@ private fun TextDialog(title: String, initial: String, multiline: Boolean = fals
 @Composable
 private fun AddToPlaylistDialog(tracks: List<Track>) {
     val scope = rememberCoroutineScope()
+    val newPlaylistTitle = stringResource(Res.string.new_playlist)
     val playlists by remember { Db.library.playlistPreviews(PlaylistSortBy.Name, SortOrder.Ascending) }.collectAsState(initial = emptyList())
     AlertDialog(
         onDismissRequest = { AppDialogs.current = null },
@@ -210,8 +232,8 @@ private fun AddToPlaylistDialog(tracks: List<Track>) {
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.fillMaxWidth().clickable {
-                            AppDialogs.current = AppDialogs.Dialog.Text(null, "") { name ->
-                                scope.launch { Db.library.addToPlaylist(Playlist(name = name), tracks); AppDialogs.show(name) }
+                            AppDialogs.current = AppDialogs.Dialog.Text(newPlaylistTitle, "") { name ->
+                                Db.library.addToPlaylist(Playlist(name = name.trim()), tracks); AppDialogs.show(name.trim())
                             }
                         }.padding(12.dp)
                     )
@@ -290,9 +312,12 @@ private fun ImportDialog() {
         title = { Text(stringResource(Res.string.import_title)) },
         text = {
             Column(Modifier.heightIn(max = 380.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Focused at once, so the copied link can be pasted straight away.
+                val linkFocus = remember { FocusRequester() }
+                LaunchedEffect(Unit) { linkFocus.requestFocus() }
                 OutlinedTextField(
                     link, { link = it }, singleLine = true, enabled = !working,
-                    placeholder = { Text(stringResource(Res.string.import_hint)) }, modifier = Modifier.fillMaxWidth()
+                    placeholder = { Text(stringResource(Res.string.import_hint)) }, modifier = Modifier.fillMaxWidth().focusRequester(linkFocus)
                 )
                 status?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 progress?.let { LinearProgressIndicator(progress = { it }, modifier = Modifier.fillMaxWidth()) }
@@ -501,12 +526,12 @@ private fun CommandPaletteDialog(onDismiss: () -> Unit) {
             PaletteAction("Play / Pause", "Playback", "Space") { player.togglePlay() },
             PaletteAction("Next Track", "Playback", "Ctrl+Right") { player.next() },
             PaletteAction("Previous Track", "Playback", "Ctrl+Left") { player.previous() },
-            PaletteAction("Toggle Shuffle", "Playback", "S") { player.setShuffle(!com.k4music.desktop.prefs.Settings.shuffleEnabled) },
-            PaletteAction("Toggle Mute", "Playback", "M") { player.setMuted(!com.k4music.desktop.prefs.Settings.muted) },
+            PaletteAction("Toggle Shuffle", "Playback", null) { player.setShuffle(!com.k4music.desktop.prefs.Settings.shuffleEnabled) },
+            PaletteAction("Toggle Mute", "Playback", null) { player.setMuted(!com.k4music.desktop.prefs.Settings.muted) },
             PaletteAction("Volume: 100%", "Audio", null) { player.setVolume(100); player.setMuted(false) },
             PaletteAction("Volume: 50%", "Audio", null) { player.setVolume(50); player.setMuted(false) },
             PaletteAction("Volume: 25%", "Audio", null) { player.setVolume(25); player.setMuted(false) },
-            PaletteAction("Cycle Repeat Mode", "Playback", "R") { player.cycleRepeat() },
+            PaletteAction("Cycle Repeat Mode", "Playback", null) { player.cycleRepeat() },
             PaletteAction("Equalizer: Bass Boost", "Audio", null) {
                 com.k4music.desktop.player.AudioEffects.setGains(com.k4music.desktop.player.AudioEffects.presets.getValue("Bass Boost"), "Bass Boost")
                 player.applyEffects()

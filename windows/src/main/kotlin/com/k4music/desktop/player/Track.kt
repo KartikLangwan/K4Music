@@ -27,7 +27,9 @@ data class Track(
     val thumbnailUrl: String? = null,
     val explicit: Boolean = false,
     val albumId: String? = null,
-    val artistIds: List<String> = emptyList()
+    val artistIds: List<String> = emptyList(),
+    /** One name per entry of [artistIds], so names containing ", " or " & " are kept whole. */
+    val artistNames: List<String> = emptyList()
 ) {
     /** Same name as Android's MediaItem.mediaId (the shared import sources use it). */
     val mediaId get() = id
@@ -57,7 +59,8 @@ fun Innertube.SongItem.toTrack(): Track? {
         thumbnailUrl = thumbnail?.size(544),
         explicit = explicit,
         albumId = album?.endpoint?.browseId,
-        artistIds = authors?.mapNotNull { it.endpoint?.browseId }.orEmpty()
+        artistIds = authors?.mapNotNull { it.endpoint?.browseId }.orEmpty(),
+        artistNames = authors?.filter { it.endpoint?.browseId != null }?.map { it.name.orEmpty() }.orEmpty()
     )
 }
 

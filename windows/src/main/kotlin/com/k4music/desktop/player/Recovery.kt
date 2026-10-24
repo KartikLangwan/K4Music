@@ -11,6 +11,8 @@ class PlaybackRetryBudget(private val limit: Int = 2) {
         if (id != mediaId) { mediaId = id; attempts = 0 }
     }
 
+    fun reset() { mediaId = null; attempts = 0 }
+
     fun tryAcquire(id: String): Boolean {
         onMediaTransition(id)
         if (attempts >= limit) return false

@@ -85,7 +85,7 @@ fun AppearanceSettings() = with(AppearancePreferences) {
                             "#FF80AB" to "Pink",
                             "#9D4EDD" to "Amethyst"
                         )
-                        items(presets) { (hex, name) ->
+                        items(presets, key = { it.first }) { (hex, name) ->
                             val color = com.k4music.android.ui.theme.parseHexColor(hex)
                             val isSelected = accentColorHex.equals(hex, ignoreCase = true)
                             Box(
@@ -201,13 +201,6 @@ fun AppearanceSettings() = with(AppearancePreferences) {
                 text = stringResource(R.string.previous_button_while_collapsed_description),
                 isChecked = PlayerPreferences.isShowingPrevButtonCollapsed,
                 onCheckedChange = { PlayerPreferences.isShowingPrevButtonCollapsed = it }
-            )
-
-            SwitchSettingsEntry(
-                title = stringResource(R.string.swipe_horizontally_to_close),
-                text = stringResource(R.string.swipe_horizontally_to_close_description),
-                isChecked = PlayerPreferences.horizontalSwipeToClose,
-                onCheckedChange = { PlayerPreferences.horizontalSwipeToClose = it }
             )
 
             SwitchSettingsEntry(

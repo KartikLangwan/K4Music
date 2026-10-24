@@ -35,3 +35,8 @@ windows/.kotlin/
 
 # Design notes and drafts
 windows/design/
+
+# installers
+*.exe
+*.exe.sha256
+dist/

@@ -101,22 +101,26 @@ class PrecacheService : DownloadService(
 
     private val notificationActionReceiver = NotificationActionReceiver()
 
-    private val waiters = mutableListOf<() -> Unit>()
+    private val waiters = java.util.concurrent.CopyOnWriteArrayList<() -> Unit>()
+
+    private fun wakeWaiters() {
+        val pending = waiters.toList()
+        waiters.clear()
+        pending.forEach { it() }
+    }
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             if (service !is PlayerService.Binder) return
             bound = true
             binder = service
-            waiters.forEach { it() }
-            waiters.clear()
+            wakeWaiters()
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
             bound = false
             binder = null
-            waiters.forEach { it() }
-            waiters.clear()
+            wakeWaiters()
         }
     }
 
@@ -141,7 +145,7 @@ class PrecacheService : DownloadService(
     @get:Synchronized
     @set:Synchronized
     private var bound = false
-    private var binder: PlayerService.Binder? = null
+    @Volatile private var binder: PlayerService.Binder? = null
 
     private var progressUpdaterJob: Job? = null
     private var progressTicker: Job? = null
@@ -181,8 +185,11 @@ class PrecacheService : DownloadService(
         }
 
         val cache = BlockingDeferredCache {
-            suspendCancellableCoroutine {
-                waiters += { it.resume(Unit) }
+            suspendCancellableCoroutine { continuation ->
+                val waiter = { if (continuation.isActive) continuation.resume(Unit) }
+                waiters += waiter
+                // The service may have connected before this ran: nobody would wake us then.
+                if (binder != null && waiters.remove(waiter)) waiter()
             }
             binder?.cache ?: run {
                 toast(getString(R.string.error_pre_cache))

@@ -32,6 +32,14 @@ object Taskbar {
         fun DestroyIcon(icon: Pointer): Boolean
         fun RegisterHotKey(hwnd: Pointer?, id: Int, modifiers: Int, vk: Int): Boolean
         fun GetMessageW(msg: Pointer, hwnd: Pointer?, min: Int, max: Int): Int
+        fun PeekMessageW(msg: Pointer, hwnd: Pointer?, min: Int, max: Int, remove: Int): Boolean
+        fun UnregisterHotKey(hwnd: Pointer?, id: Int): Boolean
+        fun PostThreadMessageW(thread: Int, msg: Int, wParam: Pointer?, lParam: Pointer?): Boolean
+    }
+
+    @Suppress("FunctionName")
+    private interface Kernel32 : Library {
+        fun GetCurrentThreadId(): Int
     }
 
     @Suppress("FunctionName")
@@ -104,9 +112,12 @@ object Taskbar {
     private const val ID_PREVIOUS = 1
     private const val ID_PLAY = 2
     private const val ID_NEXT = 3
+    private const val WM_FOLLOW_KEYS = 0x8001 // WM_APP + 1: the thread re-reads whether it should hold the keys
+    private const val KEEP_KEYS_MINUTES = 10L
 
     private val user32 by lazy { runCatching { Native.load("user32", User32::class.java) }.getOrNull() }
     private val gdi32 by lazy { runCatching { Native.load("gdi32", Gdi32::class.java) }.getOrNull() }
+    private val kernel32 by lazy { runCatching { Native.load("kernel32", Kernel32::class.java) }.getOrNull() }
     private val ole32 by lazy { runCatching { Native.load("ole32", Ole32::class.java) }.getOrNull() }
 
     private var taskbar: Pointer? = null
@@ -157,28 +168,67 @@ object Taskbar {
 
     /**
      * Keyboard media keys and Bluetooth headphone buttons, also while K4 Music is in the background.
-     * A hotkey with no window posts WM_HOTKEY to the registering thread, so a small thread waits for
-     * them. A key another player already took is simply left to that player.
+     * A hotkey with no window posts WM_HOTKEY to the registering thread, so a small thread waits for them.
+     * The keys are held only while K4 Music is playing (and for [KEEP_KEYS_MINUTES] after a pause); otherwise
+     * they stay with whatever else is playing, such as a video in the browser.
      */
     private fun mediaKeys(onButton: (Int) -> Unit) {
         val u = user32 ?: return
+        val k = kernel32 ?: return
         Thread({
             val keys = mapOf(0xB1 to ID_PREVIOUS, 0xB3 to ID_PLAY, 0xB0 to ID_NEXT) // VK_MEDIA_PREV/PLAY_PAUSE/NEXT
-            val taken = keys.filter { (vk, id) -> u.RegisterHotKey(null, id, 0x4000 /* MOD_NOREPEAT */, vk) }
-            AppLog.i("Taskbar", "Media keys: ${taken.size} of ${keys.size}")
-            if (taken.isEmpty()) return@Thread
             val msg = Memory(64) // MSG: message at 8, wParam (the hotkey id) at 16 on x64
+            u.PeekMessageW(msg, null, 0, 0, 0) // creates this thread's message queue before anyone posts to it
+            var registered = emptyList<Int>()
+            fun follow() {
+                if (mediaKeysWanted && registered.isEmpty()) {
+                    // A key another player already took is simply left to that player.
+                    registered = keys.filter { (vk, id) -> u.RegisterHotKey(null, id, 0x4000 /* MOD_NOREPEAT */, vk) }.values.toList()
+                    AppLog.i("Taskbar", "Media keys: ${registered.size} of ${keys.size}")
+                } else if (!mediaKeysWanted && registered.isNotEmpty()) {
+                    registered.forEach { u.UnregisterHotKey(null, it) }
+                    registered = emptyList()
+                }
+            }
+            mediaThread = k.GetCurrentThreadId()
+            follow()
             while (u.GetMessageW(msg, null, 0, 0) > 0) {
-                if (msg.getInt(8) == 0x0312 /* WM_HOTKEY */) {
-                    val id = msg.getLong(16).toInt()
-                    javax.swing.SwingUtilities.invokeLater { onButton(id) }
+                when (msg.getInt(8)) {
+                    0x0312 /* WM_HOTKEY */ -> {
+                        val id = msg.getLong(16).toInt()
+                        javax.swing.SwingUtilities.invokeLater { onButton(id) }
+                    }
+                    WM_FOLLOW_KEYS -> follow()
                 }
             }
         }, "K4 media keys").apply { isDaemon = true }.start()
     }
 
+    @Volatile private var mediaKeysWanted = false
+    @Volatile private var mediaThread = 0
+    private var wasPlaying = false
+    private val keyTimer = java.util.concurrent.Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "K4 media key timer").apply { isDaemon = true } }
+    private var releaseKeys: java.util.concurrent.ScheduledFuture<*>? = null
+
+    private fun wantMediaKeys(wanted: Boolean) {
+        if (mediaKeysWanted == wanted) return
+        mediaKeysWanted = wanted
+        if (mediaThread != 0) user32?.PostThreadMessageW(mediaThread, WM_FOLLOW_KEYS, null, null)
+    }
+
+    private fun followPlayback(isPlaying: Boolean) {
+        if (isPlaying) {
+            releaseKeys?.cancel(false)
+            wantMediaKeys(true)
+        } else if (wasPlaying) {
+            releaseKeys = keyTimer.schedule({ wantMediaKeys(false) }, KEEP_KEYS_MINUTES, java.util.concurrent.TimeUnit.MINUTES)
+        }
+        wasPlaying = isPlaying
+    }
+
     /** Switches the middle button between play and pause. */
     fun setPlaying(isPlaying: Boolean) {
+        followPlayback(isPlaying)
         if (taskbar == null || isPlaying == playing) return
         playing = isPlaying
         runCatching { send(16, buttons()) }

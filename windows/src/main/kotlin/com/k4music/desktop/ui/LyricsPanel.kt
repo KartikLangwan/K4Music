@@ -89,7 +89,7 @@ fun LyricsPanel(modifier: Modifier = Modifier) {
                 ToggleIcon(Res.drawable.pencil, editTitle, false) {
                     val current = lyrics
                     AppDialogs.current = AppDialogs.Dialog.Text(editTitle, current?.fixed.orEmpty(), multiline = true) { text ->
-                        scope.launch { LyricsRepository.put(track, LyricsRepository.Result(text, current?.synced.orEmpty())); version++ }
+                        LyricsRepository.put(track, LyricsRepository.Result(text, current?.synced.orEmpty())); version++
                     }
                 }
             }

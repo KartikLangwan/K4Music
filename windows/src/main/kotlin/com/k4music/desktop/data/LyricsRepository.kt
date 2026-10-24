@@ -33,8 +33,8 @@ object LyricsRepository {
         memory[track.id] ?: store?.load(track.id)?.also { memory[track.id] = it }
             // A slow or offline provider ends as "no lyrics", not an endless spinner; not cached, so a later visit retries.
             ?: kotlinx.coroutines.withTimeoutOrNull(FETCH_TIMEOUT_MS) { fetch(track) }?.also {
-                memory[track.id] = it
-                if (it.fixed.isNotBlank() || it.synced.isNotBlank()) store?.save(track, it)
+                // An empty answer is usually a network blip: show "no lyrics" now, but ask again on the next visit.
+                if (it.fixed.isNotBlank() || it.synced.isNotBlank()) { memory[track.id] = it; store?.save(track, it) }
             }
             ?: Result("", "")
     }

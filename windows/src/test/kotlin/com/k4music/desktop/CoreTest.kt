@@ -70,3 +70,33 @@ class CoreTest {
         assertEquals(com.k4music.desktop.prefs.BackgroundStyle.BlurredArtwork, com.k4music.desktop.prefs.BackgroundStyle.fromName("nonexistent_style"))
     }
 }
+
+class StartupRegistryTest {
+    @Test
+    fun registersAndRemovesTheRunValueDirectly() {
+        if (!System.getProperty("os.name").startsWith("Windows")) return
+        val oldKey = StartupManager.runKey
+        StartupManager.runKey = "HKCU\\Software\\K4MusicTest-${System.nanoTime()}"
+        try {
+            assertFalse(StartupManager.isEnabled())
+            assertTrue(StartupManager.setEnabled(true, "C:/Program Files/K4 Music/K4 Music.exe"), StartupManager.lastError)
+            assertTrue(StartupManager.isEnabled())
+            assertTrue(StartupManager.setEnabled(false))
+            assertFalse(StartupManager.isEnabled())
+            assertFalse(StartupManager.setEnabled(true, null)) // dev run: no installed exe to register
+        } finally {
+            ProcessBuilder("reg", "delete", StartupManager.runKey, "/f").start().waitFor()
+            StartupManager.runKey = oldKey
+        }
+    }
+}
+
+class SleepCountdownTest {
+    @Test
+    fun countdownFormats() {
+        assertEquals("0:00", com.k4music.desktop.ui.formatCountdown(0))
+        assertEquals("14:59", com.k4music.desktop.ui.formatCountdown(14 * 60_000L + 59_000))
+        assertEquals("1:00:00", com.k4music.desktop.ui.formatCountdown(3_600_000))
+        assertEquals("0:01", com.k4music.desktop.ui.formatCountdown(1))
+    }
+}

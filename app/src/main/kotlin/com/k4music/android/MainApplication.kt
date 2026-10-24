@@ -1,5 +1,6 @@
 package com.k4music.android
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.app.Application
 import android.content.ComponentName
 import android.content.Context
@@ -396,7 +397,7 @@ class MainActivity : ComponentActivity(), MonetColorsChangedListener {
                 ) {
                     // AnimatedContent ignores Modifier.align; this Box anchors the player and bar to the bottom.
                     Box(Modifier.fillMaxSize()) {
-                        val isDownloading by downloadState.collectAsState()
+                        val isDownloading by downloadState.collectAsStateWithLifecycle()
 
                         HomeScreen(
                             rootRoute = rootRoute,
@@ -564,8 +565,12 @@ fun handleUrl(
     uri: Uri,
     binder: PlayerService.Binder?
 ) {
+    val host = uri.host?.lowercase()
+    if (host == null || !(host == "youtu.be" || host == "youtube.com" || host.endsWith(".youtube.com"))) {
+        coroutineScope.launch { withContext(Dispatchers.Main) { context.toast(context.getString(R.string.error_url, uri)) } }
+        return
+    }
     val path = uri.pathSegments.firstOrNull()
-    Log.d(TAG, "Opening url: $uri ($path)")
 
     coroutineScope.launch {
         when (path) {
@@ -661,6 +666,7 @@ class MainApplication : Application(), SingletonImageLoader.Factory, Configurati
         super.onCreate()
         Dependencies.init(this)
         CrashGuard.install(filesDir)
+        com.k4music.android.k4.LibrarySync.init(this)
 
         if (BuildConfig.DEBUG) {
             StrictMode.setVmPolicy(

@@ -14,7 +14,6 @@ import com.k4music.android.query
 import com.k4music.android.ui.screens.album.AlbumScreen
 import com.k4music.android.ui.screens.audio.AudioScreen
 import com.k4music.android.ui.screens.artist.ArtistScreen
-import com.k4music.android.ui.screens.pipedplaylist.PipedPlaylistScreen
 import com.k4music.android.ui.screens.playlist.PlaylistScreen
 import com.k4music.android.ui.screens.search.SearchScreen
 import com.k4music.android.ui.screens.searchresult.SearchResultScreen
@@ -43,7 +42,6 @@ val artistRoute = Route1<String>("artistRoute")
 val builtInPlaylistRoute = Route1<BuiltInPlaylist>("builtInPlaylistRoute")
 val localPlaylistRoute = Route1<Long>("localPlaylistRoute")
 val logsRoute = Route0("logsRoute")
-val pipedPlaylistRoute = Route3<String, String, String>("pipedPlaylistRoute")
 val playlistRoute = Route4<String, String?, Int?, Boolean>("playlistRoute")
 val moodRoute = Route1<Mood>("moodRoute")
 val searchResultRoute = Route1<String>("searchResultRoute")
@@ -66,17 +64,6 @@ fun RouteHandlerScope.GlobalRoutes() {
 
     logsRoute {
         LogsScreen()
-    }
-
-    pipedPlaylistRoute { apiBaseUrl, sessionToken, playlistId ->
-        PipedPlaylistScreen(
-            apiBaseUrl = runCatching { Url(apiBaseUrl) }.getOrNull()
-                ?: error("Invalid apiBaseUrl: $apiBaseUrl is not a valid Url"),
-            sessionToken = sessionToken,
-            playlistId = runCatching {
-                UUID.fromString(playlistId)
-            }.getOrNull() ?: error("Invalid playlistId: $playlistId is not a valid UUID")
-        )
     }
 
     playlistRoute { browseId, params, maxDepth, shouldDedup ->

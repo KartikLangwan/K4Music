@@ -3,6 +3,11 @@ package com.k4music.android.ui.screens.settings
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import androidx.activity.compose.rememberLauncherForActivityResult
+import com.k4music.android.ui.components.themed.TextFieldDialog
+import com.k4music.android.k4.LibrarySync
+import android.text.format.DateUtils
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.mutableStateOf
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.runtime.Composable
@@ -119,6 +124,10 @@ fun DatabaseSettings() = with(DataPreferences) {
                             android.system.Os.rename(staged.absolutePath, current.absolutePath)
                             java.io.File(current.path + "-wal").delete()
                             java.io.File(current.path + "-shm").delete()
+                            // The restored library is a different history: sync must merge it, not read it as deletions.
+                            LibrarySync.databaseReplaced()
+                            withContext(Dispatchers.Main) { context.toast(R.string.restore_done_restart) }
+                            kotlinx.coroutines.delay(1_500)
                             exitProcess(0)
                         }
                     } finally {
@@ -185,6 +194,71 @@ fun DatabaseSettings() = with(DataPreferences) {
                     }
                 }
             )
+        }
+        SettingsGroup(
+            title = stringResource(R.string.sync),
+            description = stringResource(R.string.sync_description)
+        ) {
+            val syncState by LibrarySync.state.collectAsStateWithLifecycle()
+            val syncStatus by LibrarySync.status.collectAsStateWithLifecycle()
+            var enteringCode by remember { mutableStateOf(false) }
+            var confirmingUnpair by remember { mutableStateOf(false) }
+            if (confirmingUnpair) com.k4music.android.ui.components.themed.ConfirmationDialog(
+                text = stringResource(R.string.sync_unpair_description),
+                onDismiss = { confirmingUnpair = false },
+                onConfirm = { confirmingUnpair = false; LibrarySync.unpair() }
+            )
+            if (enteringCode) TextFieldDialog(
+                hintText = stringResource(R.string.sync_code_hint),
+                onDismiss = { enteringCode = false },
+                onAccept = { text ->
+                    if (LibrarySync.pairWith(text)) enteringCode = false else context.toast(R.string.sync_code_invalid)
+                },
+                isTextInputValid = { it.isNotBlank() }
+            )
+
+            if (!syncState.paired) {
+                SettingsEntry(
+                    title = stringResource(R.string.sync_create_code),
+                    text = stringResource(R.string.sync_create_code_description),
+                    onClick = { LibrarySync.pairNew() }
+                )
+                SettingsEntry(
+                    title = stringResource(R.string.sync_enter_code),
+                    text = stringResource(R.string.sync_enter_code_description),
+                    onClick = { enteringCode = true }
+                )
+            } else {
+                SettingsEntry(
+                    title = stringResource(R.string.sync_code_title),
+                    text = syncState.code + " · " + stringResource(R.string.sync_code_hidden_warning),
+                    onClick = {
+                        val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("K4 Music sync code", syncState.code).apply {
+                            // Keeps the code out of the clipboard preview on Android 13+.
+                            description.extras = android.os.PersistableBundle().apply {
+                                putBoolean("android.content.extra.IS_SENSITIVE", true)
+                            }
+                        })
+                        context.toast(R.string.sync_code_copied)
+                    }
+                )
+                SettingsEntry(
+                    title = stringResource(R.string.sync_now),
+                    text = when (val status = syncStatus) {
+                        is LibrarySync.Status.Syncing -> stringResource(R.string.sync_syncing)
+                        is LibrarySync.Status.Failed -> stringResource(R.string.sync_failed, status.message)
+                        else -> if (syncState.lastSyncAt == 0L) stringResource(R.string.sync_never)
+                        else stringResource(R.string.sync_last, DateUtils.getRelativeTimeSpanString(syncState.lastSyncAt))
+                    },
+                    onClick = { LibrarySync.sync() }
+                )
+                SettingsEntry(
+                    title = stringResource(R.string.sync_unpair),
+                    text = stringResource(R.string.sync_unpair_description),
+                    onClick = { confirmingUnpair = true }
+                )
+            }
         }
         SettingsGroup(title = stringResource(R.string.cleanup)) {
             SwitchSettingsEntry(

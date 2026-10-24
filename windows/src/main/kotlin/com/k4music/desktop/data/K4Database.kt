@@ -78,11 +78,21 @@ abstract class LibraryDao : K4Dao {
         track.albumId?.let { albumId ->
             insert(Album(id = albumId, title = track.album), SongAlbumMap(songId = song.id, albumId = albumId, position = null))
         }
-        val names = track.artists?.split(", ", " & ").orEmpty()
+        val names = track.artistNames.takeIf { it.size == track.artistIds.size } ?: track.artists?.split(", ", " & ").orEmpty()
         if (track.artistIds.isNotEmpty() && names.size == track.artistIds.size) insert(
             track.artistIds.mapIndexed { i, id -> Artist(id = id, name = names[i]) },
             track.artistIds.map { SongArtistMap(songId = song.id, artistId = it) }
         )
+    }
+
+    /** Renames [id] and replaces its songs in one transaction, so a crash can never leave it empty. */
+    @Transaction
+    open suspend fun replacePlaylist(id: Long, name: String, songIds: List<String>) {
+        renamePlaylist(id, name)
+        clearPlaylist(id)
+        insertSongPlaylistMaps(songIds.distinct().mapIndexed { index, song ->
+            com.k4music.android.models.SongPlaylistMap(song, id, index)
+        })
     }
 
     @androidx.room.Query("UPDATE Song SET title=:title, artistsText=:artists, durationText=:duration, thumbnailUrl=:artwork WHERE id=:id")
@@ -130,14 +140,25 @@ abstract class LibraryDao : K4Dao {
     @androidx.room.Query("DELETE FROM Song WHERE id IN (:ids)")
     abstract suspend fun deleteSongsByIds(ids: List<String>)
 
+    @androidx.room.Query("SELECT id FROM Song WHERE id LIKE 'local:%'")
+    abstract suspend fun localSongIds(): List<String>
+
+    /**
+     * Drops unused local songs that are gone from a fully scanned folder, or that sit in no configured
+     * folder any more ([configuredRoots], e.g. a folder removed in Settings).
+     */
     @Transaction
-    open suspend fun pruneLocalSongs(activeIds: Set<String>, completeRoots: List<String>) {
+    open suspend fun pruneLocalSongs(activeIds: Set<String>, completeRoots: List<String>, configuredRoots: List<String> = emptyList()) {
         if (completeRoots.isEmpty()) return
         val roots = completeRoots.map { java.io.File(it).toPath().toAbsolutePath().normalize() }
+        val configured = configuredRoots.map { java.io.File(it).toPath().toAbsolutePath().normalize() }
         val candidates = unreferencedLocalSongIds()
         val toDelete = candidates.filter { id ->
             val path = java.io.File(id.removePrefix("local:")).toPath()
-            id !in activeIds && path.isAbsolute && roots.any { path.normalize().startsWith(it) }
+            id !in activeIds && path.isAbsolute && (
+                roots.any { path.normalize().startsWith(it) } ||
+                    (configured.isNotEmpty() && configured.none { path.normalize().startsWith(it) })
+                )
         }
         if (toDelete.isNotEmpty()) {
             toDelete.chunked(500).forEach { chunk ->

@@ -21,6 +21,9 @@ object QueueStore {
     data class Saved(val queue: List<Track>, val index: Int, val position: Double)
 
     private val file get() = AppPaths.data.resolve("queue.json")
+    /** Playback position only ("index seconds"): rewritten every few seconds, while the big queue file is not. */
+    private val positionFile get() = AppPaths.data.resolve("queue.pos")
+    private var onDisk: Saved? = null
     private val json = Json { ignoreUnknownKeys = true }
     private val writer = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "k4-queue").apply { isDaemon = true } }
     @Volatile private var pending: ScheduledFuture<*>? = null
@@ -34,7 +37,12 @@ object QueueStore {
         if (!Settings.persistentQueue) return
         runCatching { json.decodeFromString(Saved.serializer(), file.readText()) }.getOrNull()
             ?.takeIf { it.queue.isNotEmpty() }
-            ?.let { player.restore(it.queue, it.index, it.position, autoPlay = Settings.resumeOnStart) }
+            ?.let { saved ->
+                val newer = runCatching { positionFile.readText().trim().split(' ') }.getOrNull()
+                    ?.takeIf { it.size == 2 && it[0].toIntOrNull() == saved.index }?.get(1)?.toDoubleOrNull()
+                onDisk = saved
+                player.restore(saved.queue, saved.index, newer ?: saved.position, autoPlay = Settings.resumeOnStart)
+            }
     }
 
     @Synchronized
@@ -57,20 +65,28 @@ object QueueStore {
 
     private fun writeAtomic(saved: Saved) {
         runCatching {
-            if (Settings.persistentQueue) {
-                val temp = File(file.path + ".tmp")
-                java.io.FileOutputStream(temp).use {
-                    it.write(json.encodeToString(Saved.serializer(), saved).toByteArray(Charsets.UTF_8))
-                    it.fd.sync()
-                }
-                try {
-                    Files.move(temp.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
-                } catch (_: Exception) {
-                    Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING)
-                }
+            if (!Settings.persistentQueue) {
+                file.delete(); positionFile.delete(); onDisk = null
+                return
+            }
+            val unchanged = onDisk?.let { it.queue == saved.queue && it.index == saved.index } == true
+            if (unchanged) {
+                replace(positionFile, "${saved.index} ${saved.position}".toByteArray(Charsets.UTF_8))
             } else {
-                file.delete()
+                replace(file, json.encodeToString(Saved.serializer(), saved).toByteArray(Charsets.UTF_8))
+                replace(positionFile, "${saved.index} ${saved.position}".toByteArray(Charsets.UTF_8))
+                onDisk = saved
             }
         }.onFailure { AppLog.w("Queue", "Could not save the queue safely", it) }
+    }
+
+    private fun replace(target: File, bytes: ByteArray) {
+        val temp = File(target.path + ".tmp")
+        java.io.FileOutputStream(temp).use { it.write(bytes); it.fd.sync() }
+        try {
+            Files.move(temp.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+        } catch (_: Exception) {
+            Files.move(temp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        }
     }
 }

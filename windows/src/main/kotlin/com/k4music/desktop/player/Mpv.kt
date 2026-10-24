@@ -147,7 +147,9 @@ class Mpv(libraryDir: java.io.File) : AutoCloseable {
     fun setListener(listener: Listener) { this.listener = listener }
 
     /** Plays [url] from [startSeconds], with per-file HTTP headers (yt-dlp streams need them). */
-    fun load(url: String, startSeconds: Double = 0.0, headers: Map<String, String> = emptyMap()) {
+    private val loadLock = Any()
+
+    fun load(url: String, startSeconds: Double = 0.0, headers: Map<String, String> = emptyMap()) = synchronized(loadLock) {
         command("change-list", "http-header-fields", "clr", "")
         set("user-agent", headers.entries.firstOrNull { it.key.equals("User-Agent", true) }?.value ?: DEFAULT_USER_AGENT)
         headers.filterKeys { !it.equals("User-Agent", true) }

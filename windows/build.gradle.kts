@@ -43,6 +43,12 @@ val syncSharedSources by tasks.registering(Sync::class) {
     }
 }
 
+// The running app reads its version from here when it is not packaged (Updater.currentVersion).
+tasks.processResources {
+    inputs.property("appVersion", appVersion)
+    filesMatching("version.properties") { expand("appVersion" to appVersion) }
+}
+
 // Room writes Kotlin (its Java writer cannot delegate the DAO's interface default methods).
 ksp { arg("room.generateKotlin", "true") }
 
@@ -57,7 +63,7 @@ dependencies {
     implementation(projects.providers.innertube)
     implementation(projects.providers.kugou)
     implementation(projects.providers.lrclib)
-    implementation(projects.providers.piped)
+    implementation(projects.providers.sync)
     implementation(projects.providers.sponsorblock)
     implementation(projects.providers.translate)
 
@@ -121,12 +127,14 @@ val toolsDir = layout.projectDirectory.dir("downloads")
 val pinnedTools = mapOf(
     // yt-dlp's folder build: no self-unpacking on every call, so each lookup starts faster.
     "yt-dlp_win.zip" to "30b4c14aafab6082becff7881e41b76df46dc43ea7633479410a91e29da492bf",
-    "qjs-windows-x86_64.exe" to "2aeabf0092c3262d6b2609824418f7dd7ed1f1df939f73b2b15645230cac0d77"
+    "qjs-windows-x86_64.exe" to "2aeabf0092c3262d6b2609824418f7dd7ed1f1df939f73b2b15645230cac0d77",
+    // mpv-dev-x86_64-20261013-git-9d144e57b6.7z -> libmpv-2.dll
+    "mpv/libmpv-2.dll" to "5080e00cd114f3dfc0eb87f35068fec70afc8bfd6fc29dca4b79c874a42485ee"
 )
 
 val verifyNativeTools by tasks.registering {
     description = "Fails unless the pinned native tools are present in windows/downloads"
-    inputs.files(pinnedTools.keys.map { toolsDir.file(it) } + toolsDir.file("mpv/libmpv-2.dll"))
+    inputs.files(pinnedTools.keys.map { toolsDir.file(it) })
     doLast {
         pinnedTools.forEach { (name, sha) ->
             val file = toolsDir.file(name).asFile
@@ -134,7 +142,6 @@ val verifyNativeTools by tasks.registering {
             val actual = MessageDigest.getInstance("SHA-256").digest(file.readBytes()).joinToString("") { "%02x".format(it) }
             check(actual == sha) { "$name checksum mismatch: $actual" }
         }
-        check(toolsDir.file("mpv/libmpv-2.dll").asFile.isFile) { "Missing libmpv-2.dll — see windows/README.md" }
     }
 }
 

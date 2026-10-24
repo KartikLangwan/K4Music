@@ -162,7 +162,7 @@ android {
 
     lint {
         // Existing locales are partial; Android intentionally falls back to English.
-        // Piped credentials belong to user-selected servers, without a shared first-party website.
+        // Credential Manager is only used for optional sign-ins; no first-party website asset links.
         warning += setOf("MissingTranslation", "CredManMissingDal")
     }
 }
@@ -273,7 +273,7 @@ dependencies {
     implementation(projects.providers.innertube)
     implementation(projects.providers.kugou)
     implementation(projects.providers.lrclib)
-    implementation(projects.providers.piped)
+    implementation(projects.providers.sync)
     implementation(projects.providers.sponsorblock)
     implementation(projects.providers.translate)
     implementation(projects.core.data)

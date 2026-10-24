@@ -66,6 +66,8 @@ fun BottomSheet(
             detectVerticalDragGestures(
                 onVerticalDrag = { change, dragAmount ->
                     velocityTracker.addPointerInputChange(change)
+                    // A sheet that cannot be dismissed never follows the finger below its collapsed height.
+                    if (onDismiss == null && dragAmount > 0 && state.value <= state.collapsedBound) return@detectVerticalDragGestures
                     state.dispatchRawDelta(dragAmount)
                 },
                 onDragCancel = {

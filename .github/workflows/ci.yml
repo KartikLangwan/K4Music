@@ -1,0 +1,39 @@
+name: CI
+on:
+  push:
+    branches: [main, desktop/windows]
+  pull_request:
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew :app:testDebugUnitTest :app:lintDebug --console=plain
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - uses: gradle/actions/setup-gradle@v4
+      # The native playback tests skip themselves without libmpv; fetch the pinned build so they run.
+      # Best effort: a changed download or hash only skips them, as before.
+      - name: Fetch pinned libmpv
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force windows/downloads/mpv | Out-Null
+          Invoke-WebRequest -UserAgent "Mozilla/5.0" -OutFile mpv.7z -Uri "https://sourceforge.net/projects/mpv-player-windows/files/libmpv/mpv-dev-x86_64-20261013-git-9d144e57b6.7z/download"
+          7z x mpv.7z -owindows/downloads/mpv libmpv-2.dll -y | Out-Null
+          $hash = (Get-FileHash windows/downloads/mpv/libmpv-2.dll -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne "5080e00cd114f3dfc0eb87f35068fec70afc8bfd6fc29dca4b79c874a42485ee") {
+            Remove-Item windows/downloads/mpv/libmpv-2.dll
+            Write-Warning "libmpv hash differs; native tests will be skipped"
+          }
+      - run: ./gradlew.bat -p windows test --console=plain

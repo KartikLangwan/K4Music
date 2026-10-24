@@ -37,6 +37,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -64,6 +65,7 @@ import com.k4music.desktop.res.ellipsis_horizontal
 import com.k4music.desktop.res.list
 import com.k4music.desktop.res.more
 import com.k4music.desktop.res.sleep_timer
+import com.k4music.desktop.res.stop_sleep_timer_prompt
 import com.k4music.desktop.res.lyrics
 import com.k4music.desktop.res.next_track
 import com.k4music.desktop.res.pause
@@ -151,6 +153,7 @@ fun NowPlayingBar(
                     LikeButton(track)
                     CurrentSongMenu(track)
                 }
+                SleepChip(state.sleepAt)
             }
 
             // Centre: transport and seek bar
@@ -374,6 +377,33 @@ fun ToggleIcon(
 private fun PlainIcon(icon: DrawableResource, label: String, enabled: Boolean, large: Boolean = false, onClick: () -> Unit) {
     IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(if (large) 52.dp else 36.dp)) {
         Icon(painterResource(icon), label, Modifier.size(if (large) 32.dp else 22.dp))
+    }
+}
+
+/** h:mm:ss over an hour, otherwise m:ss. */
+internal fun formatCountdown(ms: Long): String {
+    val total = ((ms + 999) / 1000).coerceAtLeast(0)
+    val h = total / 3600; val m = total % 3600 / 60; val sec = total % 60
+    return if (h > 0) "%d:%02d:%02d".format(h, m, sec) else "%d:%02d".format(m, sec)
+}
+
+/** The running sleep timer, counting down; click cancels. Ticks only while a timer is set. */
+@Composable
+private fun SleepChip(sleepAt: Long?) {
+    if (sleepAt == null) return
+    val player = LocalPlayer.current
+    var left by remember(sleepAt) { mutableStateOf(sleepAt - System.currentTimeMillis()) }
+    LaunchedEffect(sleepAt) {
+        while (true) { left = sleepAt - System.currentTimeMillis(); kotlinx.coroutines.delay(1_000) }
+    }
+    val colors = MaterialTheme.colorScheme
+    Row(
+        Modifier.padding(start = 4.dp).clip(RoundedCornerShape(50)).background(colors.primary.copy(alpha = 0.18f))
+            .clickable { player.setSleepTimer(null) }.padding(horizontal = 9.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        Icon(painterResource(Res.drawable.alarm), stringResource(Res.string.stop_sleep_timer_prompt), Modifier.size(14.dp), tint = colors.primary)
+        Text(formatCountdown(left), style = MaterialTheme.typography.labelMedium, color = colors.primary)
     }
 }
 

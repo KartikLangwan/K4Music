@@ -79,7 +79,11 @@ fun main(args: Array<String>) {
     // Links from a second launch arrive on a socket thread; handle them on the UI thread.
     // "--quit" comes from the installer: close properly (save queue and settings) before an update.
     val incoming = { lines: List<String> ->
-        lines.forEach { line -> javax.swing.SwingUtilities.invokeLater { if (line == QUIT_ARG) requestQuit() else { showWindow(); openLink(line) } } }
+        SingleInstance.launchRequests(lines).forEach { line ->
+            javax.swing.SwingUtilities.invokeLater {
+                if (line == QUIT_ARG) requestQuit() else { showWindow(); if (line.isNotEmpty()) openLink(line) }
+            }
+        }
     }
     val devCheck = args.any { it in setOf("--selftest", "--screenshots", "--uitest") }
     if (!devCheck && !SingleInstance.acquire(args, incoming)) exitProcess(0)
@@ -107,17 +111,32 @@ fun main(args: Array<String>) {
     }
     devMode(args, player)
     QueueStore.attach(player)
-    // Once a day, a little after start: offer a new version (each version is offered once).
+    // A little after start, then every hour while running: offer a new version (each version is offered once).
+    // A failed check (offline, GitHub down) is not counted as done, so it is tried again soon.
     if (!devCheck) kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
         kotlinx.coroutines.delay(20_000)
-        if (System.currentTimeMillis() - Settings.updateCheckedAt < 20 * 60 * 60 * 1000L) return@launch
-        val update = runCatching { Updater.check() }.getOrNull()
-        Settings.updateCheckedAt = System.currentTimeMillis()
-        if (update != null && update.version != Settings.updateOfferedVersion && com.k4music.desktop.ui.AppDialogs.current == null) {
-            Settings.updateOfferedVersion = update.version
-            com.k4music.desktop.ui.AppDialogs.current = com.k4music.desktop.ui.AppDialogs.Dialog.Update(update)
+        while (true) {
+            if (System.currentTimeMillis() - Settings.updateCheckedAt >= 20 * 60 * 60 * 1000L) {
+                runCatching { Updater.check() }.onSuccess { update ->
+                    Settings.updateCheckedAt = System.currentTimeMillis()
+                    if (update != null && update.version != Settings.updateOfferedVersion && com.k4music.desktop.ui.AppDialogs.current == null) {
+                        Settings.updateOfferedVersion = update.version
+                        com.k4music.desktop.ui.AppDialogs.current = com.k4music.desktop.ui.AppDialogs.Dialog.Update(update)
+                    }
+                }.onFailure { AppLog.w("Updater", "Update check failed: ${it.message}") }
+            }
+            kotlinx.coroutines.delay(60 * 60 * 1000L)
         }
     }
+    // Tidy leftovers of earlier runs, and keep the YouTube tool current (it breaks whenever YouTube changes).
+    if (!devCheck) Thread({
+        runCatching { Updater.cleanup() }
+        runCatching { com.k4music.desktop.player.Downloads.sweepPartials() }
+        Thread.sleep(60_000)
+        runCatching { com.k4music.desktop.data.Maintenance.updateYtDlpIfDue() }
+    }, "k4-housekeeping").apply { isDaemon = true }.start()
+    // Phone sync starts a little after launch (only when paired).
+    Thread({ Thread.sleep(8_000); com.k4music.desktop.data.LibrarySync.start() }, "k4-sync-start").apply { isDaemon = true }.start()
     // Warm yt-dlp once (Windows scans a program on its first launch), so the first song starts faster.
     Thread({ Thread.sleep(5_000); com.k4music.desktop.data.Maintenance.ytDlpVersion() }, "k4-warmup").apply { isDaemon = true }.start()
     openLink = { Links.open(it, navigator, player) }
@@ -229,32 +248,41 @@ fun main(args: Array<String>) {
                             else com.k4music.desktop.ui.AppDialogs.Dialog.CommandPalette
                         true
                     }
-                    event.isCtrlPressed && event.key == Key.DirectionRight -> { player.next(); true }
-                    event.isCtrlPressed && event.key == Key.DirectionLeft -> { player.previous(); true }
+                    event.isAltPressed && event.key == Key.H -> { navigator.root(Screen.Home); true }
+                    event.isAltPressed && event.key == Key.D -> { navigator.root(Screen.Discover); true }
+                    event.isAltPressed && event.key == Key.L -> { navigator.root(Screen.Library); true }
+                    event.isCtrlPressed && event.key == Key.Comma -> { navigator.root(Screen.Settings); true }
                     event.isCtrlPressed && event.key == Key.F -> { runCatching { searchFocus.requestFocus() }; true }
                     event.isCtrlPressed && event.key == Key.B -> { Settings.sidebarCollapsed = !Settings.sidebarCollapsed; true }
                     event.isAltPressed && event.key == Key.DirectionLeft -> { navigator.back(); true }
                     event.isAltPressed && event.key == Key.DirectionRight -> { navigator.forward(); true }
                     event.key == Key.F11 -> { toggleFullscreen(); true }
-                    event.key == Key.Escape && Fullscreen.active && !playerOpen.value -> { toggleFullscreen(); true }
                     event.key == Key.MediaPlayPause -> { player.togglePlay(); true }
                     event.key == Key.MediaNext -> { player.next(); true }
                     event.key == Key.MediaPrevious -> { player.previous(); true }
-                    event.key == Key.Escape && playerOpen.value -> { playerOpen.value = false; true }
-                    event.key == Key.Escape && navigator.canGoBack -> { navigator.back(); true }
                     else -> false
                 }
             },
-            // Space reaches the window only when no text field took it, so typing a space still works.
+            // These reach the window only when no text field took them, so typing a space or moving by word still works,
+            // and Escape first closes an open menu or dialog.
             onKeyEvent = { event ->
-                if (event.type == KeyEventType.KeyDown && event.key == Key.Spacebar) { player.togglePlay(); true } else false
+                if (event.type != KeyEventType.KeyDown) false
+                else when {
+                    event.key == Key.Escape && Fullscreen.active && !playerOpen.value -> { toggleFullscreen(); true }
+                    event.key == Key.Escape && playerOpen.value -> { playerOpen.value = false; true }
+                    event.key == Key.Escape && navigator.canGoBack -> { navigator.back(); true }
+                    event.key == Key.Spacebar -> { player.togglePlay(); true }
+                    event.isCtrlPressed && event.key == Key.DirectionRight -> { player.next(); true }
+                    event.isCtrlPressed && event.key == Key.DirectionLeft -> { player.previous(); true }
+                    else -> false
+                }
             }
         ) {
             window.minimumSize = java.awt.Dimension(900, 600)
             composeWindow = window
             val focused = androidx.compose.ui.platform.LocalWindowInfo.current.isWindowFocused
             androidx.compose.runtime.LaunchedEffect(focused) {
-                if (focused) com.k4music.desktop.player.Downloads.reconcile()
+                if (focused) { com.k4music.desktop.player.Downloads.reconcile(); com.k4music.desktop.data.LibrarySync.onFocus() }
             }
             androidx.compose.runtime.LaunchedEffect(Unit) {
                 val ms = System.currentTimeMillis() - java.lang.management.ManagementFactory.getRuntimeMXBean().startTime
@@ -276,6 +304,11 @@ fun main(args: Array<String>) {
                     }
                 }
                 player.state.collect { Taskbar.setPlaying(it.playing) }
+            }
+            // Follows the Windows setting while it changes (checked every few seconds, only in System mode).
+            var systemDark by remember { mutableStateOf(readSystemDark()) }
+            androidx.compose.runtime.LaunchedEffect(Settings.themeMode) {
+                while (Settings.themeMode == ThemeMode.System) { systemDark = readSystemDark(); kotlinx.coroutines.delay(3_000) }
             }
             val dark = when (Settings.themeMode) {
                 ThemeMode.Dark -> true
@@ -309,17 +342,11 @@ fun main(args: Array<String>) {
 }
 
 /** Sent by the installer to a running copy (see SingleInstance) so it closes before an update. */
-private const val QUIT_ARG = "--quit"
+internal const val QUIT_ARG = "--quit"
 
-/** Windows "Choose your app mode" (AppsUseLightTheme = 0 means dark), read once at start. */
-private val systemDark: Boolean by lazy { runCatching {
-    val process = ProcessBuilder(
-        "reg", "query", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", "/v", "AppsUseLightTheme"
-    ).redirectErrorStream(true).start()
-    val out = process.inputStream.bufferedReader().readText()
-    process.waitFor()
-    out.contains("0x0")
-}.getOrDefault(true) }
+/** Windows "Choose your app mode" (AppsUseLightTheme = 0 means dark). */
+private fun readSystemDark() =
+    StartupManager.readDword("Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", "AppsUseLightTheme")?.let { it == 0 } ?: true
 
 /** `--selftest <dir>` and `--screenshots <dir>`: run the developer checks and exit (see DevTools). */
 private fun devMode(args: Array<String>, player: PlayerController) {

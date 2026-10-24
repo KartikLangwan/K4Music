@@ -19,7 +19,6 @@ fun ScreenContent(screen: Screen) {
             is Screen.Mood -> MoodScreen(screen.browseId, screen.params, screen.title)
             is Screen.LocalPlaylist -> LocalPlaylistScreen(screen.id)
             is Screen.BuiltIn -> BuiltInScreen(screen.kind)
-            is Screen.PipedPlaylist -> PipedPlaylistScreen(screen.sessionId, screen.playlistId, screen.name)
             Screen.Settings -> SettingsScreen()
         }
     }

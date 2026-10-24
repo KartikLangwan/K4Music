@@ -90,7 +90,6 @@ import com.k4music.android.ui.components.themed.SecondaryTextButton
 import com.k4music.android.ui.components.themed.SliderDialog
 import com.k4music.android.ui.components.themed.SliderDialogBody
 import com.k4music.android.ui.modifiers.PinchDirection
-import com.k4music.android.ui.modifiers.onSwipe
 import com.k4music.android.ui.modifiers.pinchToToggle
 import com.k4music.android.ui.screens.audioRoute
 import com.k4music.android.utils.DisposableListener
@@ -113,7 +112,6 @@ import com.k4music.core.ui.favoritesIcon
 import com.k4music.core.ui.utils.isLandscape
 import com.k4music.core.ui.utils.px
 import com.k4music.providers.innertube.models.NavigationEndpoint
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 private val MiniPlayerHeight = 56.dp
@@ -190,13 +188,13 @@ fun Player(
     OnGlobalRoute { if (layoutState.expanded) layoutState.collapseSoft() }
 
     val currentItem = mediaItem
+    // The mini player is always there while something is queued: if it ever ends up hidden, bring it back.
+    LaunchedEffect(currentItem != null, layoutState.dismissed) {
+        if (currentItem != null && layoutState.dismissed) layoutState.collapseSoft()
+    }
     if (currentItem != null) BottomSheet(
         state = layoutState,
         modifier = modifier.fillMaxSize(),
-        onDismiss = {
-            binder?.let { onDismiss(it) }
-            layoutState.dismissSoft()
-        },
         backHandlerEnabled = !menuState.isDisplayed,
         collapsedContent = { innerModifier ->
             MiniPlayer(
@@ -207,12 +205,7 @@ fun Player(
                 onLike = { updateLike(if (likedAt == null) System.currentTimeMillis() else null) },
                 progress = progress,
                 bottomPadding = LocalBottomNavigationHeight.current + bottomPadding,
-                modifier = innerModifier,
-                onSwipeOut = if (horizontalSwipeToClose) { animationJob ->
-                    binder?.let { onDismiss(it) }
-                    animationJob.join()
-                    layoutState.dismissSoft()
-                } else null
+                modifier = innerModifier
             )
         }
     ) {
@@ -544,7 +537,6 @@ private fun MiniPlayer(
     onLike: () -> Unit,
     progress: State<Pair<Long, Long>>,
     bottomPadding: Dp,
-    onSwipeOut: (suspend (Job) -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     val palette = LocalAppearance.current.colorPalette
@@ -572,10 +564,6 @@ private fun MiniPlayer(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(start = 6.dp, end = 6.dp)
-                    .let {
-                        if (onSwipeOut != null) it.onSwipe(animateOffset = true, onSwipeOut = onSwipeOut)
-                        else it
-                    }
             ) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp)) {
                     MiniProgressRing(progress = progress, modifier = Modifier.matchParentSize())
@@ -713,11 +701,6 @@ private fun PlayerMenu(
         onShowSpeedDialog = onShowSpeedDialog,
         onShowNormalizationDialog = onShowNormalizationDialog
     )
-}
-
-private fun onDismiss(binder: PlayerService.Binder) {
-    binder.stopRadio()
-    binder.player.clearMediaItems()
 }
 
 /**

@@ -33,8 +33,8 @@ listOf(
     "providers/innertube",
     "providers/kugou",
     "providers/lrclib",
-    "providers/piped",
     "providers/sponsorblock",
+    "providers/sync",
     "providers/translate"
 ).forEach { path ->
     val name = ":" + path.replace('/', ':')

@@ -84,7 +84,6 @@
     <string name="hide_from_quick_picks">Ocultar do \"Para você\"</string>
     <string name="confirm_hide_song">Você realmente quer excluir essa música? Os minutos ouvidos e download serão excluídos.\\nEsta ação é irreversível.</string>
     <string name="confirm_delete_playlist">Você realmente quer excluir essa playlist?</string>
-    <string name="confirm_delete_piped_session">Você realmente quer excluir essa sessão do Piped?</string>
     <string name="other_versions">Outras versões</string>
     <string name="no_alternative_version">Este álbum não tem outras versões</string>
     <string name="from_wikipedia">Da Wikipedia</string>
@@ -104,8 +103,6 @@
     <string name="error_server_restrictions">Esta música não pode ser reproduzida devido a restrições de servidor</string>
     <string name="error_id_mismatch">O ID do vídeo retornado não corresponde ao solicitado</string>
     <string name="error_unknown_playback">Um erro de reprodução desconhecido foi encontrado</string>
-    <string name="error_piped_link">Ocorreu um erro desconhecido ao vincular sua conta do Piped. Por favor, tente novamente.</string>
-    <string name="error_piped_instances_unavailable">" Lista de instâncias do Piped atualmente indisponível"</string>
     <string name="error_pre_cache">Ocorreu um erro desconhecido durante o download. Por favor, tente novamente.</string>
     <string name="error_url">Não foi possível abrir a url %1$s</string>
     <string name="media_permission_declined">Permissão recusada. Conceda permissões de mídia nas configurações do seu dispositivo.</string>
@@ -192,8 +189,6 @@
     <string name="player">Player</string>
     <string name="previous_button_while_collapsed">Botão anterior enquanto encolhido</string>
     <string name="previous_button_while_collapsed_description">Mostra o botão de música anterior enquanto o player está encolhido</string>
-    <string name="swipe_horizontally_to_close">Deslizar horizontalmente para fechar</string>
-    <string name="swipe_horizontally_to_close_description">Fecha o player ao deslizar para a esquerda/direita no player encolhido. Útil para usuários com o modo de uma mão do Android ativado.</string>
     <string name="show_like_button">Mostrar botão de like</string>
     <string name="show_like_button_description">Mostra o botão de like no player</string>
     <string name="swipe_to_remove_item">Deslizar para remover item</string>
@@ -291,21 +286,15 @@
     <string name="quick_picks_source">Fonte do \'Para você\'</string>
     <string name="quick_picks_cache">Download de dados do \'Para você\'</string>
     <string name="quick_picks_cache_description">Download de dados do \'Para você\' para acesso offline</string>
-    <string name="piped">Piped</string>
     <string name="instance">Instância</string>
     <string name="click_to_select">Clique para selecionar</string>
     <string name="username">Usuário</string>
     <string name="password">Senha</string>
     <string name="login">Entrar</string>
-    <string name="sync_description">Você pode hospedar playlists em outro lugar e sincronizá-las com o K4 Music. Atualmente, suporta apenas o Piped.</string>
     <string name="add_account">Adicionar conta</string>
-    <string name="add_account_description">Conecte uma conta Piped com sua instância, usuário e senha.</string>
     <string name="learn_more">Saiba mais</string>
-    <string name="learn_more_description">Não sabe o que é Piped ou não tem uma conta? Clique aqui para ser redirecionado para a documentação</string>
-    <string name="piped_sessions">Sessões do Piped</string>
     <string name="custom_instance">Usar instância personalizada</string>
     <string name="base_api_url">URL da API da instância</string>
-    <string name="piped_session_created_successfully">Sessão Piped criada com sucesso</string>
     <string name="seek_bar_style">Estilo da barra de progresso</string>
     <string name="static_seek_bar_name">Estática</string>
     <string name="wavy_seek_bar_name">Ondulada</string>

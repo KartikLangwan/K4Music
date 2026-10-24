@@ -114,6 +114,9 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
             private fun onTick(seconds: Double) {
                 // SponsorBlock: jump over a non-music segment the moment playback enters it.
                 skipSegments.firstOrNull { seconds >= it.first && seconds < it.second - 0.5 }?.let { (_, end) ->
+                    // Remember where playback is going: a skip to the very end must not read as a cut-off stream.
+                    lastPosition = end
+                    _position.value = end
                     mpv.seek(end)
                     return
                 }
@@ -225,7 +228,12 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
             val fresh = more.filter { known.add(it.id) }.let { if (Settings.shuffleEnabled) it.shuffled() else it }
             if (fresh.isEmpty()) return@launch
             unshuffled = unshuffled?.plus(fresh)
-            _state.update { it.copy(queue = it.queue + fresh) }
+            _state.update { st ->
+                // An endless radio would otherwise keep every song ever played: forget the oldest ones.
+                val drop = if (st.queue.size + fresh.size > MAX_QUEUE && st.index > KEEP_PLAYED) st.index - KEEP_PLAYED else 0
+                if (drop > 0) unshuffled = unshuffled?.filter { it !in st.queue.take(drop).toSet() }
+                st.copy(queue = st.queue.drop(drop) + fresh, index = st.index - drop)
+            }
             changed()
         }
     }
@@ -424,7 +432,8 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
         val at = System.currentTimeMillis() + minutes * 60_000L
         _state.update { it.copy(sleepAt = at) }
         sleepJob = scope.launch {
-            delay(minutes * 60_000L)
+            // Wall-clock deadline, re-checked in short sleeps: a PC that slept through it still pauses on waking.
+            while (System.currentTimeMillis() < at) delay((at - System.currentTimeMillis()).coerceIn(250L, 15_000L))
             setPaused(true)
             _state.update { it.copy(sleepAt = null) }
         }
@@ -456,7 +465,8 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
         if (ms > 0) onPlayed(track, ms)
     }
 
-    private fun load(startSeconds: Double = 0.0, autoPlay: Boolean = true) {
+    /** [fresh]: started by the user (or the queue), so earlier failures of this song no longer count against it. */
+    private fun load(startSeconds: Double = 0.0, autoPlay: Boolean = true, fresh: Boolean = true) {
         if (closed) return
         val loadingGeneration = ++generation
         val track = _state.value.current ?: return
@@ -471,6 +481,7 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
         val hadStream = currentStream != null
         currentStream = null
         if (hadStream) mpv.stop()
+        if (fresh) { retries.reset(); fallbacks.reset() }
         retries.onMediaTransition(track.id)
         fallbacks.onMediaTransition(track.id)
         currentStream = null
@@ -509,10 +520,10 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
         )
         AppLog.w(TAG, "Playback failure for ${track.id} ($failure: $message) -> $recovery")
         when (recovery) {
-            Recovery.Retry -> { delay(RECOVERY_DELAY_MS); if (generation == failedGeneration) load(_position.value) }
+            Recovery.Retry -> { delay(RECOVERY_DELAY_MS); if (generation == failedGeneration) load(_position.value, fresh = false) }
             Recovery.Fallback -> {
                 delay(RECOVERY_DELAY_MS)
-                if (generation == failedGeneration) { StreamFallback.force(track.id); load(_position.value) }
+                if (generation == failedGeneration) { StreamFallback.force(track.id); load(_position.value, fresh = false) }
             }
             Recovery.None -> _state.update { it.copy(buffering = false, playing = false, error = message ?: "Playback failed") }
         }
@@ -583,6 +594,8 @@ class PlayerController(private val mpv: Mpv, private val resolver: StreamResolve
     private companion object {
         const val TAG = "Player"
         const val RECOVERY_DELAY_MS = 300L
+        const val MAX_QUEUE = 500
+        const val KEEP_PLAYED = 50
         /** An end this far before the song's length is a broken stream, not the song finishing. */
         const val EARLY_END_SECONDS = 5.0
     }

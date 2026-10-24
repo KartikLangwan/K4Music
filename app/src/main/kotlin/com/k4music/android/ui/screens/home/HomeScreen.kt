@@ -20,7 +20,6 @@ import com.k4music.android.ui.screens.mood.MoodScreen
 import com.k4music.android.ui.screens.mood.MoreAlbumsScreen
 import com.k4music.android.ui.screens.mood.MoreMoodsScreen
 import com.k4music.android.ui.screens.moodRoute
-import com.k4music.android.ui.screens.pipedPlaylistRoute
 import com.k4music.android.ui.screens.playlistRoute
 import com.k4music.android.ui.screens.searchRoute
 import com.k4music.android.ui.screens.searchResultRoute
@@ -119,13 +118,6 @@ fun HomeScreen(
                         3 -> HomePlaylists(
                             onBuiltInPlaylist = { builtInPlaylistRoute(it) },
                             onPlaylistClick = { localPlaylistRoute(it.id) },
-                            onPipedPlaylistClick = { session, playlist ->
-                                pipedPlaylistRoute(
-                                    p0 = session.apiBaseUrl.toString(),
-                                    p1 = session.token,
-                                    p2 = playlist.id.toString()
-                                )
-                            },
                             onSearchClick = onSearchClick
                         )
 

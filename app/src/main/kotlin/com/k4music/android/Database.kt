@@ -49,7 +49,9 @@ import com.k4music.android.models.EventWithSong
 import com.k4music.android.models.Format
 import com.k4music.android.models.Info
 import com.k4music.android.models.Lyrics
+import com.k4music.android.models.LikedRow
 import com.k4music.android.models.PipedSession
+import com.k4music.android.models.PlaylistRow
 import com.k4music.android.models.Playlist
 import com.k4music.android.models.PlaylistPreview
 import com.k4music.android.models.PlaylistWithSongs
@@ -407,9 +409,6 @@ interface DatabaseAccessor {
     @Query("UPDATE Song SET totalPlayTimeMs = totalPlayTimeMs + :addition WHERE id = :id")
     fun incrementTotalPlayTimeMs(id: String, addition: Long)
 
-    @Query("SELECT * FROM PipedSession")
-    fun pipedSessions(): Flow<List<PipedSession>>
-
     @Query("SELECT * FROM Playlist WHERE id = :id")
     fun playlist(id: Long): Flow<Playlist?>
 
@@ -655,6 +654,33 @@ interface DatabaseAccessor {
     @Query("DELETE FROM SongPlaylistMap WHERE playlistId = :id")
     fun clearPlaylist(id: Long)
 
+    @Query("SELECT id, likedAt FROM Song WHERE likedAt IS NOT NULL")
+    fun likedRows(): List<LikedRow>
+
+    @Query("SELECT id, name FROM Playlist WHERE browseId IS NULL ORDER BY id")
+    fun plainPlaylists(): List<PlaylistRow>
+
+    @Query("SELECT songId FROM SongPlaylistMap WHERE playlistId = :id ORDER BY position")
+    fun playlistSongIds(id: Long): List<String>
+
+    @Query("SELECT * FROM Song WHERE id IN (:ids)")
+    fun songsByIds(ids: List<String>): List<Song>
+
+    @Query("UPDATE Playlist SET name = :name WHERE id = :id")
+    fun renamePlaylist(id: Long, name: String)
+
+    @Query("DELETE FROM Playlist WHERE id = :id")
+    fun deletePlaylistById(id: Long)
+
+    @Query(
+        """
+        SELECT (SELECT COUNT(*) || ':' || IFNULL(SUM(likedAt), 0) FROM Song WHERE likedAt IS NOT NULL)
+            || '|' || (SELECT COUNT(*) || ':' || IFNULL(SUM(position * rowid), 0) FROM SongPlaylistMap)
+            || '|' || (SELECT IFNULL(group_concat(name || id), '') FROM Playlist WHERE browseId IS NULL)
+        """
+    )
+    fun syncSignal(): Flow<String>
+
     @Query("DELETE FROM SongAlbumMap WHERE albumId = :id")
     fun clearAlbum(id: String)
 
@@ -837,9 +863,6 @@ interface DatabaseAccessor {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     fun insert(artists: List<Artist>, songArtistMaps: List<SongArtistMap>)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insert(pipedSession: PipedSession)
-
     @Transaction
     fun insert(mediaItem: MediaItem, block: (Song) -> Song = { it }) {
         val extras = mediaItem.mediaMetadata.extras?.songBundle
@@ -851,7 +874,8 @@ interface DatabaseAccessor {
             thumbnailUrl = mediaItem.mediaMetadata.artworkUri?.toString(),
             explicit = extras?.explicit == true
         ).let(block).also { song ->
-            if (insert(song) == -1L) return
+            // IGNORE leaves an existing row alone (keeps likes and play time); links below still apply.
+            insert(song)
         }
 
         extras?.albumId?.let { albumId ->
@@ -910,9 +934,6 @@ interface DatabaseAccessor {
 
     @Delete
     fun delete(songPlaylistMap: SongPlaylistMap)
-
-    @Delete
-    fun delete(pipedSession: PipedSession)
 
     @RawQuery
     fun raw(supportSQLiteQuery: SupportSQLiteQuery): Int

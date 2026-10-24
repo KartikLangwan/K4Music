@@ -17,7 +17,6 @@ sealed interface Screen {
     data class Mood(val browseId: String, val params: String?, val title: String) : Screen
     data class LocalPlaylist(val id: Long) : Screen
     data class BuiltIn(val kind: BuiltInKind) : Screen
-    data class PipedPlaylist(val sessionId: Long, val playlistId: String, val name: String) : Screen
     data object Settings : Screen
 }
 

@@ -84,7 +84,6 @@
     <string name="hide_from_quick_picks">Amagar de "Seleccions ràpides"</string>
     <string name="confirm_hide_song">Realment voleu amagar aquesta cançó? S\'esborrarà el seu temps de reproducció i memòria cau.\nAquesta acció és irreversible.</string>
     <string name="confirm_delete_playlist">Realment voleu eliminar aquesta llista de reproducció?</string>
-    <string name="confirm_delete_piped_session">Realment voleu eliminar aquesta sessió de Piped?</string>
     <string name="other_versions">Altres versions</string>
     <string name="no_alternative_version">Aquest àlbum no té cap versió alternativa</string>
     <string name="from_wikipedia">De Wikipedia</string>
@@ -104,8 +103,6 @@
     <string name="error_server_restrictions">Aquesta cançó no es pot reproduir degut a restriccions del servidor</string>
     <string name="error_id_mismatch">L\'ID de vídeo retornat no coincideix amb el sollicitat</string>
     <string name="error_unknown_playback">S\'ha produït un error de reproducció desconegut</string>
-    <string name="error_piped_link">Hi ha hagut un error desconegut en vincular el teu compte de Piped. Si us plau, torna-ho a intentar.</string>
-    <string name="error_piped_instances_unavailable">La llista d\'instàncies de Piped no està disponible actualment</string>
     <string name="error_pre_cache">S\'ha produït un error desconegut durant el pre-memòria cau. Si us plau, torneu-ho a intentar.</string>
     <string name="error_url">No es pot obrir l\'URL %1$s</string>
     <string name="media_permission_declined">Permís denegat, si us plau concedeiu permisos de mitjans a la configuració del vostre dispositiu.</string>
@@ -192,8 +189,6 @@
     <string name="player">Reproductor</string>
     <string name="previous_button_while_collapsed">Botó anterior quan està comprimit</string>
     <string name="previous_button_while_collapsed_description">Mostra el botó de cançó anterior quan el reproductor està comprimit</string>
-    <string name="swipe_horizontally_to_close">Lliscar horitzontalment per tancar</string>
-    <string name="swipe_horizontally_to_close_description">Tanca el reproductor en lliscar cap a l\'esquerra/dreta en el reproductor comprimit. Útil per usuaris amb el mode d\'una mà d\'Android activat.</string>
     <string name="show_like_button">Mostrar botó de m\'agrada</string>
     <string name="show_like_button_description">Mostrar el botó de m\'agrada directament al reproductor</string>
     <string name="swipe_to_remove_item">Lliscar per eliminar element</string>
@@ -291,21 +286,15 @@
     <string name="quick_picks_source">Font de seleccions ràpides</string>
     <string name="quick_picks_cache">Emmagatzemar en memòria cau dades de seleccions ràpides</string>
     <string name="quick_picks_cache_description">Desa les dades de seleccions ràpides al disc per accés sense connexió</string>
-    <string name="piped">Piped</string>
     <string name="instance">Instància</string>
     <string name="click_to_select">Fes clic per seleccionar</string>
     <string name="username">Nom d\'usuari</string>
     <string name="password">Contrasenya</string>
     <string name="login">Iniciar sessió</string>
-    <string name="sync_description">Podeu allotjar llistes de reproducció en un altre lloc i sincronitzar-les amb K4 Music. Ara per ara només admet Piped.</string>
     <string name="add_account">Afegir compte</string>
-    <string name="add_account_description">Vincula un compte de Piped amb la teva instància, nom d\'usuari i contrasenya.</string>
     <string name="learn_more">Més informació</string>
-    <string name="learn_more_description">¿No sabeu què és Piped o no en teniu un compte? Feu clic aquí per ser redirigit a la vostra documentació</string>
-    <string name="piped_sessions">Sessions de Piped</string>
     <string name="custom_instance">Utilitzar instància personalitzada</string>
     <string name="base_api_url">URL d\'API d\'instància</string>
-    <string name="piped_session_created_successfully">Sessió de Piped creada amb èxit</string>
     <string name="seek_bar_style">Estil de barra de reproducció</string>
     <string name="static_seek_bar_name">Estàtica</string>
     <string name="wavy_seek_bar_name">Ondulada</string>

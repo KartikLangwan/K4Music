@@ -84,7 +84,6 @@
     <string name="hide_from_quick_picks">\"त्वरित चयन\" से छिपाएं</string>
     <string name="confirm_hide_song">क्या आप वाकई इस गाने को छिपाना चाहते हैं? इसका प्लेबैक समय और कैश मिटा दिया जाएगा। यह क्रिया अपरिवर्तनीय है।</string>
     <string name="confirm_delete_playlist">क्या आप वाकई इस प्लेलिस्ट को हटाना चाहते हैं?</string>
-    <string name="confirm_delete_piped_session">क्या आप वाकई इस Piped सत्र को हटाना चाहते हैं?</string>
     <string name="other_versions">अन्य संस्करण</string>
     <string name="no_alternative_version">इस एल्बम का कोई वैकल्पिक संस्करण नहीं है</string>
     <string name="from_wikipedia">विकिपीडिया से</string>
@@ -104,8 +103,6 @@
     <string name="error_server_restrictions">सर्वर प्रतिबंधों के कारण यह गाना नहीं चलाया जा सकता</string>
     <string name="error_id_mismatch">लौटाया गया वीडियो आईडी अनुरोधित वीडियो आईडी से मेल नहीं खाता</string>
     <string name="error_unknown_playback">एक अज्ञात प्लेबैक दोष हुआ है</string>
-    <string name="error_piped_link">आपके Piped खाते को लिंक करते समय कोई अज्ञात दोष हुआ है। कृपया पुनः प्रयास करें।</string>
-    <string name="error_piped_instances_unavailable">Piped इंस्टेंस सूची वर्तमान में अनुपलब्ध है</string>
     <string name="error_pre_cache">प्री-कैशिंग के दौरान एक अज्ञात दोष हुआ है। कृपया पुनः प्रयास करें।</string>
     <string name="error_url">यूआरएल नहीं खोला जा सका %1$s</string>
     <string name="media_permission_declined">अनुमति अस्वीकृत, कृपया अपने डिवाइस की सेटिंग में मीडिया अनुमति प्रदान करें।</string>
@@ -192,8 +189,6 @@
     <string name="player">प्लेयर</string>
     <string name="previous_button_while_collapsed">पिछला बटन ढह होने पर</string>
     <string name="previous_button_while_collapsed_description">प्लेयर ढह होने पर पिछला गाना बटन दिखाता है</string>
-    <string name="swipe_horizontally_to_close">बंद करने के लिए क्षैतिज रूप से स्वाइप करें</string>
-    <string name="swipe_horizontally_to_close_description">ढह प्लेयर पर बाएँ/दाएँ स्वाइप करने पर प्लेयर बंद हो जाता है। Android के वन-हैंडेड मोड सक्षम उपयोगकर्ताओं के लिए उपयोगी।</string>
     <string name="show_like_button">लाइक बटन दिखाएं</string>
     <string name="show_like_button_description">लाइक बटन को सीधे प्लेयर में दिखाएं</string>
     <string name="swipe_to_remove_item">आइटम हटाने के लिए स्वाइप करें</string>
@@ -315,21 +310,15 @@
     <string name="quick_picks_source">त्वरित चयन स्रोत</string>
     <string name="quick_picks_cache">त्वरित चयन डेटा कैश करें</string>
     <string name="quick_picks_cache_description">ऑफ़लाइन पहुँच के लिए त्वरित चयन डेटा को डिस्क पर सहेजता है</string>
-    <string name="piped">Piped</string>
     <string name="instance">उदाहरण</string>
     <string name="click_to_select">चुनने के लिए क्लिक करें</string>
     <string name="username">उपयोगकर्ता नाम</string>
     <string name="password">पासवर्ड</string>
     <string name="login">लॉग इन</string>
-    <string name="sync_description">आप प्लेलिस्ट को कहीं और होस्ट कर सकते हैं और उन्हें K4 Music के साथ सिंक्रोनाइज़ कर सकते हैं। वर्तमान में केवल Piped का समर्थन करता है।</string>
     <string name="add_account">खाता जोड़ें</string>
-    <string name="add_account_description">Piped खाते को अपने इंस्टैंस, उपयोगकर्ता नाम और पासवर्ड से लिंक करें।</string>
     <string name="learn_more">अधिक जानें</string>
-    <string name="learn_more_description">क्या आपको नहीं पता कि Piped क्या है या आपके पास कोई अकाउंट नहीं है? उनके दस्तावेज़ों पर रीडायरेक्ट होने के लिए यहाँ क्लिक करें</string>
-    <string name="piped_sessions">Piped सत्र</string>
     <string name="custom_instance">कस्टम इंस्टेंस का उपयोग करें</string>
     <string name="base_api_url">इंस्टेंस एपीआई यूआरएल</string>
-    <string name="piped_session_created_successfully">Piped सत्र सफलतापूर्वक बनाया गया</string>
     <string name="seek_bar_style">सीक बार शैली</string>
     <string name="static_seek_bar_name">स्थिर</string>
     <string name="wavy_seek_bar_name">लहरदार</string>

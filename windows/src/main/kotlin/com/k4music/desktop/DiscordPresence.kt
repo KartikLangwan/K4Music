@@ -19,9 +19,7 @@ import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
 
 /**
  * "Playing K4 Music" on the user's Discord profile: song, artist, cover, a time bar and two
@@ -56,7 +54,9 @@ object DiscordPresence {
                     AppLog.w("Discord", "Presence update failed: ${e.message}")
                     disconnect()
                 }
-                delay(3_000)
+                // Idle when the feature is off or nothing plays: a slower check costs nothing noticeable.
+                val active = Settings.discordPresence && player.state.value.playing
+                delay(if (active) 3_000 else 10_000)
             }
         }
     }
@@ -190,7 +190,7 @@ object DiscordPresence {
      * If the read times out or hangs, the pipe is closed to unblock the underlying native ReadFile.
      */
     private fun readWithTimeout(p: RandomAccessFile, timeoutMs: Long = 2500): Pair<Int, String>? {
-        val future = CompletableFuture.supplyAsync {
+        val task = java.util.concurrent.FutureTask {
             val headerBytes = ByteArray(8)
             p.readFully(headerBytes)
             val header = ByteBuffer.wrap(headerBytes).order(ByteOrder.LITTLE_ENDIAN)
@@ -201,15 +201,12 @@ object DiscordPresence {
             p.readFully(bodyBytes)
             op to bodyBytes.toString(Charsets.UTF_8)
         }
-
+        // Its own daemon thread, not the shared pool: a read stuck on a dead pipe must not starve other work.
+        Thread(task, "k4-discord-read").apply { isDaemon = true }.start()
         return try {
-            future.get(timeoutMs, TimeUnit.MILLISECONDS)
-        } catch (e: TimeoutException) {
-            future.cancel(true)
-            runCatching { p.close() }
-            null
+            task.get(timeoutMs, TimeUnit.MILLISECONDS)
         } catch (e: Exception) {
-            future.cancel(true)
+            task.cancel(true)
             runCatching { p.close() }
             null
         }

@@ -291,9 +291,6 @@ interface K4Dao {
     @Query("UPDATE Song SET totalPlayTimeMs = totalPlayTimeMs + :addition WHERE id = :id")
     suspend fun incrementTotalPlayTimeMs(id: String, addition: Long)
 
-    @Query("SELECT * FROM PipedSession")
-    fun pipedSessions(): Flow<List<PipedSession>>
-
     @Query("SELECT * FROM Playlist WHERE id = :id")
     fun playlist(id: Long): Flow<Playlist?>
 
@@ -534,6 +531,33 @@ interface K4Dao {
     @Query("DELETE FROM SongPlaylistMap WHERE playlistId = :id")
     suspend fun clearPlaylist(id: Long)
 
+    @Query("SELECT id, likedAt FROM Song WHERE likedAt IS NOT NULL")
+    suspend fun likedRows(): List<LikedRow>
+
+    @Query("SELECT id, name FROM Playlist WHERE browseId IS NULL ORDER BY id")
+    suspend fun plainPlaylists(): List<PlaylistRow>
+
+    @Query("SELECT songId FROM SongPlaylistMap WHERE playlistId = :id ORDER BY position")
+    suspend fun playlistSongIds(id: Long): List<String>
+
+    @Query("SELECT * FROM Song WHERE id IN (:ids)")
+    suspend fun songsByIds(ids: List<String>): List<Song>
+
+    @Query("UPDATE Playlist SET name = :name WHERE id = :id")
+    suspend fun renamePlaylist(id: Long, name: String)
+
+    @Query("DELETE FROM Playlist WHERE id = :id")
+    suspend fun deletePlaylistById(id: Long)
+
+    @Query(
+        """
+        SELECT (SELECT COUNT(*) || ':' || IFNULL(SUM(likedAt), 0) FROM Song WHERE likedAt IS NOT NULL)
+            || '|' || (SELECT COUNT(*) || ':' || IFNULL(SUM(position * rowid), 0) FROM SongPlaylistMap)
+            || '|' || (SELECT IFNULL(group_concat(name || id), '') FROM Playlist WHERE browseId IS NULL)
+        """
+    )
+    fun syncSignal(): Flow<String>
+
     @Query("DELETE FROM SongAlbumMap WHERE albumId = :id")
     suspend fun clearAlbum(id: String)
 
@@ -646,9 +670,6 @@ interface K4Dao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(artists: List<Artist>, songArtistMaps: List<SongArtistMap>)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(pipedSession: PipedSession)
-
     @Update
     suspend fun update(artist: Artist)
 
@@ -678,8 +699,5 @@ interface K4Dao {
 
     @Delete
     suspend fun delete(songPlaylistMap: SongPlaylistMap)
-
-    @Delete
-    suspend fun delete(pipedSession: PipedSession)
 
 }

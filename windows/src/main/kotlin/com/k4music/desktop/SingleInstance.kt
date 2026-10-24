@@ -72,13 +72,21 @@ object SingleInstance {
         }
         thread(isDaemon = true, name = "k4-single-instance") {
             while (true) {
+                if (server.isClosed) break
                 val lines = runCatching {
                     server.accept().use { readMessage(it) }
-                }.getOrNull() ?: continue
+                }.getOrElse { if (server.isClosed) break; Thread.sleep(200); null } ?: continue
                 runCatching { onMessage(lines) }.onFailure { AppLog.w("IPC", "Could not handle launch request", it) }
             }
         }
     }
+
+    /**
+     * What a second launch asks the running app for. No arguments (a Start-menu click) means "show yourself",
+     * which an empty list would otherwise lose; flags such as --startup or --minimized ask for nothing.
+     */
+    internal fun launchRequests(lines: List<String>): List<String> =
+        if (lines.isEmpty()) listOf("") else lines.filter { !it.startsWith("--") || it == QUIT_ARG }
 
     /** Bound both message memory and total connection time, including trickling clients. */
     internal fun readMessage(socket: Socket, timeoutMillis: Int = 2_000): List<String> {

@@ -320,6 +320,8 @@ private fun SearchField(navigator: Navigator, focus: FocusRequester, modifier: M
     // Leaving search (or picking a history entry) updates the field.
     LaunchedEffect(currentQuery, navigator.current is Screen.Search) {
         if (!focused || navigator.current !is Screen.Search) text = currentQuery
+        // Opening an empty Search (sidebar, back) puts the cursor in the box, so typing searches.
+        if (navigator.current is Screen.Search && currentQuery.isEmpty() && !focused) runCatching { focus.requestFocus() }
     }
     LaunchedEffect(text) {
         if (!focused || text.trim() == currentQuery || text.isBlank() || text.startsWith("http")) return@LaunchedEffect

@@ -47,6 +47,8 @@ import com.k4music.desktop.player.Track
 import com.k4music.desktop.player.toTrack
 import com.k4music.desktop.res.Res
 import com.k4music.desktop.res.desktop_empty_local
+import com.k4music.desktop.res.desktop_empty_artists
+import com.k4music.desktop.res.desktop_empty_albums
 import com.k4music.desktop.res.desktop_empty_downloads
 import com.k4music.desktop.res.desktop_empty_history
 import com.k4music.desktop.res.desktop_empty_favorites
@@ -96,20 +98,22 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
-private enum class LibraryTab(val title: StringResource) {
+internal enum class LibraryTab(val title: StringResource) {
     Songs(Res.string.songs), Playlists(Res.string.playlists), Artists(Res.string.artists),
     Albums(Res.string.albums), Local(Res.string.local)
 }
 
+/** The open Library tab, kept while moving around the app (and set by Home's Playlists tile). */
+internal var libraryTab by mutableStateOf(LibraryTab.Songs)
+
 @Composable
 fun LibraryScreen() {
-    var tab by remember { mutableStateOf(LibraryTab.Songs) }
     Column(Modifier.fillMaxSize()) {
         Text(stringResource(Res.string.library), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
         Row(Modifier.padding(vertical = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            LibraryTab.entries.forEach { t -> FilterChip(selected = tab == t, onClick = { tab = t }, label = { Text(stringResource(t.title)) }) }
+            LibraryTab.entries.forEach { t -> FilterChip(selected = libraryTab == t, onClick = { libraryTab = t }, label = { Text(stringResource(t.title)) }) }
         }
-        when (tab) {
+        when (libraryTab) {
             LibraryTab.Songs -> SongsTab(local = false)
             LibraryTab.Playlists -> PlaylistsTab()
             LibraryTab.Artists -> ArtistsTab()
@@ -172,10 +176,10 @@ private fun SongsTab(local: Boolean) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(pluralStringResource(Res.plurals.desktop_song_count, tracks.size, tracks.size), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
             if (local) {
-                OutlinedButton(onClick = { AppDialogs.pickFolder { LocalMusic.addFolder(it); scope.launch { LocalMusic.scan() } } }) {
+                OutlinedButton(onClick = { AppDialogs.pickFolder { LocalMusic.addFolder(it); scope.launch { AppDialogs.scanLocalMusic() } } }) {
                     Text(stringResource(Res.string.desktop_add_folder))
                 }
-                K4Button(onClick = { scope.launch { LocalMusic.scan() } }, enabled = !scanning) {
+                K4Button(onClick = { scope.launch { AppDialogs.scanLocalMusic() } }, enabled = !scanning) {
                     if (scanning) CircularProgressIndicator(Modifier.padding(end = 8.dp).size(16.dp), strokeWidth = 2.dp)
                     Text(stringResource(Res.string.desktop_scan))
                 }
@@ -222,7 +226,6 @@ private fun PlaylistsTab() {
             items(playlists, key = { "pl-${it.id}" }) { p ->
                 MediaCard(p.name, pluralStringResource(Res.plurals.desktop_song_count, p.songCount, p.songCount), p.thumbnail) { navigator.go(Screen.LocalPlaylist(p.id)) }
             }
-            item(key = "piped", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) { Column { PipedPlaylistsShelves() } }
         }
     }
 }
@@ -247,9 +250,11 @@ private fun ArtistsTab() {
     val navigator = LocalNavigator.current
     var sortBy by remember { mutableStateOf(ArtistSortBy.DateAdded) }
     var order by remember { mutableStateOf(SortOrder.Descending) }
-    val artists by remember(sortBy, order) { Db.library.artists(sortBy, order) }.collectAsState(initial = emptyList())
+    val loaded by remember(sortBy, order) { Db.library.artists(sortBy, order) }.collectAsState(initial = null)
+    val artists = loaded.orEmpty()
     Column {
         Row { Box(Modifier.weight(1f)); SortMenu(stringResource(Res.string.desktop_sort), ArtistSortBy.entries.toTypedArray(), sortBy, order) { s, o -> sortBy = s; order = o } }
+        if (loaded?.isEmpty() == true) EmptyHint(Res.string.desktop_empty_artists)
         LazyVerticalGrid(columns = GridCells.Adaptive(160.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(artists, key = { it.id }) { a -> MediaCard(a.name.orEmpty(), null, a.thumbnailUrl, circle = true) { navigator.go(Screen.Artist(a.id)) } }
         }
@@ -261,9 +266,11 @@ private fun AlbumsTab() {
     val navigator = LocalNavigator.current
     var sortBy by remember { mutableStateOf(AlbumSortBy.DateAdded) }
     var order by remember { mutableStateOf(SortOrder.Descending) }
-    val albums by remember(sortBy, order) { Db.library.albums(sortBy, order) }.collectAsState(initial = emptyList())
+    val loaded by remember(sortBy, order) { Db.library.albums(sortBy, order) }.collectAsState(initial = null)
+    val albums = loaded.orEmpty()
     Column {
         Row { Box(Modifier.weight(1f)); SortMenu(stringResource(Res.string.desktop_sort), AlbumSortBy.entries.toTypedArray(), sortBy, order) { s, o -> sortBy = s; order = o } }
+        if (loaded?.isEmpty() == true) EmptyHint(Res.string.desktop_empty_albums)
         LazyVerticalGrid(columns = GridCells.Adaptive(176.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(albums, key = { it.id }) { a ->
                 MediaCard(a.title.orEmpty(), listOfNotNull(a.authorsText, a.year).joinToString(" • "), a.thumbnailUrl) { navigator.go(Screen.Album(a.id)) }
@@ -271,6 +278,14 @@ private fun AlbumsTab() {
         }
     }
 }
+
+@Composable
+private fun EmptyHint(text: org.jetbrains.compose.resources.StringResource) = Text(
+    stringResource(text),
+    style = MaterialTheme.typography.bodyLarge,
+    color = MaterialTheme.colorScheme.onSurfaceVariant,
+    modifier = Modifier.padding(top = 32.dp)
+)
 
 /** Favourites, History, Downloads, Most played. */
 @Composable
@@ -295,7 +310,6 @@ fun BuiltInScreen(kind: BuiltInKind) {
     }
     val loaded by remember(source) { source.map { it.map(Song::toTrack) } }.collectAsState(initial = null)
     val songs = loaded.orEmpty()
-    val removeDownload = stringResource(Res.string.delete)
     val emptyHint = when (kind) {
         BuiltInKind.Favorites -> Res.string.desktop_empty_favorites
         BuiltInKind.History -> Res.string.desktop_empty_history
@@ -315,8 +329,7 @@ fun BuiltInScreen(kind: BuiltInKind) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 32.dp)
             )
-        },
-        extra = { t -> if (kind == BuiltInKind.Downloads) listOf(MenuAction(removeDownload, Res.drawable.trash) { Downloads.delete(t.id) }) else emptyList() }
+        }
     )
 }
 

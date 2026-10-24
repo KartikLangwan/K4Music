@@ -176,25 +176,30 @@ fun SongRow(
             trailing?.invoke()
             SongBadges(track)
             Text(track.durationText.orEmpty(), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
-            IconButton(onClick = { menuAt = DpOffset(0.dp, 0.dp) }, modifier = Modifier.size(32.dp)) {
-                Icon(painterResource(Res.drawable.ellipsis_horizontal), org.jetbrains.compose.resources.stringResource(Res.string.more), Modifier.size(18.dp), tint = colors.onSurfaceVariant)
+            // The ⋯ button opens the menu under itself; a right-click opens it at the cursor.
+            Box {
+                IconButton(onClick = { menuAt = ButtonMenu }, modifier = Modifier.size(32.dp)) {
+                    Icon(painterResource(Res.drawable.ellipsis_horizontal), org.jetbrains.compose.resources.stringResource(Res.string.more), Modifier.size(18.dp), tint = colors.onSurfaceVariant)
+                }
+                if (menuAt == ButtonMenu) SongMenu(DpOffset(0.dp, 0.dp), actions) { menuAt = null }
             }
         }
         // Anchored to the row's bottom-left; shift up to where the cursor was.
-        menuAt?.let { at ->
-            DropdownMenu(
-                expanded = true,
-                onDismissRequest = { menuAt = null },
-                offset = if (at == DpOffset(0.dp, 0.dp)) DpOffset(0.dp, 0.dp) else DpOffset(at.x, at.y - rowHeight)
-            ) {
-                actions().forEach { action ->
-                    DropdownMenuItem(
-                        text = { Text(action.label) },
-                        leadingIcon = action.icon?.let { { Icon(painterResource(it), null, Modifier.size(18.dp)) } },
-                        onClick = { menuAt = null; action.onClick() }
-                    )
-                }
-            }
+        menuAt?.takeIf { it != ButtonMenu }?.let { at -> SongMenu(DpOffset(at.x, at.y - rowHeight), actions) { menuAt = null } }
+    }
+}
+
+private val ButtonMenu = DpOffset(-1.dp, -1.dp)
+
+@Composable
+private fun SongMenu(offset: DpOffset, actions: () -> List<MenuAction>, close: () -> Unit) {
+    DropdownMenu(expanded = true, onDismissRequest = close, offset = offset) {
+        actions().forEach { action ->
+            DropdownMenuItem(
+                text = { Text(action.label) },
+                leadingIcon = action.icon?.let { { Icon(painterResource(it), null, Modifier.size(18.dp)) } },
+                onClick = { close(); action.onClick() }
+            )
         }
     }
 }

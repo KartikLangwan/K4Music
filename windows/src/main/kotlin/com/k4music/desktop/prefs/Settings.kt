@@ -31,7 +31,11 @@ abstract class SettingsStore(private val file: () -> java.io.File) {
     private fun load(): MutableMap<String, JsonElement> = runCatching {
         val f = file()
         if (f.isFile) Json.parseToJsonElement(f.readText()).let { (it as JsonObject).toMutableMap() } else mutableMapOf()
-    }.onFailure { AppLog.w("Settings", "Unreadable settings, using defaults", it) }.getOrDefault(mutableMapOf())
+    }.onFailure {
+        AppLog.w("Settings", "Unreadable settings, using defaults", it)
+        // Keep the damaged file: the next change would otherwise overwrite everything it still holds.
+        runCatching { val f = file(); f.copyTo(f.resolveSibling(f.name + ".bad"), overwrite = true) }
+    }.getOrDefault(mutableMapOf())
 
     @Synchronized
     private fun put(key: String, value: JsonElement) {
@@ -65,11 +69,13 @@ abstract class SettingsStore(private val file: () -> java.io.File) {
         private val read: (JsonPrimitive) -> T?,
         private val write: (T) -> JsonPrimitive
     ) : ReadWriteProperty<Any?, T> {
-        private var state: androidx.compose.runtime.MutableState<T>? = null
+        @Volatile private var state: androidx.compose.runtime.MutableState<T>? = null
 
-        private fun state(key: String) = state ?: mutableStateOf(
-            values[key]?.let { runCatching { read(it.jsonPrimitive) }.getOrNull() } ?: default
-        ).also { state = it }
+        // Two threads asking first must get the same state object, or one write would be lost.
+        private fun state(key: String) = state ?: synchronized(this) {
+            state ?: mutableStateOf(values[key]?.let { runCatching { read(it.jsonPrimitive) }.getOrNull() } ?: default)
+                .also { state = it }
+        }
 
         override fun getValue(thisRef: Any?, property: KProperty<*>): T = state(property.name).value
         override fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
@@ -159,6 +165,8 @@ object Settings : SettingsStore({ AppPaths.settings }) {
     var sponsorBlockCategories by string("sponsor,selfpromo,intro,outro,music_offtopic")
     var resumeOnStart by boolean(false)
     var launchAtStartup by boolean(false)
+    /** When yt-dlp was last brought up to date (ms); it is refreshed weekly. */
+    var ytDlpCheckedAt by long(0L)
     var startMinimizedOnStartup by boolean(true)
 
     // Audio effects (mpv filter chain; same choices as Android's AudioScreen)

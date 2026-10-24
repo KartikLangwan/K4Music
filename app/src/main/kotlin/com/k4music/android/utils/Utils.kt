@@ -22,7 +22,6 @@ import com.k4music.core.ui.utils.SongBundleAccessor
 import com.k4music.providers.innertube.Innertube
 import com.k4music.providers.innertube.models.bodies.ContinuationBody
 import com.k4music.providers.innertube.requests.playlistPage
-import com.k4music.providers.piped.models.Playlist
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.onEach
@@ -89,36 +88,6 @@ val Innertube.VideoItem.asMediaItem: MediaItem
                 .build()
         )
         .build()
-
-val Playlist.Video.asMediaItem: MediaItem?
-    get() {
-        val key = id ?: return null
-
-        return MediaItem.Builder()
-            .setMediaId(key)
-            .setUri(key)
-            .setCustomCacheKey(key)
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setTitle(title)
-                    .setArtist(uploaderName)
-                    .also {
-                        runCatching { thumbnailUrl.toString().toUri() }.getOrNull()
-                            ?.let { uri -> it.setArtworkUri(uri) }
-                    }
-                    .setExtras(
-                        SongBundleAccessor.bundle {
-                            durationText = duration.toComponents { minutes, seconds, _ ->
-                                "$minutes:${seconds.toString().padStart(2, '0')}"
-                            }
-                            artistNames = listOf(uploaderName)
-                            artistIds = uploaderId?.let { listOf(it) }
-                        }
-                    )
-                    .build()
-            )
-            .build()
-    }
 
 val Song.asMediaItem: MediaItem
     get() = MediaItem.Builder()

@@ -97,7 +97,6 @@
     <string name="hide_from_quick_picks">Nascondi da \"Selezioni rapide\"</string>
     <string name="confirm_hide_song">Vuoi davvero nascondere questo brano? Il tempo di riproduzione e la cache verranno cancellati.\nQuesta azione è irreversibile.</string>
     <string name="confirm_delete_playlist">Vuoi davvero eliminare questa playlist?</string>
-    <string name="confirm_delete_piped_session">Vuoi davvero eliminare questa sessione Piped?</string>
 
     <string name="other_versions">Altre versioni</string>
     <string name="no_alternative_version">Questo album non ha versioni alternative</string>
@@ -122,8 +121,6 @@
     <string name="error_server_restrictions">Questo brano non può essere riprodotto a causa di restrizioni del server</string>
     <string name="error_id_mismatch">L\'ID del video restituito non corrisponde a quello richiesto</string>
     <string name="error_unknown_playback">Si è verificato un errore di riproduzione sconosciuto</string>
-    <string name="error_piped_link">Si è verificato un errore sconosciuto nel collegamento del tuo account Piped. Riprova.</string>
-    <string name="error_piped_instances_unavailable">Elenco delle istanze Piped attualmente non disponibile</string>
     <string name="error_pre_cache">Si è verificato un errore sconosciuto durante il pre-caching. Riprova.</string>
     <string name="error_url">Impossibile aprire l\'url %1$s</string>
 
@@ -225,8 +222,6 @@
     <string name="player">Player</string>
     <string name="previous_button_while_collapsed">Pulsante precedente quando collassato</string>
     <string name="previous_button_while_collapsed_description">Mostra il pulsante del brano precedente quando il player è collassato</string>
-    <string name="swipe_horizontally_to_close">Scorri orizzontalmente per chiudere</string>
-    <string name="swipe_horizontally_to_close_description">Chiude il player quando si scorre a sinistra/destra sul player collassato. Utile per gli utenti con la modalità a una mano di Android attivata.</string>
     <string name="show_like_button">Mostra pulsante Mi piace</string>
     <string name="show_like_button_description">Mostra il pulsante Mi piace direttamente nel player</string>
     <string name="swipe_to_remove_item">Scorri per rimuovere elemento</string>
@@ -340,21 +335,15 @@
     <string name="quick_picks_cache_description">Salva i dati delle selezioni rapide su disco per l\'accesso offline</string>
 
 
-    <string name="piped">Piped</string>
     <string name="instance">Istanza</string>
     <string name="click_to_select">Clicca per selezionare</string>
     <string name="username">Nome utente</string>
     <string name="password">Password</string>
     <string name="login">Accedi</string>
-    <string name="sync_description">Puoi ospitare playlist altrove e sincronizzarle con K4 Music. Attualmente supporta solo Piped.</string>
     <string name="add_account">Aggiungi account</string>
-    <string name="add_account_description">Collega un account Piped con la tua istanza, nome utente e password.</string>
     <string name="learn_more">Scopri di più</string>
-    <string name="learn_more_description">Non sai cosa sia Piped o non hai un account? Clicca qui per essere reindirizzato alla loro documentazione</string>
-    <string name="piped_sessions">Sessioni Piped</string>
     <string name="custom_instance">Usa istanza personalizzata</string>
     <string name="base_api_url">URL API istanza</string>
-    <string name="piped_session_created_successfully">Sessione Piped creata con successo</string>
 
     <string name="seek_bar_style">Stile barra di riproduzione</string>
     <string name="static_seek_bar_name">Statica</string>

@@ -97,7 +97,7 @@ private enum class SettingsPage(val title: StringResource, val subtitle: String,
     Effects(Res.string.audio_effects, "Equalizer & DSP", Res.drawable.equalizer),
     Layout(Res.string.desktop_layout, "Sidebar & View", Res.drawable.grid),
     Library(Res.string.settings_section_library, "Folders & Data", Res.drawable.library),
-    Sync(Res.string.sync, "Piped Accounts", Res.drawable.sync),
+    Sync(Res.string.sync, "Phone & PC", Res.drawable.sync),
     Advanced(Res.string.desktop_advanced, "yt-dlp & Logs", Res.drawable.server),
     About(Res.string.about, "Kartik Langwan", Res.drawable.information)
 }
@@ -156,10 +156,7 @@ fun SettingsScreen() {
                             SettingsPage.Effects -> EffectsSection()
                             SettingsPage.Layout -> LayoutSection()
                             SettingsPage.Library -> LibrarySection()
-                            SettingsPage.Sync -> Section(Res.string.sync) {
-                                Text(stringResource(Res.string.sync_description), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                PipedAccounts()
-                            }
+                            SettingsPage.Sync -> SyncSection()
                             SettingsPage.Advanced -> AdvancedSection()
                             SettingsPage.About -> AboutSection()
                         }
@@ -253,7 +250,7 @@ private fun SystemSection() = Section(Res.string.desktop_system_title) {
                         com.k4music.desktop.StartupManager.setEnabled(it)
                     }
                     if (success) Settings.launchAtStartup = it
-                    else AppDialogs.show(startupFailure)
+                    else AppDialogs.show(com.k4music.desktop.StartupManager.lastError ?: startupFailure)
                 } finally { registering = false }
             }
         }
@@ -509,13 +506,15 @@ private fun PlaybackSection() = Section(Res.string.player) {
     SettingsSlider((Settings.pitch - 0.5f) / 1.5f, onChange = { Settings.pitch = (0.5f + it * 1.5f).let { v -> (v * 20).toInt() / 20f } }, onCommit = { player.applyEffects() }, modifier = Modifier.fillMaxWidth())
 
     val sleepAt = state.sleepAt
+    // While a timer runs, mark the length picked here (none when it was set before this screen opened).
+    var sleepPicked by remember { mutableStateOf<Int?>(null) }
     Label(stringResource(Res.string.sleep_timer), sleepAt?.let { stringResource(Res.string.desktop_sleep_until, DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))) })
     Choices(
         listOf<Int?>(null, 15, 30, 45, 60, 90).map { m ->
             m to (if (m == null) stringResource(Res.string.desktop_off) else stringResource(Res.string.desktop_minutes, m))
         },
-        null
-    ) { player.setSleepTimer(it) }
+        if (sleepAt == null) null else sleepPicked ?: -1
+    ) { sleepPicked = it; player.setSleepTimer(it) }
 }
 
 @Composable
@@ -616,13 +615,58 @@ private fun LibrarySection() = Section(Res.string.settings_section_library) {
     Label(stringResource(Res.string.desktop_music_folders))
     LocalMusic.folders().forEach { Text(it.absolutePath, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(onClick = { AppDialogs.pickFolder { LocalMusic.addFolder(it); scope.launch { LocalMusic.scan() } } }) { Text(stringResource(Res.string.desktop_add_folder)) }
-        OutlinedButton(onClick = { scope.launch { LocalMusic.scan() } }) { Text(stringResource(Res.string.desktop_scan)) }
+        OutlinedButton(onClick = { AppDialogs.pickFolder { LocalMusic.addFolder(it); scope.launch { AppDialogs.scanLocalMusic() } } }) { Text(stringResource(Res.string.desktop_add_folder)) }
+        OutlinedButton(onClick = { scope.launch { AppDialogs.scanLocalMusic() } }) { Text(stringResource(Res.string.desktop_scan)) }
     }
 
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedButton(onClick = { scope.launch { Db.library.clearEvents(); AppDialogs.show(getString(Res.string.desktop_done)) } }) { Text(stringResource(Res.string.desktop_clear_history)) }
         OutlinedButton(onClick = { scope.launch { Db.library.clearQueries(); AppDialogs.show(getString(Res.string.desktop_done)) } }) { Text(stringResource(Res.string.clear_search_history)) }
+    }
+}
+
+/** Pair this PC with the phone using a code; likes and playlists then stay in step over an encrypted relay. */
+@Composable
+private fun SyncSection() = Section(Res.string.sync) {
+    val sync by com.k4music.desktop.data.LibrarySync.state.collectAsState()
+    val status by com.k4music.desktop.data.LibrarySync.status.collectAsState()
+    var typed by remember { mutableStateOf("") }
+    var invalid by remember { mutableStateOf(false) }
+    val secondary = MaterialTheme.colorScheme.onSurfaceVariant
+    Text(stringResource(Res.string.sync_description), style = MaterialTheme.typography.bodySmall, color = secondary)
+    if (!sync.paired) {
+        FilledTonalButton(onClick = { com.k4music.desktop.data.LibrarySync.pairNew() }) { Text(stringResource(Res.string.sync_create_code)) }
+        Text(stringResource(Res.string.sync_enter_code_description), style = MaterialTheme.typography.bodySmall, color = secondary)
+        androidx.compose.material3.OutlinedTextField(
+            value = typed, onValueChange = { typed = it; invalid = false }, singleLine = true, isError = invalid,
+            label = { Text(stringResource(Res.string.sync_code_hint)) }, modifier = Modifier.fillMaxWidth()
+        )
+        Button(enabled = typed.isNotBlank(), onClick = { invalid = !com.k4music.desktop.data.LibrarySync.pairWith(typed) }) { Text(stringResource(Res.string.desktop_sync_connect)) }
+        if (invalid) Text(stringResource(Res.string.sync_code_invalid), color = MaterialTheme.colorScheme.error)
+    } else {
+        Label(stringResource(Res.string.sync_code_title))
+        androidx.compose.foundation.text.selection.SelectionContainer {
+            Text(sync.code, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        }
+        Text(stringResource(Res.string.desktop_sync_type_on_phone), style = MaterialTheme.typography.bodySmall, color = secondary)
+        val statusText = when (val st = status) {
+            is com.k4music.desktop.data.LibrarySync.Status.Syncing -> stringResource(Res.string.sync_syncing)
+            is com.k4music.desktop.data.LibrarySync.Status.Failed -> stringResource(Res.string.sync_failed, st.message)
+            else -> if (sync.lastSyncAt == 0L) stringResource(Res.string.sync_never)
+            else stringResource(Res.string.sync_last, DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(sync.lastSyncAt)))
+        }
+        Text(statusText, style = MaterialTheme.typography.bodyMedium)
+        val confirmText = stringResource(Res.string.sync_unpair_description)
+        val unpairTitle = stringResource(Res.string.sync_unpair)
+        val copiedText = stringResource(Res.string.sync_code_copied)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilledTonalButton(onClick = { com.k4music.desktop.data.LibrarySync.sync() }) { Text(stringResource(Res.string.sync_now)) }
+            OutlinedButton(onClick = {
+                runCatching { java.awt.Toolkit.getDefaultToolkit().systemClipboard.setContents(java.awt.datatransfer.StringSelection(sync.code), null) }
+                    .onSuccess { AppDialogs.show(copiedText) }
+            }) { Text(stringResource(Res.string.desktop_sync_copy)) }
+            OutlinedButton(onClick = { AppDialogs.confirm(confirmText, unpairTitle) { com.k4music.desktop.data.LibrarySync.unpair() } }) { Text(stringResource(Res.string.sync_unpair)) }
+        }
     }
 }
 

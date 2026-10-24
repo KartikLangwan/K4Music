@@ -55,8 +55,15 @@ class StreamResolver {
     private val prefetchSlots = kotlinx.coroutines.sync.Semaphore(2)
 
     suspend fun resolve(track: Track): Stream {
-        val job = inFlight.computeIfAbsent(track.id) { id ->
-            background.async { resolveNow(track) }.also { d -> d.invokeOnCompletion { inFlight.remove(id, d) } }
+        var started = false
+        // Lazy, then started after it sits in the map: a handler that ran inside computeIfAbsent could remove its own key.
+        val job = inFlight.computeIfAbsent(track.id) { _ ->
+            started = true
+            background.async(start = kotlinx.coroutines.CoroutineStart.LAZY) { resolveNow(track) }
+        }
+        if (started) {
+            job.invokeOnCompletion { inFlight.remove(track.id, job) }
+            job.start()
         }
         return try { job.await() } finally { if (job.isCompleted) inFlight.remove(track.id, job) }
     }
@@ -127,10 +134,13 @@ class StreamResolver {
     }
 
     /** Runs the bundled yt-dlp.exe with QuickJS for YouTube's JS challenge. Null on failure/timeout. */
-    private suspend fun ytDlp(videoId: String): Stream? = runInterruptible(Dispatchers.IO) {
+    private suspend fun ytDlp(videoId: String): Stream? =
+        runInterruptible(Dispatchers.IO) { com.k4music.desktop.data.Maintenance.usingYtDlp { ytDlpNow(videoId) } }
+
+    private fun ytDlpNow(videoId: String): Stream? {
         val exe = AppPaths.tools.resolve("yt-dlp/yt-dlp.exe")
         val qjs = AppPaths.tools.resolve("qjs.exe")
-        if (!exe.isFile) return@runInterruptible null
+        if (!exe.isFile) return null
         val temp = AppPaths.local.resolve("tmp").apply { mkdirs() }
         val process = ProcessBuilder(
             // The cache keeps YouTube's player script and solved challenges: later songs resolve much faster.
@@ -145,7 +155,7 @@ class StreamResolver {
             environment()["TEMP"] = temp.absolutePath
             environment()["TMP"] = temp.absolutePath
         }.start()
-        try {
+        return try {
             val output = StringBuilder()
             val errors = StringBuilder()
             val reader = kotlin.concurrent.thread(isDaemon = true, name = "ytdlp-stdout") {
@@ -157,21 +167,22 @@ class StreamResolver {
             if (!process.waitFor(YT_DLP_TIMEOUT_S, TimeUnit.SECONDS)) {
                 process.destroyForcibly()
                 AppLog.w(TAG, "yt-dlp timed out for $videoId")
-                return@runInterruptible null
+                return null
             }
             reader.join(2_000)
             errorReader.join(1_000)
+            if (reader.isAlive) return null // the answer is still arriving: never parse half of it
             val info = runCatching { json.decodeFromString(YtDlpInfo.serializer(), output.toString()) }
                 .onFailure {
                     val error = errors.lines().lastOrNull { it.startsWith("ERROR") }.orEmpty().take(200)
                     AppLog.w(TAG, "yt-dlp gave no usable answer for $videoId (exit ${process.exitValue()}): $error")
                     if (BLOCKED_SIGNS.any { it in error }) onYoutubeBlocked()
                 }
-                .getOrNull() ?: return@runInterruptible null
-            if (info.id != videoId) return@runInterruptible null
+                .getOrNull() ?: return null
+            if (info.id != videoId) return null
             val url = info.url?.takeIf { it.isNotBlank() }
                 ?: info.formats?.firstOrNull { it.formatId == info.formatId }?.url?.takeIf { it.isNotBlank() }
-                ?: return@runInterruptible null
+                ?: return null
             Stream(url, StreamSource.YtDlp, info.httpHeaders)
         } finally {
             if (process.isAlive) process.destroyForcibly()

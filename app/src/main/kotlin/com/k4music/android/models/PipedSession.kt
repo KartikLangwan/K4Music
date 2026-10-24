@@ -4,9 +4,12 @@ import androidx.compose.runtime.Immutable
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import com.k4music.providers.piped.models.authenticatedWith
 import io.ktor.http.Url
 
+/**
+ * Piped was removed from the app. The table stays (empty) so the Room schema stays at version 30,
+ * which Android and Windows backups share.
+ */
 @Immutable
 @Entity(
     indices = [
@@ -22,6 +25,4 @@ data class PipedSession(
     val token: String,
     // the username should never change on piped
     val username: String
-) {
-    fun toApiSession() = apiBaseUrl authenticatedWith token
-}
+)

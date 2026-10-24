@@ -100,8 +100,6 @@
     <string name="error_server_restrictions">Lagu ini tidak dapat diputar karena pembatasan server</string>
     <string name="error_id_mismatch">Id video yang dikembalikan tidak sesuai dengan yang diminta</string>
     <string name="error_unknown_playback">Terjadi kesalahan pemutaran yang tidak diketahui</string>
-    <string name="error_piped_link">Terjadi kesalahan yang tidak diketahui saat menautkan akun Piped Anda. Silakan coba lagi.</string>
-    <string name="error_piped_instances_unavailable">Daftar contoh Piped saat ini tidak tersedia</string>
     <string name="error_pre_cache">Terjadi kesalahan yang tidak diketahui selama pra-caching. Silakan coba lagi.</string>
     <string name="error_url">Tidak dapat membuka url %1$s</string>
     <string name="media_permission_declined">Izin ditolak, berikan izin media di pengaturan perangkat Anda.</string>
@@ -184,8 +182,6 @@
     <string name="player">Pemutar</string>
     <string name="previous_button_while_collapsed">Tombol sebelumnya saat terlipat</string>
     <string name="previous_button_while_collapsed_description">Tampilkan tombol lagu sebelumnya saat pemutar terlipat</string>
-    <string name="swipe_horizontally_to_close">Geser secara horizontal untuk menutup</string>
-    <string name="swipe_horizontally_to_close_description">Tutup pemutar saat menggeser ke kiri/kanan pada pemutar terlipat. Berguna untuk pengguna dengan mode satu tangan Android aktif.</string>
     <string name="show_like_button">Tampilkan tombol suka</string>
     <string name="show_like_button_description">Menampilkan tombol suka di pemutar</string>
     <string name="swipe_to_remove_item">Geser untuk menghapus item</string>
@@ -263,18 +259,13 @@
     <string name="last_interaction">Terakhir diputar</string>
     <string name="trending">Trending</string>
     <string name="quick_picks_source">Sumber Pilihan Cepat</string>
-    <string name="piped">Piped</string>
     <string name="instance">Instansi</string>
     <string name="click_to_select">Klik untuk memilih</string>
     <string name="username">Nama pengguna</string>
     <string name="password">Kata sandi</string>
     <string name="login">Masuk</string>
-    <string name="sync_description">Anda dapat menyimpan daftar putar di tempat lain dan menyinkronkannya dengan K4 Music. Saat ini hanya mendukung Piped.</string>
     <string name="add_account">Tambahkan akun</string>
-    <string name="add_account_description">Hubungkan akun Piped dengan instansi Anda, nama pengguna, dan kata sandi.</string>
     <string name="learn_more">Pelajari lebih lanjut</string>
-    <string name="learn_more_description">Tidak tahu apa itu Piped atau tidak memiliki akun? Klik di sini untuk diarahkan ke dokumennya</string>
-    <string name="piped_sessions">Sesi Piped</string>
     <string name="custom_instance">Gunakan Instansi Kustom</string>
     <string name="base_api_url">URL API Instansi</string>
     <string name="seek_bar_style">Gaya bar pencarian</string>

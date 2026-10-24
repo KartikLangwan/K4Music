@@ -66,6 +66,11 @@ object Downloads {
         synchronized(this@Downloads) { _done.value = index.ids() }
     }
 
+    /** Interrupted downloads leave `.part` files; at start nothing is running, so they are all garbage. */
+    fun sweepPartials() {
+        dir.listFiles { file -> file.name.endsWith(".part") }?.forEach { runCatching { it.delete() } }
+    }
+
     fun isDownloaded(id: String) = id in _done.value
 
     @Synchronized
@@ -154,11 +159,18 @@ object Downloads {
             if (stream.url.contains("googlevideo.com")) header("Range", "bytes=0-")
         }.build()
         http.newCall(request).useCancellable { response ->
-            check(response.isSuccessful) { "HTTP ${response.code}" }
+            if (!response.isSuccessful) {
+                // A refused url must not be served again from the resolver cache on Retry.
+                resolver.reject(track, stream)
+                error("HTTP ${response.code}")
+            }
             val body = response.body
             val extension = when {
                 body.contentType()?.subtype?.contains("webm") == true -> "webm"
                 stream.url.contains(".mp4") || body.contentType()?.subtype?.contains("mp4") == true -> "m4a"
+                body.contentType()?.subtype?.contains("mpeg") == true -> "mp3"
+                body.contentType()?.subtype?.let { it.contains("ogg") || it.contains("opus") } == true -> "ogg"
+                body.contentType()?.subtype?.contains("aac") == true -> "aac"
                 else -> "audio"
             }
             val name = "${safeName(track.id)}.$extension"

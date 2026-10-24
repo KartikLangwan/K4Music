@@ -1,0 +1,5 @@
+# Hand-written baseline profile: precompile app UI + playback hot paths for faster cold start and first scroll.
+# ponytail: broad wildcards, replace with a Macrobenchmark-generated profile if startup needs more tuning.
+HSPLcom/k4music/android/**->**(**)**
+HSPLcom/k4music/android/ui/**->**(**)**
+Lcom/k4music/android/**;

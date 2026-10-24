@@ -1,5 +1,6 @@
 package com.k4music.android.ui.components.themed
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -450,7 +451,7 @@ fun MediaItemMenu(
             )
 
             if (!isLocal) {
-                val progress = downloadProgress.collectAsState().value[songId]
+                val progress = downloadProgress.collectAsStateWithLifecycle().value[songId]
                 val downloaded = isCached(mediaItem.mediaId, key = progress != null)
                 val startDownload = {
                     onDismiss()

@@ -1,5 +1,6 @@
 package com.k4music.android.ui.screens.audio
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.annotation.OptIn
 import androidx.annotation.StringRes
 import androidx.media3.common.util.UnstableApi
@@ -109,7 +110,7 @@ fun AudioScreen() {
 @Composable
 private fun AudioEffectsContent() {
     val binder = LocalPlayerServiceBinder.current
-    val capabilities by (binder?.audioEffects ?: remember { MutableStateFlow(null) }).collectAsState()
+    val capabilities by (binder?.audioEffects ?: remember { MutableStateFlow(null) }).collectAsStateWithLifecycle()
     val bottom = LocalPlayerAwareWindowInsets.current
 
     val caps = capabilities

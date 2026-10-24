@@ -210,7 +210,12 @@ private fun QuickAccess(onOpen: (Screen) -> Unit) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             tiles.chunked(perRow).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    row.forEach { (title, icon, screen) -> QuickTile(title, icon, Modifier.weight(1f)) { onOpen(screen) } }
+                    row.forEach { (title, icon, screen) ->
+                        QuickTile(title, icon, Modifier.weight(1f)) {
+                            if (screen == Screen.Library) libraryTab = LibraryTab.Playlists
+                            onOpen(screen)
+                        }
+                    }
                 }
             }
         }

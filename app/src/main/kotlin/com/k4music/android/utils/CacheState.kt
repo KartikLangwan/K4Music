@@ -1,5 +1,6 @@
 package com.k4music.android.utils
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -55,7 +56,7 @@ fun PlaylistDownloadIcon(
     val context = LocalContext.current
     val (colorPalette, typography) = LocalAppearance.current
 
-    val progress by downloadProgress.collectAsState()
+    val progress by downloadProgress.collectAsStateWithLifecycle()
     val ids = remember(songs) { songs.map { it.mediaId }.toSet() }
     val mine = progress.values.filter { it.id in ids && !it.failed }
     val isDownloading = mine.isNotEmpty()

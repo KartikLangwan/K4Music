@@ -56,7 +56,6 @@ object PlayerPreferences : GlobalPreferencesHolder() {
     var isShowingSynchronizedLyrics by boolean(false)
 
     var isShowingPrevButtonCollapsed by boolean(false)
-    var horizontalSwipeToClose by boolean(false)
     var horizontalSwipeToRemoveItem by boolean(false)
 
     var seekBarStyle by enum(SeekBarStyle.Static)

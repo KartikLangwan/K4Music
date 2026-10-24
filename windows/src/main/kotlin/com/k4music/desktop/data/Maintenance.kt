@@ -69,8 +69,12 @@ object Maintenance {
             validateBackup(temp)
             replaceAtomic(temp, target)
             AppLog.i("Backup", "Library saved to $target")
-        } finally { temp.delete() }
+        } finally { deleteWithSidecars(temp) }
     }
+
+    /** A database file plus the lock/journal files SQLite leaves next to it after it was opened. */
+    private fun deleteWithSidecars(db: File) =
+        listOf("", ".lck", "-journal", "-wal", "-shm").forEach { File(db.path + it).delete() }
 
     private val restoreMutex = kotlinx.coroutines.sync.Mutex()
 
@@ -84,7 +88,7 @@ object Maintenance {
                 snapshot(source, staged)
                 validateBackup(staged)
                 replaceAtomic(staged, pending)
-            } finally { staged.delete() }
+            } finally { deleteWithSidecars(staged) }
         } finally { restoreMutex.unlock() }
     }
 
@@ -93,7 +97,9 @@ object Maintenance {
 
     /** Only the owning process calls this, before any library connections/background writers start. */
     fun applyPendingRestore() {
+        val restoring = pending.isFile
         lastRestoreError = applyRestore(AppPaths.database, pending)
+        if (restoring && lastRestoreError == null) LibrarySync.databaseReplaced()
     }
 
     internal fun applyRestore(database: File, candidate: File, verify: (File) -> Unit = ::validateBackup): String? {
@@ -115,7 +121,10 @@ object Maintenance {
             swapped = true
             // Exercise the normal Room opening path against the installed file before global Db opens.
             verify(database)
-            AppLog.i("Backup", "Library restored; recovery snapshots kept alongside data.db")
+            // One recovery copy is enough; older ones from earlier restores are whole libraries each.
+            database.parentFile?.listFiles { f -> f.name.startsWith("data-before-restore-") && f != rollback }
+                ?.forEach { runCatching { it.delete() } }
+            AppLog.i("Backup", "Library restored; the previous library is kept as ${rollback?.name ?: "(none)"}")
             return null
         } catch (error: Exception) {
             val message = if (swapped) {
@@ -186,13 +195,38 @@ object Maintenance {
             }
         }
 
-    suspend fun updateYtDlp(): String = runTool(
-        listOf(AppPaths.tools.resolve("yt-dlp/yt-dlp.exe").absolutePath, "-U"), 120
-    ).lines().lastOrNull { it.isNotBlank() }.orEmpty().also { AppLog.i("Maintenance", "yt-dlp -U: $it") }
+    /**
+     * yt-dlp -U replaces files in its own folder, which Windows refuses while another yt-dlp has them open:
+     * song lookups share this lock, the update takes it alone. (Not owner-bound: the update unlocks elsewhere.)
+     */
+    private val ytDlpLock = java.util.concurrent.locks.StampedLock()
+
+    /** Runs [block] (which starts yt-dlp) while no update is replacing it; blocking, interruptible. */
+    fun <T> usingYtDlp(block: () -> T): T {
+        val stamp = ytDlpLock.readLockInterruptibly()
+        try { return block() } finally { ytDlpLock.unlockRead(stamp) }
+    }
+
+    // Generous limit: killing -U halfway through replacing its files would break YouTube playback.
+    suspend fun updateYtDlp(): String {
+        val stamp = kotlinx.coroutines.runInterruptible(Dispatchers.IO) { ytDlpLock.writeLockInterruptibly() }
+        val output = try {
+            runTool(listOf(AppPaths.tools.resolve("yt-dlp/yt-dlp.exe").absolutePath, "-U"), 900)
+        } finally { ytDlpLock.unlockWrite(stamp) }
+        return output.lines().lastOrNull { it.isNotBlank() }.orEmpty().also { AppLog.i("Maintenance", "yt-dlp -U: $it") }
+    }
+
+    /** Weekly, and only when it worked: YouTube changes break old yt-dlp builds, and PC playback depends on it. */
+    fun updateYtDlpIfDue() {
+        if (System.currentTimeMillis() - com.k4music.desktop.prefs.Settings.ytDlpCheckedAt < 7 * 24 * 60 * 60 * 1000L) return
+        runCatching { kotlinx.coroutines.runBlocking { updateYtDlp() } }
+            .onSuccess { com.k4music.desktop.prefs.Settings.ytDlpCheckedAt = System.currentTimeMillis() }
+            .onFailure { AppLog.w("Maintenance", "yt-dlp update skipped: ${it.message}") }
+    }
 
     fun ytDlpVersion(): String = runCatching {
-        kotlinx.coroutines.runBlocking {
-            runTool(listOf(AppPaths.tools.resolve("yt-dlp/yt-dlp.exe").absolutePath, "--version"), 15)
+        usingYtDlp {
+            kotlinx.coroutines.runBlocking { runTool(listOf(AppPaths.tools.resolve("yt-dlp/yt-dlp.exe").absolutePath, "--version"), 15) }
         }
     }.getOrDefault("?")
 }

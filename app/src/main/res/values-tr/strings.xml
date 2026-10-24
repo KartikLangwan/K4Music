@@ -101,8 +101,6 @@
     <string name="error_server_restrictions">Sunucu kısıtlamaları nedeniyle bu şarkı çalınamıyor</string>
     <string name="error_id_mismatch">Döndürülen video kimliği istenenle eşleşmiyor</string>
     <string name="error_unknown_playback">Bilinmeyen bir oynatma hatası oluştu</string>
-    <string name="error_piped_link">Piped hesabınız bağlanırken bilinmeyen bir hata oluştu. Lütfen tekrar deneyin.</string>
-    <string name="error_piped_instances_unavailable">Piped örnek listesi şu anda kullanılamıyor</string>
     <string name="error_pre_cache">Önbelleğe alma sırasında bilinmeyen bir hata oluştu. Lütfen tekrar deneyin.</string>
     <string name="error_url">%1$s bağlantısı açılamıyor</string>
     <string name="media_permission_declined">İzin reddedildi, lütfen cihazınızın ayarlarında medya izinleri verin.</string>
@@ -188,8 +186,6 @@
     <string name="player">Oyuncu</string>
     <string name="previous_button_while_collapsed">Daraltılmış durumdayken önceki düğme</string>
     <string name="previous_button_while_collapsed_description">Oynatıcı daraltılmış durumdayken önceki şarkı düğmesini gösterir</string>
-    <string name="swipe_horizontally_to_close">Kapatmak için yatay olarak kaydırın</string>
-    <string name="swipe_horizontally_to_close_description">Daraltılmış oyuncu üzerinde sola/sağa kaydırırken oyuncuyu kapatır. Android\'in tek elle modu etkin olan kullanıcılar için kullanışlıdır.</string>
     <string name="show_like_button">Beğen düğmesini göster</string>
     <string name="show_like_button_description">Beğen düğmesini doğrudan oynatıcıda göster</string>
     <string name="swipe_to_remove_item">Ürünü kaldırmak için kaydırın</string>
@@ -270,18 +266,13 @@
     <string name="quick_picks_source">Hızlı Seçim Kaynağı</string>
     <string name="quick_picks_cache">Hızlı seçim verilerini önbelleğe al</string>
     <string name="quick_picks_cache_description">Çevrimdışı erişim için hızlı seçim verilerini diske kaydeder</string>
-    <string name="piped">Piped</string>
     <string name="instance">Örnek</string>
     <string name="click_to_select">Seçmek için tıklayın</string>
     <string name="username">Kullanıcı adı</string>
     <string name="password">Parola</string>
     <string name="login">Giriş</string>
-    <string name="sync_description">Oynatma listelerini başka bir yerde barındırabilir ve bunları K4 Music ile senkronize edebilirsiniz. Şu anda yalnızca Piped\'ı destekliyor.</string>
     <string name="add_account">Hesap ekle</string>
-    <string name="add_account_description">Piped hesabınızı oturumunuz, kullanıcı adınız ve şifrenizle bağlayın.</string>
     <string name="learn_more">Daha fazla bilgi edinin</string>
-    <string name="learn_more_description">Piped\'ın ne olduğunu bilmiyor musunuz veya bir hesabınız yok mu? Dokümanlarına yönlendirilmek için buraya tıklayın</string>
-    <string name="piped_sessions">Piped oturumları</string>
     <string name="custom_instance">Özel Örnek Kullan</string>
     <string name="base_api_url">Örnek API Bağlantısı</string>
     <string name="seek_bar_style">Bar tarzı ara</string>
