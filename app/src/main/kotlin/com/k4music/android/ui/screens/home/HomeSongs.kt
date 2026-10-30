@@ -132,6 +132,7 @@ fun HomeSongs(
     val keyboardController = LocalSoftwareKeyboardController.current
 
     val isLocalList = title == stringResource(R.string.local)
+    val context = androidx.compose.ui.platform.LocalContext.current
     var filter: String? by rememberSaveable { mutableStateOf(null) }
     var items by persistList<Song>("home/songs/$title")
     val filteredItems by remember {
@@ -241,7 +242,12 @@ fun HomeSongs(
             }
 
             if (items.isEmpty()) item(key = "empty-library") {
-                if (loaded) MusicEmptyState(
+                if (loaded && isLocalList) MusicEmptyState(
+                    title = "No songs of your own yet",
+                    message = "Put audio files in Music › K4 Audio on this phone and they show up here.",
+                    action = "Open music folder",
+                    onAction = { com.k4music.android.ui.components.themed.MusicFolder.open(context) }
+                ) else if (loaded) MusicEmptyState(
                     title = stringResource(R.string.library_empty_title),
                     message = stringResource(R.string.library_empty_description),
                     action = stringResource(R.string.search),

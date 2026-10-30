@@ -91,7 +91,7 @@ fun About() = SettingsCategoryScreen(
         )
         SettingsEntry(
             title = "GitHub",
-            text = "KartikLangwan/K4Music",
+            text = "KartikLangwan/K4Audio",
             onClick = { openLink(Brand.GITHUB_URL) }
         )
     }

@@ -37,6 +37,7 @@ private val faq = listOf(
     R.string.faq_q_playstore to R.string.faq_a_playstore,
     R.string.faq_q_update to R.string.faq_a_update,
     R.string.faq_q_backup to R.string.faq_a_backup,
+    R.string.faq_q_music_folder to R.string.faq_a_music_folder,
     R.string.faq_q_downloads to R.string.faq_a_downloads,
     R.string.faq_q_download_how to R.string.faq_a_download_how,
     R.string.faq_q_import to R.string.faq_a_import,

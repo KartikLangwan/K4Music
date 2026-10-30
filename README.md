@@ -5,7 +5,7 @@
 
 <a href="https://k4music.vercel.app/download"><img src="https://img.shields.io/badge/Android-Download%20APK-555555?style=for-the-badge&logo=android&logoColor=white" alt="Download for Android"/></a>
 <a href="https://k4music.vercel.app/download/windows"><img src="https://img.shields.io/badge/Windows-Download%20installer-555555?style=for-the-badge&logo=windows&logoColor=white" alt="Download for Windows"/></a>
-<a href="https://github.com/KartikLangwan/K4Music/releases"><img src="https://img.shields.io/badge/All%20releases-555?style=for-the-badge&logo=github" alt="All releases"/></a>
+<a href="https://github.com/KartikLangwan/K4Audio/releases"><img src="https://img.shields.io/badge/All%20releases-555?style=for-the-badge&logo=github" alt="All releases"/></a>
 
 <p>
 <img src="https://img.shields.io/badge/Android-7.0%2B-3DDC84?logo=android&logoColor=white" alt="Android 7.0+"/>
@@ -21,14 +21,14 @@
 
 ## Download
 
-Downloads are in this repository's [**Releases**](https://github.com/KartikLangwan/K4Music/releases) and on [k4music.vercel.app](https://k4music.vercel.app).
+Downloads are in this repository's [**Releases**](https://github.com/KartikLangwan/K4Audio/releases) and on [k4music.vercel.app](https://k4music.vercel.app).
 
 | | Android | Windows |
 | --- | --- | --- |
-| **File** | [K4Music-v2.14.26-RELEASE.apk](https://github.com/KartikLangwan/K4Music/releases/download/v2.14.26/K4Music-v2.14.26-RELEASE.apk) | [K4Music-Setup-2.14.26.exe](https://github.com/KartikLangwan/K4Music/releases/download/v2.14.26/K4Music-Setup-2.14.26.exe) |
+| **File** | [K4Audio-v2.14.26-RELEASE.apk](https://github.com/KartikLangwan/K4Audio/releases/download/v2.14.26/K4Audio-v2.14.26-RELEASE.apk) | [K4Audio-Setup-2.14.26.exe](https://github.com/KartikLangwan/K4Audio/releases/download/v2.14.26/K4Audio-Setup-2.14.26.exe) |
 | **Requires** | Android 7.0+, 64-bit ARM (arm64-v8a) | Windows 10 / 11, 64-bit |
 | **Size** | 26.8 MB | 116.2 MB |
-| **SHA-256** | `D7D33BDA1FABB393EF308C18821910D2827CDE4A44613DB3B6EDE7D3FD183361` | `A1929E1A4EEACD2C6678A81A40BE2E786BECEE86A807A7A77484A9C71BE15673` |
+| **SHA-256** | `52EC648D3A8F788F7F96221DDF3F28E042CF6C06D932C1E824BD7B264A797557` | `79AAA0E615505EE380FC35BA25CAB4AEB721175ACF12980E09C59CC4B332AE89` |
 
 2.14.26 installs over 2.12.14 and keeps your library, likes, downloads and history. Libraries backed up from 2.14.26 need 2.14.26 or newer to restore.
 
@@ -40,6 +40,7 @@ Downloads are in this repository's [**Releases**](https://github.com/KartikLangw
 
 - **K4 Audio:** the app was called K4 Music. New name, new logo and a black-and-white minimal theme on phone and PC. Installing over the old app keeps your library, likes, playlists and downloads; on PC your old `K4 Music` data folder is moved to `K4 Audio` on first start.
 - **A music folder you can see:** `Music\K4 Audio` on the PC is created automatically; on the phone it is `Music › K4 Audio`. Songs you drop in appear under *Library → Local*, and an **Open music folder** button is in the Local tab (and PC Settings).
+- **Time-aware greeting:** Home now says Good morning / afternoon / evening / night (it said "Good evening" in the middle of the night).
 - **Phone → PC transfer sends every playlist** (YouTube and Spotify imports too), not only liked songs.
 - **Downloads:** fewer parallel downloads on the phone, and the PC retries YouTube with other clients when it asks if you are a bot (plus an optional browser sign-in in Settings → Player).
 

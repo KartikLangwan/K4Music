@@ -13,6 +13,13 @@
     <string name="faq_q_backup">How do I back up or move my library?</string>
     <string name="faq_a_backup">Open Settings → Backup &amp; restore.\n\n• Backup saves one .db file with your favourites, playlists, history and lyrics. Keep it in Downloads or on Google Drive.\n• Restore picks that file. K4 Audio checks it, keeps a copy of your current library, swaps it in and restarts.\n\nUse it before uninstalling, when changing phones, or before trying a different build.</string>
 
+    <string name="faq_q_music_folder">Where do I put my own songs, and how do I bring music from my PC?</string>
+    <string name="faq_a_music_folder">Put audio files in Music → K4 Audio on your phone. They appear under Library → Local by themselves, and the Open music folder button there takes you to the folder.
+
+From a PC: connect the phone with USB, choose File transfer, then copy the audio files into Music → K4 Audio. On the PC app the same folder is Music\K4 Audio, and Scan adds new files.
+
+Likes and playlists travel separately: PC Settings → Phone transfer shows a QR code, and the phone sends them from Settings → Backup &amp; restore → Send library to PC.</string>
+
     <string name="faq_q_downloads">Are my downloaded songs in the backup?</string>
     <string name="faq_a_downloads">No. The backup holds your library, not the audio files. After restoring on a new phone, open a playlist and tap the download icon to fetch its songs again.</string>
 

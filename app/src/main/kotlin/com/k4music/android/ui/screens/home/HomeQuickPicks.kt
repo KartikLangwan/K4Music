@@ -172,7 +172,8 @@ fun QuickPicks(
     val greeting = when (remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }) {
         in 5..11 -> R.string.good_morning
         in 12..16 -> R.string.good_afternoon
-        else -> R.string.good_evening
+        in 17..21 -> R.string.good_evening
+        else -> R.string.good_night
     }
     fun play(song: Innertube.SongItem) {
         binder?.stopRadio()

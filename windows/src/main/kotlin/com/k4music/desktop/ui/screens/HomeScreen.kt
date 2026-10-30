@@ -39,6 +39,7 @@ import com.k4music.desktop.res.favorites
 import com.k4music.desktop.res.good_afternoon
 import com.k4music.desktop.res.good_evening
 import com.k4music.desktop.res.good_morning
+import com.k4music.desktop.res.good_night
 import com.k4music.desktop.res.heart
 import com.k4music.desktop.res.history
 import com.k4music.desktop.res.home_based_on
@@ -193,7 +194,8 @@ fun HomeScreen() {
 private fun greeting(): StringResource = when (java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)) {
     in 5..11 -> Res.string.good_morning
     in 12..16 -> Res.string.good_afternoon
-    else -> Res.string.good_evening
+    in 17..21 -> Res.string.good_evening
+    else -> Res.string.good_night
 }
 
 @Composable

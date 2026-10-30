@@ -42,7 +42,7 @@ object Updater {
     /** The newest release if it is newer than this app; null when up to date. Throws when offline. */
     suspend fun check(): Update? = withContext(Dispatchers.IO) {
         // Releases of the public K4Audio repo.
-        val releases = GitHub.releases(owner = "KartikLangwan", repo = "K4Music")?.getOrThrow().orEmpty()
+        val releases = GitHub.releases(owner = "KartikLangwan", repo = "K4Audio")?.getOrThrow().orEmpty()
         val latest = releases.filter { !it.draft && !it.preRelease }
             .maxWithOrNull { a, b -> compareVersions(a.tag.trimStart('v', 'V'), b.tag.trimStart('v', 'V')) }
             ?: return@withContext null
@@ -58,7 +58,8 @@ object Updater {
     suspend fun download(update: Update, onProgress: (Float) -> Unit): File = withContext(Dispatchers.IO) {
         val url = URI(requireNotNull(update.installerUrl))
         require(url.scheme == "https" && url.host.equals("github.com", true) &&
-            url.path.startsWith("/KartikLangwan/K4Music/releases/download/", true)) { "Unexpected update source" }
+            (url.path.startsWith("/KartikLangwan/K4Audio/releases/download/", true) ||
+                url.path.startsWith("/KartikLangwan/K4Music/releases/download/", true))) { "Unexpected update source" } // the repo was renamed: older links still point at K4Music
         require(update.version.matches(Regex("[0-9]+(?:\\.[0-9]+){1,3}"))) { "Invalid update version" }
         val expected = requireNotNull(update.digest).removePrefix("sha256:")
         require(expected.matches(Regex("[0-9a-fA-F]{64}"))) { "Missing update checksum" }
