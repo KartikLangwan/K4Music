@@ -25,7 +25,8 @@ import com.k4music.app.R
 import com.k4music.core.ui.Appearance
 
 // ponytail: accent color is user-configurable; K4Accent is the default.
-val K4Accent = Color(0xFF7B5CFF)
+val K4Accent = Color(0xFFF5F5F5)
+private const val LEGACY_VIOLET = "7B5CFF"
 val K4Error = Color(0xFFFF5A5F)
 
 val LocalAccentColor = staticCompositionLocalOf { K4Accent }
@@ -47,16 +48,16 @@ private fun darkScheme(accent: Color) = darkColorScheme(
     onPrimaryContainer = if (isLightColor(accent)) Color.Black else Color.White,
     secondary = accent,
     tertiary = accent.copy(alpha = 0.8f),
-    background = Color(0xFF0B0C10),
-    onBackground = Color(0xFFF2F4F8),
-    surface = Color(0xFF131419),
-    onSurface = Color(0xFFF2F4F8),
-    surfaceVariant = Color(0xFF1B1D24),
-    onSurfaceVariant = Color(0xFF9BA3B0),
-    surfaceContainer = Color(0xFF22242C),
-    surfaceContainerHigh = Color(0xFF2A2D36),
-    outline = Color(0xFF2E313B),
-    outlineVariant = Color(0xFF22242C),
+    background = Color(0xFF050505),
+    onBackground = Color(0xFFF5F5F5),
+    surface = Color(0xFF0E0E0E),
+    onSurface = Color(0xFFF5F5F5),
+    surfaceVariant = Color(0xFF161616),
+    onSurfaceVariant = Color(0xFF9A9A9A),
+    surfaceContainer = Color(0xFF1C1C1C),
+    surfaceContainerHigh = Color(0xFF262626),
+    outline = Color(0xFF3A3A3A),
+    outlineVariant = Color(0xFF262626),
     error = K4Error,
     onError = Color.White
 )
@@ -68,16 +69,16 @@ private fun lightScheme(accent: Color) = lightColorScheme(
     onPrimaryContainer = if (isLightColor(accent)) Color.Black else Color.White,
     secondary = accent,
     tertiary = accent.copy(alpha = 0.8f),
-    background = Color(0xFFFAFAFC),
-    onBackground = Color(0xFF0B0C10),
+    background = Color(0xFFF5F5F5),
+    onBackground = Color(0xFF0A0A0A),
     surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF0B0C10),
-    surfaceVariant = Color(0xFFEEF0F5),
-    onSurfaceVariant = Color(0xFF55606E),
-    surfaceContainer = Color(0xFFF4F5F9),
-    surfaceContainerHigh = Color(0xFFECEEF3),
-    outline = Color(0xFFDFE3EA),
-    outlineVariant = Color(0xFFE9ECF2),
+    onSurface = Color(0xFF0A0A0A),
+    surfaceVariant = Color(0xFFEDEDED),
+    onSurfaceVariant = Color(0xFF5A5A5A),
+    surfaceContainer = Color(0xFFF0F0F0),
+    surfaceContainerHigh = Color(0xFFE6E6E6),
+    outline = Color(0xFFBDBDBD),
+    outlineVariant = Color(0xFFDADADA),
     error = K4Error,
     onError = Color.White
 )
@@ -86,8 +87,13 @@ private fun lightScheme(accent: Color) = lightColorScheme(
 fun isLightColor(c: Color): Boolean = 0.299 * c.red + 0.587 * c.green + 0.114 * c.blue > 0.62
 
 /** The K4 ribbon gradient from the logo, same as the PC app: lavender into the accent into a deep shade. */
-fun brandBrush(accent: Color) =
-    Brush.linearGradient(listOf(lerp(accent, Color.White, 0.40f), accent, lerp(accent, Color.Black, 0.25f)))
+fun brandBrush(accent: Color) = Brush.linearGradient(
+    if (isMonochrome(accent)) listOf(Color(0xFF7A7A7A), Color(0xFF555555), Color(0xFF3A3A3A)) // graphite: white icons stay readable
+    else listOf(lerp(accent, Color.White, 0.40f), accent, lerp(accent, Color.Black, 0.25f))
+)
+
+/** Black, white and greys: the accent of the minimal theme. */
+fun isMonochrome(c: Color) = maxOf(c.red, c.green, c.blue) - minOf(c.red, c.green, c.blue) < 0.08f
 
 /**
  * The PC app's backdrop: the accent glowing from the top left and the K4 ribbon colour from the
@@ -97,8 +103,9 @@ fun Modifier.k4Backdrop(accent: Color, dark: Boolean) = drawWithCache {
     val big = maxOf(size.width, size.height)
     fun glow(color: Color, x: Float, y: Float, radius: Float) =
         Brush.radialGradient(listOf(color, Color.Transparent), Offset(size.width * x, size.height * y), big * radius)
-    val top = glow(accent.copy(alpha = if (dark) 0.30f else 0.18f), 0.08f, 0.10f, 0.72f)
-    val bottom = glow(lerp(accent, Color.White, 0.35f).copy(alpha = if (dark) 0.16f else 0.10f), 1f, 0.92f, 0.62f)
+    val soft = if (isMonochrome(accent)) 0.25f else 1f // a white accent glows only faintly: black stays black
+    val top = glow(accent.copy(alpha = (if (dark) 0.30f else 0.18f) * soft), 0.08f, 0.10f, 0.72f)
+    val bottom = glow(lerp(accent, Color.White, 0.35f).copy(alpha = (if (dark) 0.16f else 0.10f) * soft), 1f, 0.92f, 0.62f)
     onDrawBehind {
         drawRect(top)
         drawRect(bottom)
@@ -108,6 +115,7 @@ fun Modifier.k4Backdrop(accent: Color, dark: Boolean) = drawWithCache {
 // ponytail: parseHexColor tolerates malformed input with a fallback; never throws.
 fun parseHexColor(hex: String, fallback: Color = K4Accent): Color {
     val clean = hex.trim().removePrefix("#")
+    if (clean.equals(LEGACY_VIOLET, ignoreCase = true)) return K4Accent
     return try {
         when (clean.length) {
             6, 8 -> Color("#$clean".toColorInt())

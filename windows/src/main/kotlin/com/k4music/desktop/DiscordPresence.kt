@@ -22,15 +22,15 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 /**
- * "Playing K4 Music" on the user's Discord profile: song, artist, cover, a time bar and two
+ * "Playing K4 Audio" on the user's Discord profile: song, artist, cover, a time bar and two
  * links. Talks to the Discord desktop app over its local IPC pipe (no account, no
  * token, nothing leaves the PC except to Discord itself).
  *
- * Fully resilient to Discord starting after K4 Music or restarting during playback.
+ * Fully resilient to Discord starting after K4 Audio or restarting during playback.
  */
 object DiscordPresence {
     /**
-     * The "K4 Music" application in the Discord Developer Portal (its name is what Discord shows).
+     * The "K4 Audio" application in the Discord Developer Portal (its name is what Discord shows).
      * Empty turns the feature off.
      */
     const val APP_ID = "1559966291790667868"
@@ -109,8 +109,8 @@ object DiscordPresence {
     }
 
     /**
-     * "Playing K4 Music" for as long as the app runs (window, tray, paused or not). Only the
-     * "Playing" type puts K4 Music's icon next to the name in voice channels; "Listening to" does not.
+     * "Playing K4 Audio" for as long as the app runs (window, tray, paused or not). Only the
+     * "Playing" type puts K4 Audio's icon next to the name in voice channels; "Listening to" does not.
      */
     private fun activity(track: Track?, playing: Boolean, start: Long, durationSeconds: Double): JsonObject = buildJsonObject {
         put("type", 0)
@@ -119,7 +119,7 @@ object DiscordPresence {
             put("state", "Your music. Every screen.")
         } else {
             put("details", fit(track.title))
-            val artists = track.artists ?: "K4 Music"
+            val artists = track.artists ?: "K4 Audio"
             put("state", fit(if (playing) artists else "Paused · $artists"))
             if (playing && durationSeconds > 0) putJsonObject("timestamps") {
                 put("start", start)
@@ -129,16 +129,16 @@ object DiscordPresence {
         putJsonObject("assets") {
             val cover = track?.thumbnailUrl?.takeIf { it.startsWith("https://") && it.length <= 256 }
             put("large_image", cover ?: LOGO)
-            put("large_text", fit(track?.album ?: track?.title ?: "K4 Music"))
+            put("large_text", fit(track?.album ?: track?.title ?: "K4 Audio"))
             if (cover != null) {
                 put("small_image", LOGO)
-                put("small_text", if (playing) "K4 Music" else "Paused")
+                put("small_text", if (playing) "K4 Audio" else "Paused")
             }
         }
         // Discord allows two: the app's website and the developer's.
         putJsonArray("buttons") {
             addJsonObject {
-                put("label", "Get K4 Music")
+                put("label", "Get K4 Audio")
                 put("url", "https://k4music.vercel.app")
             }
             addJsonObject {

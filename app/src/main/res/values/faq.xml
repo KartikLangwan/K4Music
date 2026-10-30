@@ -4,14 +4,14 @@
     <string name="settings_backup_title">Backup &amp; restore</string>
     <string name="settings_backup_summary">Save your library to a file or bring it back</string>
 
-    <string name="faq_q_playstore">Why isn’t K4 Music on the Play Store?</string>
-    <string name="faq_a_playstore">K4 Music plays songs from YouTube Music and JioSaavn. The Play Store doesn’t allow apps that stream from these services without an official licence, so K4 Music is shared as a free APK from kartiklangwan.vercel.app instead. It has no ads, no account and no tracking.</string>
+    <string name="faq_q_playstore">Why isn’t K4 Audio on the Play Store?</string>
+    <string name="faq_a_playstore">K4 Audio plays songs from YouTube Music and JioSaavn. The Play Store doesn’t allow apps that stream from these services without an official licence, so K4 Audio is shared as a free APK from kartiklangwan.vercel.app instead. It has no ads, no account and no tracking.</string>
 
     <string name="faq_q_update">How do I update to a new version?</string>
-    <string name="faq_a_update">Download the latest APK from the website and install it over the current app. Your favourites, playlists and history stay as they are.\n\nIf Android says “App not installed” or that the package conflicts: first make a backup (Settings → Backup &amp; restore → Backup), then uninstall K4 Music, install the new APK and restore your backup.</string>
+    <string name="faq_a_update">Download the latest APK from the website and install it over the current app. Your favourites, playlists and history stay as they are.\n\nIf Android says “App not installed” or that the package conflicts: first make a backup (Settings → Backup &amp; restore → Backup), then uninstall K4 Audio, install the new APK and restore your backup.</string>
 
     <string name="faq_q_backup">How do I back up or move my library?</string>
-    <string name="faq_a_backup">Open Settings → Backup &amp; restore.\n\n• Backup saves one .db file with your favourites, playlists, history and lyrics. Keep it in Downloads or on Google Drive.\n• Restore picks that file. K4 Music checks it, keeps a copy of your current library, swaps it in and restarts.\n\nUse it before uninstalling, when changing phones, or before trying a different build.</string>
+    <string name="faq_a_backup">Open Settings → Backup &amp; restore.\n\n• Backup saves one .db file with your favourites, playlists, history and lyrics. Keep it in Downloads or on Google Drive.\n• Restore picks that file. K4 Audio checks it, keeps a copy of your current library, swaps it in and restarts.\n\nUse it before uninstalling, when changing phones, or before trying a different build.</string>
 
     <string name="faq_q_downloads">Are my downloaded songs in the backup?</string>
     <string name="faq_a_downloads">No. The backup holds your library, not the audio files. After restoring on a new phone, open a playlist and tap the download icon to fetch its songs again.</string>

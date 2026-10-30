@@ -1,5 +1,5 @@
 <resources>
-    <style name="Theme.K4Music" parent="@android:style/Theme.Material.NoActionBar">
+    <style name="Theme.K4Audio" parent="@android:style/Theme.Material.NoActionBar">
         <item name="android:windowBackground">@drawable/splash_background</item>
         <item name="android:windowSplashScreenBackground">@android:color/black</item>
         <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>

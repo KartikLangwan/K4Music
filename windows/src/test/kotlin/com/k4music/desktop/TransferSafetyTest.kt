@@ -65,7 +65,7 @@ class TransferSafetyTest {
     fun maintenanceRejectsFailedProcessesInsteadOfReportingSuccess() = runBlocking<Unit> {
         val javaExecutable = java.io.File(System.getProperty("java.home"), "bin/java.exe").absolutePath
         assertFailsWith<IllegalStateException> {
-            Maintenance.runTool(listOf(javaExecutable, "-XX:K4MusicInvalidOption"), 5)
+            Maintenance.runTool(listOf(javaExecutable, "-XX:K4AudioInvalidOption"), 5)
         }
     }
 }

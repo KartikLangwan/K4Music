@@ -76,14 +76,14 @@ fun AppearanceSettings() = with(AppearancePreferences) {
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         val presets = listOf(
-                            "#7B5CFF" to "Violet",
+                            "#F5F5F5" to "Mono",
                             "#FF2A6D" to "Rose",
                             "#FF9100" to "Amber",
                             "#00E676" to "Emerald",
                             "#00E5FF" to "Cyan",
                             "#2979FF" to "Blue",
                             "#FF80AB" to "Pink",
-                            "#9D4EDD" to "Amethyst"
+                            "#9A9A9A" to "Graphite"
                         )
                         items(presets, key = { it.first }) { (hex, name) ->
                             val color = com.k4music.android.ui.theme.parseHexColor(hex)

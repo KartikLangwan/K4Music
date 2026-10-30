@@ -131,6 +131,7 @@ fun HomeSongs(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
+    val isLocalList = title == stringResource(R.string.local)
     var filter: String? by rememberSaveable { mutableStateOf(null) }
     var items by persistList<Song>("home/songs/$title")
     val filteredItems by remember {
@@ -233,6 +234,10 @@ fun HomeSongs(
 
                     HeaderSongSortBy(sortBy, setSortBy, sortOrder, setSortOrder)
                 }
+            }
+
+            if (isLocalList) item(key = "music-folder") {
+                com.k4music.android.ui.components.themed.MusicFolderCard()
             }
 
             if (items.isEmpty()) item(key = "empty-library") {

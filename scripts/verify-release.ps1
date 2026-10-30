@@ -61,7 +61,7 @@ try {
     } finally { $archive.Dispose() }
 
     $version = $entry.versionName -replace '-RELEASE$', ''
-    $deliveryPath = Join-Path $projectRoot "K4Music-v$version-RELEASE.apk"
+    $deliveryPath = Join-Path $projectRoot "K4Audio-v$version-RELEASE.apk"
     Copy-Item -LiteralPath $apk -Destination $deliveryPath -Force
     $hash = (Get-FileHash -LiteralPath $deliveryPath -Algorithm SHA256).Hash
     "$hash  $([System.IO.Path]::GetFileName($deliveryPath))" | Set-Content "$deliveryPath.sha256"

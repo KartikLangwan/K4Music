@@ -61,7 +61,7 @@ private val executor = Executors.newCachedThreadPool()
 private val coroutineScope = CoroutineScope(
     executor.asCoroutineDispatcher() +
         SupervisorJob() +
-        CoroutineExceptionHandler { _, error -> Log.e("K4Music", "Unhandled background error", error) } +
+        CoroutineExceptionHandler { _, error -> Log.e("K4Audio", "Unhandled background error", error) } +
         CoroutineName("PrecacheService-Worker-Scope")
 )
 
@@ -219,7 +219,7 @@ class PrecacheService : DownloadService(
             ),
             /* executor = */ executor
         ).apply {
-            maxParallelDownloads = 4
+            maxParallelDownloads = 2 // each one runs the Python resolver; four at once starved the UI
             minRetryCount = 3
             requirements = Requirements(Requirements.NETWORK)
 
@@ -228,7 +228,7 @@ class PrecacheService : DownloadService(
             progressTicker = mainScope.launch {
                 while (true) {
                     publishProgress()
-                    delay(500)
+                    delay(if (mutableDownloadState.value) 500 else 3_000) // idle: no need to wake the main thread twice a second
                 }
             }
 

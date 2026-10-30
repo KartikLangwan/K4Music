@@ -1,4 +1,4 @@
-; K4 Music for Windows — installer, updater and uninstaller.
+; K4 Audio for Windows — installer, updater and uninstaller.
 ; Built by `gradlew -p windows packageInstaller`, which passes AppVersion, AppImage, OutDir and RepoRoot.
 
 #ifndef AppVersion
@@ -8,17 +8,17 @@
   #define RepoRoot "..\.."
 #endif
 #ifndef AppImage
-  #define AppImage RepoRoot + "\windows\build\compose\binaries\main\app\K4 Music"
+  #define AppImage RepoRoot + "\windows\build\compose\binaries\main\app\K4 Audio"
 #endif
 #ifndef OutDir
   #define OutDir RepoRoot + "\windows\build\installer"
 #endif
 
-#define AppName "K4 Music"
-#define AppExe "K4 Music.exe"
+#define AppName "K4 Audio"
+#define AppExe "K4 Audio.exe"
 ; The running app holds this mutex (SingleInstance.kt); the id matches the app's AppUserModelID.
-#define AppMutexName "K4MusicAppMutex"
-#define AppUserModelID "KartikLangwan.K4Music"
+#define AppMutexName "K4AudioAppMutex"
+#define AppUserModelID "KartikLangwan.K4Audio"
 #define UninstallKey "Software\Microsoft\Windows\CurrentVersion\Uninstall\{6F1D2B7A-4E3C-4A8B-9C21-5D7E3A9B1C04}_is1"
 
 [Setup]
@@ -45,8 +45,8 @@ DisableProgramGroupPage=yes
 DisableWelcomePage=no
 LicenseFile={#RepoRoot}\LICENSE
 OutputDir={#OutDir}
-OutputBaseFilename=K4Music-Setup-{#AppVersion}
-SetupIconFile={#RepoRoot}\windows\icons\k4music.ico
+OutputBaseFilename=K4Audio-Setup-{#AppVersion}
+SetupIconFile={#RepoRoot}\windows\icons\k4audio.ico
 UninstallDisplayIcon={app}\{#AppExe}
 UninstallDisplayName={#AppName}
 WizardStyle=modern
@@ -55,7 +55,7 @@ SolidCompression=yes
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
-; A running K4 Music is closed by the [Code] below (politely first); Restart Manager is the backstop.
+; A running K4 Audio is closed by the [Code] below (politely first); Restart Manager is the backstop.
 CloseApplications=yes
 RestartApplications=no
 
@@ -75,11 +75,12 @@ Name: "catalan"; MessagesFile: "compiler:Languages\Catalan.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
-Name: "startup"; Description: "Start K4 Music (minimized) when I sign in to Windows"; GroupDescription: "Startup:"; Flags: unchecked
+Name: "startup"; Description: "Start K4 Audio (minimized) when I sign in to Windows"; GroupDescription: "Startup:"; Flags: unchecked
 
 [Registry]
 ; The same value the app's own "Start with Windows" switch writes (StartupManager.kt); unchecked unless chosen here.
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "K4Music"; ValueData: """{app}\{#AppExe}"" --startup"; Flags: uninsdeletevalue; Tasks: startup
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "K4Audio"; ValueData: """{app}\{#AppExe}"" --startup"; Flags: uninsdeletevalue; Tasks: startup
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "K4Music"; Flags: deletevalue
 
 [Files]
 Source: "{#AppImage}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -127,7 +128,7 @@ begin
   Result := CheckForMutexes('{#AppMutexName}');
 end;
 
-{ Asks a running K4 Music to quit (it saves the queue and settings). True once it is gone.
+{ Asks a running K4 Audio to quit (it saves the queue and settings). True once it is gone.
   Never force-kill it (taskkill): Windows Smart App Control then blocks this whole installer.
   A version that does not know --quit is left to Restart Manager (CloseApplications). }
 function CloseRunningApp(Exe: String): Boolean;
@@ -236,14 +237,14 @@ procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   // The app's own "Start with Windows" switch writes this too, not only the installer task: never leave it pointing at nothing.
   if CurUninstallStep = usUninstall then
-    RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'K4Music');
+    RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'K4Audio');
   // The library is the user's data: keep it unless they say otherwise (never asked in silent mode).
   if (CurUninstallStep = usPostUninstall) and (not UninstallSilent) then
-    if MsgBox('Also delete your K4 Music library, playlists, settings and downloads?' + #13#10 +
+    if MsgBox('Also delete your K4 Audio library, playlists, settings and downloads?' + #13#10 +
               'Choose No to keep them for a future install.',
               mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
     begin
-      DelTree(ExpandConstant('{userappdata}\K4 Music'), True, True, True);
-      DelTree(ExpandConstant('{localappdata}\K4 Music'), True, True, True);
+      DelTree(ExpandConstant('{userappdata}\K4 Audio'), True, True, True);
+      DelTree(ExpandConstant('{localappdata}\K4 Audio'), True, True, True);
     end;
 end;

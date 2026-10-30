@@ -112,7 +112,7 @@
     <string name="no_browser_installed">找不到浏览互联网的应用程序</string>
     <string name="no_equalizer_installed">找不到均衡音频的应用程序</string>
     <string name="no_file_chooser_installed">找不到创建文档的应用程序</string>
-    <string name="no_battery_optimization_settings_found">找不到电池优化设置，请手动将 K4 Music 加入白名单</string>
+    <string name="no_battery_optimization_settings_found">找不到电池优化设置，请手动将 K4 Audio 加入白名单</string>
     <string name="related_albums">相关专辑</string>
     <string name="similar_artists">相似艺术家</string>
     <string name="recommended_playlists">您可能喜欢的播放列表</string>
@@ -223,7 +223,7 @@
     <string name="backup_description">个人偏好（如主题模式）和缓存将被排除</string>
     <string name="backup_action_description">将数据库导出到外部存储</string>
     <string name="restore">恢复</string>
-    <string name="restore_warning">现有数据将被覆盖。\n恢复数据库后，K4 Music 将自动关闭</string>
+    <string name="restore_warning">现有数据将被覆盖。\n恢复数据库后，K4 Audio 将自动关闭</string>
     <string name="restore_description">从外部存储导入数据库</string>
     <string name="other">其他</string>
     <string name="android_auto">Android Auto</string>

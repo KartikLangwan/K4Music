@@ -241,7 +241,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
 
     private lateinit var bitmapProvider: BitmapProvider
 
-    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob() + CoroutineExceptionHandler { _, error -> Log.e("K4Music", "Unhandled background error", error) })
+    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob() + CoroutineExceptionHandler { _, error -> Log.e("K4Audio", "Unhandled background error", error) })
     private var preferenceUpdaterJob: Job? = null
     private var volumeNormalizationJob: Job? = null
     private var sponsorBlockJob: Job? = null
@@ -1047,7 +1047,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                 .setOnlyAlertOnce(true)
                 .setShowWhen(false)
                 .setSmallIcon(
-                    player.playerError?.let { R.drawable.alert_circle } ?: R.drawable.ic_stat_k4music
+                    player.playerError?.let { R.drawable.alert_circle } ?: R.drawable.ic_stat_k4audio
                 )
                 .setOngoing(false)
                 .setContentIntent(
@@ -1214,7 +1214,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                         .setAutoCancel(true)
                         .setOnlyAlertOnce(true)
                         .setShowWhen(true)
-                        .setSmallIcon(R.drawable.ic_stat_k4music)
+                        .setSmallIcon(R.drawable.ic_stat_k4audio)
                 }
 
                 handler.post {
@@ -1556,7 +1556,7 @@ class PlayerService : InvincibleService(), Player.Listener, PlaybackStatsListene
                         .ranged(cachedUri.meta)
                 } ?: run {
                     if (isSaavnKey(mediaId)) {
-                        // K4Music: JioSaavn-backed item — resolve its CDN url once
+                        // K4Audio: JioSaavn-backed item — resolve its CDN url once
                         // and remember it, skipping the YouTube/yt-dlp path entirely.
                         val cdn = runBlocking(Dispatchers.IO) { resolveSaavnStream(mediaId, PlayerPreferences.audioQuality.saavn) }
                             ?: throw UnplayableException()

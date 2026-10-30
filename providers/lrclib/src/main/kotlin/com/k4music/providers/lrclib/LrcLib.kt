@@ -23,7 +23,7 @@ import io.ktor.client.plugins.HttpRequestRetry
 import io.ktor.client.plugins.HttpTimeout
 import java.io.IOException
 
-private const val AGENT = "K4Music/1.5.5"
+private const val AGENT = "K4Audio/1.5.5"
 
 object LrcLib {
     private val client by lazy {

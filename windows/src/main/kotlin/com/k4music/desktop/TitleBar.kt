@@ -19,7 +19,7 @@ object TitleBar {
     }
 
     /** Same id as the installer's shortcuts, so the running window and the pinned shortcut are one app. */
-    const val APP_USER_MODEL_ID = "KartikLangwan.K4Music"
+    const val APP_USER_MODEL_ID = "KartikLangwan.K4Audio"
 
     fun setAppId() {
         runCatching { Native.load("shell32", Shell32::class.java).SetCurrentProcessExplicitAppUserModelID(com.sun.jna.WString(APP_USER_MODEL_ID)) }

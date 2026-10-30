@@ -18,10 +18,10 @@ import javax.crypto.spec.SecretKeySpec
 
 /**
  * JioSaavn catalogue: search + stream-URL resolve + quality ladder, ported
- * from K4Music. In the merged app this is the SECONDARY source: YouTube
+ * from K4Audio. In the merged app this is the SECONDARY source: YouTube
  * (Innertube/Piped) answers first, this fills gaps and backs imports.
  *
- * Self-contained on [K4Song] so no Room/K4Music-model changes are needed.
+ * Self-contained on [K4Song] so no Room/K4Audio-model changes are needed.
  */
 class JioSaavnApi(client: OkHttpClient? = null) {
     private val knownStreams = object : LinkedHashMap<String, String>(128, 0.75f, true) {

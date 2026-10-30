@@ -93,7 +93,7 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-DEBUG"
-            manifestPlaceholders["appName"] = "K4 Music Debug"
+            manifestPlaceholders["appName"] = "K4 Audio Debug"
         }
 
         release {
@@ -103,7 +103,7 @@ android {
             signingConfig = signingConfigs.findByName("release")?.takeIf { it.storeFile?.isFile == true }
                 ?: signingConfigs.findByName("ci")?.takeIf { it.storeFile?.isFile == true }
                 ?: signingConfigs.getByName("debug").takeIf { allowDevelopmentSigning.get() }
-            manifestPlaceholders["appName"] = "K4 Music"
+            manifestPlaceholders["appName"] = "K4 Audio"
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -116,7 +116,7 @@ android {
 
             applicationIdSuffix = ".nightly"
             versionNameSuffix = "-NIGHTLY"
-            manifestPlaceholders["appName"] = "K4 Music Nightly"
+            manifestPlaceholders["appName"] = "K4 Audio Nightly"
             signingConfig = signingConfigs.findByName("ci")?.takeIf { it.storeFile?.isFile == true }
                 ?: signingConfigs.getByName("debug").takeIf { allowDevelopmentSigning.get() }
         }

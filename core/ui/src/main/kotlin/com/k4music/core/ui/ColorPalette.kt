@@ -34,31 +34,31 @@ data class ColorPalette(
     val isDark: Boolean
 ) : Parcelable
 
-// K4Music brand violet (matches K4Theme.K4Accent) — the app's default identity colour.
-private val defaultAccentColor = Color(0xff7b5cff).hsl
+// K4Audio default identity colour: near-white (matches K4Theme.K4Accent), the minimal black-and-white theme.
+private val defaultAccentColor = Color(0xfff5f5f5).hsl
 
 val defaultLightPalette = ColorPalette(
-    background0 = Color(0xfffdfdfe),
-    background1 = Color(0xfff8f8fc),
-    background2 = Color(0xffeaeaf5),
-    text = Color(0xff212121),
-    textSecondary = Color(0xff656566),
+    background0 = Color(0xfff5f5f5),
+    background1 = Color(0xfffafafa),
+    background2 = Color(0xffebebeb),
+    text = Color(0xff0a0a0a),
+    textSecondary = Color(0xff5a5a5a),
     textDisabled = Color(0xff9d9d9d),
-    accent = defaultAccentColor.color,
+    accent = Color(0xff111111),
     onAccent = Color.White,
     isDefault = true,
     isDark = false
 )
 
 val defaultDarkPalette = ColorPalette(
-    background0 = Color(0xff16171d),
-    background1 = Color(0xff1f2029),
-    background2 = Color(0xff2b2d3b),
-    text = Color(0xfff5f6f8),
-    textSecondary = Color(0xffb8bac0),
-    textDisabled = Color(0xff8c8e96),
+    background0 = Color(0xff050505),
+    background1 = Color(0xff0e0e0e),
+    background2 = Color(0xff1c1c1c),
+    text = Color(0xfff5f5f5),
+    textSecondary = Color(0xffb0b0b0),
+    textDisabled = Color(0xff8a8a8a),
     accent = defaultAccentColor.color,
-    onAccent = Color.White,
+    onAccent = Color.Black,
     isDefault = true,
     isDark = true
 )
@@ -99,7 +99,7 @@ private fun lightColorPalette(hue: Float, saturation: Float) = ColorPalette(
         saturation = saturation.coerceAtMost(0.2f),
         lightness = 0.65f
     ),
-    accent = Color.hsl(
+    accent = if (saturation < 0.05f) Color(0xff111111) else Color.hsl(
         hue = hue,
         saturation = saturation.coerceAtMost(0.7f),
         lightness = 0.5f
@@ -151,7 +151,7 @@ private fun darkColorPalette(
         saturation = saturation.coerceAtMost(0.12f),
         lightness = 0.48f
     ),
-    accent = Color.hsl(
+    accent = if (saturation < 0.05f) Color(0xfff5f5f5) else Color.hsl(
         hue = hue,
         saturation = saturation.coerceAtMost(if (darkness == Darkness.AMOLED) 0.6f else 0.82f),
         lightness = 0.62f
@@ -260,7 +260,7 @@ fun colorPaletteOf(
 inline val ColorPalette.isPureBlack get() = background0 == Color.Black
 inline val ColorPalette.collapsedPlayerProgressBar
     get() = if (isPureBlack) defaultDarkPalette.background0 else background2
-inline val ColorPalette.favoritesIcon get() = if (isDefault) red else accent
+inline val ColorPalette.favoritesIcon get() = accent
 inline val ColorPalette.shimmer get() = if (isDefault) Color(0xff838383) else accent
 inline val ColorPalette.surface get() = if (isPureBlack) Color(0xff272727) else background2
 

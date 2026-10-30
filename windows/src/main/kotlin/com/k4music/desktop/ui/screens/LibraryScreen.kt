@@ -176,6 +176,7 @@ private fun SongsTab(local: Boolean) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(pluralStringResource(Res.plurals.desktop_song_count, tracks.size, tracks.size), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
             if (local) {
+                OutlinedButton(onClick = { LocalMusic.openAppFolder() }) { Text("Open music folder") }
                 OutlinedButton(onClick = { AppDialogs.pickFolder { LocalMusic.addFolder(it); scope.launch { AppDialogs.scanLocalMusic() } } }) {
                     Text(stringResource(Res.string.desktop_add_folder))
                 }

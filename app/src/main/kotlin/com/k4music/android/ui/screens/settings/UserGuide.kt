@@ -92,7 +92,7 @@ fun UserGuide() {
                             )
                         }
                         BasicText(
-                            text = "Welcome to K4 Music",
+                            text = "Welcome to K4 Audio",
                             style = typography.m.bold.copy(color = Color.White)
                         )
                     }
@@ -185,7 +185,7 @@ fun UserGuide() {
                     GuideItem(
                         icon = R.drawable.color_palette,
                         title = "Theme Color Accents",
-                        subtitle = "Choose from 8 curated accent colors (Violet, Rose, Amber, Emerald, Cyan, Blue, Pink, Amethyst) in Appearance Settings."
+                        subtitle = "Choose from 8 curated accent colors (Mono, Graphite, Rose, Amber, Emerald, Cyan, Blue, Pink) in Appearance Settings."
                     ),
                     GuideItem(
                         icon = R.drawable.disc,

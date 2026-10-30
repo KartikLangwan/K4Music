@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">K4 Music</string>
+    <string name="app_name">K4 Audio</string>
     <string name="app_tagline">Your music. Every screen.</string>
     <string name="app_credit">Made by Kartik Langwan</string>
 
@@ -116,7 +116,7 @@
     <string name="no_browser_installed">Couldn\'t find an application to browse the internet</string>
     <string name="no_equalizer_installed">Couldn\'t find an application to equalize audio</string>
     <string name="no_file_chooser_installed">Couldn\'t find an application to create documents</string>
-    <string name="no_battery_optimization_settings_found">Couldn\'t find battery optimization settings, please whitelist K4 Music manually</string>
+    <string name="no_battery_optimization_settings_found">Couldn\'t find battery optimization settings, please whitelist K4 Audio manually</string>
     <string name="related_albums">Related albums</string>
     <string name="similar_artists">Similar artists</string>
     <string name="recommended_playlists">Playlists you might like</string>
@@ -227,7 +227,7 @@
     <string name="backup_description">Personal preferences (i.e. the theme mode) and the cache are excluded.</string>
     <string name="backup_action_description">Export the database to the external storage</string>
     <string name="restore">Restore</string>
-    <string name="restore_warning">Existing data will be overwritten.\nK4 Music will automatically close itself after restoring the database.</string>
+    <string name="restore_warning">Existing data will be overwritten.\nK4 Audio will automatically close itself after restoring the database.</string>
     <string name="restore_description">Import the database from the external storage</string>
     <string name="other">Other</string>
     <string name="android_auto">Android Auto</string>
@@ -279,7 +279,7 @@
     <string name="pause_minimum_volume">Pause on minimum volume</string>
     <string name="pause_minimum_volume_description">Pause the player when you set your device volume to zero</string>
     <string name="audio">Audio</string>
-    <string name="permission_intro">For the best experience K4 Music would like:
+    <string name="permission_intro">For the best experience K4 Audio would like:
 
 • Notifications – playback controls and download progress
 • Music &amp; audio – show the songs stored on your device
@@ -325,16 +325,16 @@ Both are optional. The app works fine without them.</string>
     <string name="custom_instance">Use Custom Instance</string>
     <string name="base_api_url">Instance API URL</string>
     <string name="transfer_title">Phone to PC</string>
-    <string name="transfer_description">Copy your likes and playlists to K4 Music on your PC. They go straight to the PC over your Wi-Fi, never through the internet, and nothing on the PC is removed.</string>
+    <string name="transfer_description">Copy your likes and playlists to K4 Audio on your PC. They go straight to the PC over your Wi-Fi, never through the internet, and nothing on the PC is removed.</string>
     <string name="transfer_send">Send library to PC</string>
     <string name="transfer_send_description">On the PC open Settings → Phone transfer → Show QR code, then tap here and scan it. Both must be on the same Wi-Fi.</string>
     <string name="transfer_sending">Sending to your PC…</string>
-    <string name="transfer_scan_prompt">Scan the QR code shown in K4 Music on your PC</string>
+    <string name="transfer_scan_prompt">Scan the QR code shown in K4 Audio on your PC</string>
     <string name="transfer_done">Sent. New on the PC: likes %1$d · playlists %2$d</string>
     <string name="transfer_nothing_new">Sent. Your PC already had all of it.</string>
-    <string name="transfer_not_pc_code">That is not a K4 Music PC code</string>
-    <string name="transfer_failed">Could not reach the PC (%1$s). Use the same Wi-Fi, and if Windows Firewall asked on the PC, allow K4 Music on Private and Public networks.</string>
-    <string name="restore_done_restart">Library restored. K4 Music will close; open it again.</string>
+    <string name="transfer_not_pc_code">That is not a K4 Audio PC code</string>
+    <string name="transfer_failed">Could not reach the PC (%1$s). Use the same Wi-Fi, and if Windows Firewall asked on the PC, allow K4 Audio on Private and Public networks.</string>
+    <string name="restore_done_restart">Library restored. K4 Audio will close; open it again.</string>
     <string name="seek_bar_style">Seek bar style</string>
     <string name="static_seek_bar_name">Static</string>
     <string name="wavy_seek_bar_name">Wavy</string>

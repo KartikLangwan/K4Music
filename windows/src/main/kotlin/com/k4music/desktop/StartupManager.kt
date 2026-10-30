@@ -15,7 +15,7 @@ import java.io.File
  */
 object StartupManager {
     internal var runKey = """HKCU\Software\Microsoft\Windows\CurrentVersion\Run"""
-    internal var valueName = "K4Music"
+    internal var valueName = "K4Audio"
 
     private const val HKEY_CURRENT_USER = 0x80000001L
     private const val KEY_READ_WRITE = 0x20019 or 0x20006 // KEY_READ | KEY_WRITE
@@ -44,7 +44,7 @@ object StartupManager {
         private set
 
     /**
-     * Resolves the current executable path (or installed K4 Music.exe).
+     * Resolves the current executable path (or installed K4 Audio.exe).
      */
     fun executablePath(): String? {
         val current = ProcessHandle.current().info().command().orElse(null)
@@ -80,7 +80,7 @@ object StartupManager {
         } finally { api.RegCloseKey(handle.value) }
     }.getOrNull()
 
-    /** Checks whether K4 Music is currently registered in Windows Run key. */
+    /** Checks whether K4 Audio is currently registered in Windows Run key. */
     fun isEnabled(): Boolean = runCatching {
         withKey(create = false) { key ->
             val size = IntByReference()
@@ -88,7 +88,7 @@ object StartupManager {
         }
     }.getOrDefault(false)
 
-    /** Registers K4 Music to launch on Windows startup with `--startup` flag (starts silently in tray). */
+    /** Registers K4 Audio to launch on Windows startup with `--startup` flag (starts silently in tray). */
     fun setEnabled(enable: Boolean, exe: String? = executablePath()): Boolean {
         lastError = null
         return try {

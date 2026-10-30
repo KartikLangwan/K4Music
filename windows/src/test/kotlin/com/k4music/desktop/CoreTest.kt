@@ -51,8 +51,8 @@ class CoreTest {
 
     @Test
     fun startupCommandQuotesPathsWithSpacesWithoutChangingTheRegistry() {
-        assertEquals("\"C:\\Program Files\\K4 Music\\K4 Music.exe\" --startup",
-            StartupManager.startupCommand("C:\\Program Files\\K4 Music\\K4 Music.exe"))
+        assertEquals("\"C:\\Program Files\\K4 Audio\\K4 Audio.exe\" --startup",
+            StartupManager.startupCommand("C:\\Program Files\\K4 Audio\\K4 Audio.exe"))
     }
 
     @Test
@@ -76,10 +76,10 @@ class StartupRegistryTest {
     fun registersAndRemovesTheRunValueDirectly() {
         if (!System.getProperty("os.name").startsWith("Windows")) return
         val oldKey = StartupManager.runKey
-        StartupManager.runKey = "HKCU\\Software\\K4MusicTest-${System.nanoTime()}"
+        StartupManager.runKey = "HKCU\\Software\\K4AudioTest-${System.nanoTime()}"
         try {
             assertFalse(StartupManager.isEnabled())
-            assertTrue(StartupManager.setEnabled(true, "C:/Program Files/K4 Music/K4 Music.exe"), StartupManager.lastError)
+            assertTrue(StartupManager.setEnabled(true, "C:/Program Files/K4 Audio/K4 Audio.exe"), StartupManager.lastError)
             assertTrue(StartupManager.isEnabled())
             assertTrue(StartupManager.setEnabled(false))
             assertFalse(StartupManager.isEnabled())

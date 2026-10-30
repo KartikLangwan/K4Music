@@ -287,7 +287,7 @@ fun OtherSettings() {
 
                             withContext(Dispatchers.Main) {
                                 if (success == true) {
-                                    context.toast("yt-dlp updated. Please restart K4 Music to apply.")
+                                    context.toast("yt-dlp updated. Please restart K4 Audio to apply.")
                                 } else {
                                     context.toast(R.string.yt_dlp_fail)
                                 }

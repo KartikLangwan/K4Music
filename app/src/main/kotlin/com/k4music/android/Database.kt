@@ -657,7 +657,7 @@ interface DatabaseAccessor {
     @Query("SELECT id, likedAt FROM Song WHERE likedAt IS NOT NULL")
     fun likedRows(): List<LikedRow>
 
-    @Query("SELECT id, name FROM Playlist WHERE browseId IS NULL ORDER BY id")
+    @Query("SELECT id, name FROM Playlist ORDER BY id")
     fun plainPlaylists(): List<PlaylistRow>
 
     @Query("SELECT songId FROM SongPlaylistMap WHERE playlistId = :id ORDER BY position")

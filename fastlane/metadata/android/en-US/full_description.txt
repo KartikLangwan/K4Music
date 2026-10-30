@@ -1,4 +1,4 @@
-K4 Music by Kartik Langwan
+K4 Audio by Kartik Langwan
 Instagram: K4RTIK.nvm
 Website: https://kartiklangwan.vercel.app
 
@@ -16,5 +16,5 @@ Website: https://kartiklangwan.vercel.app
 * Highly customizable (dynamic theme, Material You, ...)
 * Normalize audio for the perfect listening experience
 * Listen from your car using Android Auto
-* Open YouTube/YouTube Music links (`watch`, `playlist`, `channel`, etc.) with K4 Music
+* Open YouTube/YouTube Music links (`watch`, `playlist`, `channel`, etc.) with K4 Audio
 * Ridiculously lightweight APK

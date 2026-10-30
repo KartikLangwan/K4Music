@@ -57,7 +57,7 @@ internal class DownloadIndex(private val directory: File) {
 
     private fun save() {
         val temp = File(directory, "downloads.properties.tmp")
-        FileOutputStream(temp).use { entries.store(it, "K4 Music downloads"); it.fd.sync() }
+        FileOutputStream(temp).use { entries.store(it, "K4 Audio downloads"); it.fd.sync() }
         Files.move(temp.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
     }
 }

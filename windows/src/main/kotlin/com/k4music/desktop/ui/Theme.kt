@@ -24,13 +24,21 @@ import com.k4music.desktop.res.poppins_semibold
 import org.jetbrains.compose.resources.Font
 
 // Same design tokens as the Android app (app/.../ui/theme/K4Theme.kt).
-val K4Accent = Color(0xFF7B5CFF)
+/** Premium black-and-white: the default accent is near-white (near-black on light surfaces). */
+val K4Accent = Color(0xFFF5F5F5)
+/** The old violet default; anyone who never picked an accent has it stored, so it now means "default". */
+private const val LEGACY_VIOLET = "7B5CFF"
 val K4Error = Color(0xFFFF5A5F)
 /**
  * The K4 ribbon gradient, taken from the logo: light lavender into the accent into a deep shade.
  * Built from the user's accent colour, so every accent keeps the same brand feel.
  */
-fun brandColors(accent: Color) = listOf(lerp(accent, Color.White, 0.40f), accent, lerp(accent, Color.Black, 0.25f))
+fun brandColors(accent: Color) =
+    if (isMonochrome(accent)) listOf(Color(0xFF7A7A7A), Color(0xFF555555), Color(0xFF3A3A3A)) // graphite: white icons stay readable
+    else listOf(lerp(accent, Color.White, 0.40f), accent, lerp(accent, Color.Black, 0.25f))
+
+/** Black, white and greys: the accent of the minimal theme. */
+fun isMonochrome(c: Color) = maxOf(c.red, c.green, c.blue) - minOf(c.red, c.green, c.blue) < 0.08f
 
 /** Hidden/minimized windows pause decorative work without affecting audio playback. */
 val LocalWindowActive = androidx.compose.runtime.staticCompositionLocalOf { true }
@@ -42,6 +50,7 @@ fun isLightColor(c: Color): Boolean = 0.299 * c.red + 0.587 * c.green + 0.114 * 
 
 fun parseHexColor(hex: String, fallback: Color = K4Accent): Color = runCatching {
     val clean = hex.trim().removePrefix("#")
+    if (clean.equals(LEGACY_VIOLET, ignoreCase = true)) return K4Accent
     when (clean.length) {
         6 -> Color(("FF$clean").toLong(16))
         8 -> Color(clean.toLong(16))
@@ -50,27 +59,29 @@ fun parseHexColor(hex: String, fallback: Color = K4Accent): Color = runCatching 
 }.getOrDefault(fallback)
 
 fun k4ColorScheme(accent: Color, dark: Boolean): ColorScheme {
-    val onAccent = if (isLightColor(accent)) Color.Black else Color.White
+    // Near-white on dark surfaces reads as the accent; on light surfaces the monochrome accent flips to near-black.
+    val a = if (!dark && isMonochrome(accent)) Color(0xFF111111) else accent
+    val onAccent = if (isLightColor(a)) Color.Black else Color.White
     return if (dark) darkColorScheme(
-        primary = accent, onPrimary = onAccent,
-        primaryContainer = accent.copy(alpha = 0.16f), onPrimaryContainer = Color.White,
-        secondary = accent, tertiary = accent.copy(alpha = 0.8f),
-        // Violet-black, like the logo's tile: the brand shows even before any colour arrives.
-        background = Color(0xFF07060B), onBackground = Color(0xFFF4F2FA),
-        surface = Color(0xFF12101A), onSurface = Color(0xFFF4F2FA),
-        surfaceVariant = Color(0xFF1A1724), onSurfaceVariant = Color(0xFFA9A3BF),
-        surfaceContainer = Color(0xFF221E2E), surfaceContainerHigh = Color(0xFF2B2639),
-        outline = Color(0xFF5C5475), outlineVariant = Color(0xFF3A3450),
+        primary = a, onPrimary = onAccent,
+        primaryContainer = a.copy(alpha = 0.16f), onPrimaryContainer = Color.White,
+        secondary = a, tertiary = a.copy(alpha = 0.8f),
+        // True neutral blacks: no tint, so the monochrome look is exact.
+        background = Color(0xFF050505), onBackground = Color(0xFFF5F5F5),
+        surface = Color(0xFF0E0E0E), onSurface = Color(0xFFF5F5F5),
+        surfaceVariant = Color(0xFF161616), onSurfaceVariant = Color(0xFF9A9A9A),
+        surfaceContainer = Color(0xFF1C1C1C), surfaceContainerHigh = Color(0xFF262626),
+        outline = Color(0xFF3A3A3A), outlineVariant = Color(0xFF262626),
         error = K4Error, onError = Color.White
     ) else lightColorScheme(
-        primary = accent, onPrimary = onAccent,
-        primaryContainer = accent.copy(alpha = 0.12f), onPrimaryContainer = Color.Black,
-        secondary = accent, tertiary = accent.copy(alpha = 0.8f),
-        background = Color(0xFFF1EEF8), onBackground = Color(0xFF15121F),
-        surface = Color(0xFFFFFFFF), onSurface = Color(0xFF15121F),
-        surfaceVariant = Color(0xFFF0EDF7), onSurfaceVariant = Color(0xFF575170),
-        surfaceContainer = Color(0xFFF2EFF8), surfaceContainerHigh = Color(0xFFE9E5F2),
-        outline = Color(0xFFC2BAD6), outlineVariant = Color(0xFFDAD4E7),
+        primary = a, onPrimary = onAccent,
+        primaryContainer = a.copy(alpha = 0.10f), onPrimaryContainer = Color.Black,
+        secondary = a, tertiary = a.copy(alpha = 0.8f),
+        background = Color(0xFFF5F5F5), onBackground = Color(0xFF0A0A0A),
+        surface = Color(0xFFFFFFFF), onSurface = Color(0xFF0A0A0A),
+        surfaceVariant = Color(0xFFEDEDED), onSurfaceVariant = Color(0xFF5A5A5A),
+        surfaceContainer = Color(0xFFF0F0F0), surfaceContainerHigh = Color(0xFFE6E6E6),
+        outline = Color(0xFFBDBDBD), outlineVariant = Color(0xFFDADADA),
         error = K4Error, onError = Color.White
     )
 }

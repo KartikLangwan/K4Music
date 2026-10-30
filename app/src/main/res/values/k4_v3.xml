@@ -25,8 +25,8 @@
     <!-- Audio effects -->
     <string name="audio_effects">Audio effects</string>
     <string name="audio_effects_settings_description">Equalizer, bass boost, 3D &amp; surround, ATD wide stage and reverb</string>
-    <string name="audio_effects_intro">Shape how K4 Music sounds. Changes apply instantly to whatever is playing.</string>
-    <string name="audio_effects_device_note">Equalizer, bass boost, 3D/surround and reverb use your device\'s audio framework, so availability and strength vary by phone. ATD wide stage runs inside K4 Music on every device.</string>
+    <string name="audio_effects_intro">Shape how K4 Audio sounds. Changes apply instantly to whatever is playing.</string>
+    <string name="audio_effects_device_note">Equalizer, bass boost, 3D/surround and reverb use your device\'s audio framework, so availability and strength vary by phone. ATD wide stage runs inside K4 Audio on every device.</string>
     <string name="open_system_equalizer">Open system equalizer</string>
     <string name="effect_unavailable">Not supported on this device</string>
     <string name="off">Off</string>

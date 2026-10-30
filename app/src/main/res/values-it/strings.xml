@@ -132,7 +132,7 @@
     <string name="no_browser_installed">Impossibile trovare un\'applicazione per navigare in internet</string>
     <string name="no_equalizer_installed">Impossibile trovare un\'applicazione per equalizzare l\'audio</string>
     <string name="no_file_chooser_installed">Impossibile trovare un\'applicazione per creare documenti</string>
-    <string name="no_battery_optimization_settings_found">Impossibile trovare le impostazioni di ottimizzazione della batteria, inserisci manualmente K4 Music nella lista bianca</string>
+    <string name="no_battery_optimization_settings_found">Impossibile trovare le impostazioni di ottimizzazione della batteria, inserisci manualmente K4 Audio nella lista bianca</string>
 
     <string name="related_albums">Album correlati</string>
     <string name="similar_artists">Artisti simili</string>
@@ -259,7 +259,7 @@
     <string name="backup_description">Le preferenze personali (ad es. la modalità tema) e la cache sono escluse.</string>
     <string name="backup_action_description">Esporta il database nella memoria esterna</string>
     <string name="restore">Ripristina</string>
-    <string name="restore_warning">I dati esistenti verranno sovrascritti.\nK4 Music si chiuderà automaticamente dopo il ripristino del database.</string>
+    <string name="restore_warning">I dati esistenti verranno sovrascritti.\nK4 Audio si chiuderà automaticamente dopo il ripristino del database.</string>
     <string name="restore_description">Importa il database dalla memoria esterna</string>
 
     <string name="other">Altro</string>

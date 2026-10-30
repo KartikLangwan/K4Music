@@ -3,18 +3,26 @@ package com.k4music.desktop
 import java.io.File
 
 /**
- * Where K4 Music keeps its files. Installed: %APPDATA%\K4 Music (library, settings, logs) and
- * %LOCALAPPDATA%\K4 Music (downloads, caches). `-Dk4.dataDir=` puts both under one folder,
+ * Where K4 Audio keeps its files. Installed: %APPDATA%\K4 Audio (library, settings, logs) and
+ * %LOCALAPPDATA%\K4 Audio (downloads, caches). `-Dk4.dataDir=` puts both under one folder,
  * which development runs use so nothing is written outside the project.
  */
 object AppPaths {
     private val override = System.getProperty("k4.dataDir")?.let(::File)
 
     val data: File by lazy {
-        (override?.resolve("roaming") ?: File(System.getenv("APPDATA") ?: home(), "K4 Music")).ensured()
+        override?.resolve("roaming")?.ensured() ?: moved(System.getenv("APPDATA") ?: home())
     }
     val local: File by lazy {
-        (override?.resolve("local") ?: File(System.getenv("LOCALAPPDATA") ?: home(), "K4 Music")).ensured()
+        override?.resolve("local")?.ensured() ?: moved(System.getenv("LOCALAPPDATA") ?: home())
+    }
+
+    /** The app was called "K4 Music" before: its folder (library, settings, downloads) is moved to the new name once. */
+    internal fun moved(base: String): File {
+        val new = File(base, "K4 Audio")
+        val old = File(base, "K4 Music")
+        if (!new.exists() && old.isDirectory) runCatching { old.renameTo(new) }
+        return new.ensured()
     }
 
     val database get() = data.resolve("data.db")

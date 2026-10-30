@@ -112,7 +112,7 @@
     <string name="no_browser_installed">Interneti sirvimiseks ei leitud rakendust</string>
     <string name="no_equalizer_installed">Heli ekvalaiserit ei leitud</string>
     <string name="no_file_chooser_installed">Dokumentide loomise rakendust ei leitud</string>
-    <string name="no_battery_optimization_settings_found">Aku optimeerimise seadeid ei leitud, palun lisa K4 Music käsitsi valgesse nimekirja</string>
+    <string name="no_battery_optimization_settings_found">Aku optimeerimise seadeid ei leitud, palun lisa K4 Audio käsitsi valgesse nimekirja</string>
     <string name="related_albums">Seotud albumid</string>
     <string name="similar_artists">Sarnased artistid</string>
     <string name="recommended_playlists">Soovitatud Esitusloendid</string>
@@ -220,7 +220,7 @@
     <string name="backup_description">Isiklikud seaded (nt teema režiim) ja vahemälu jäetakse välja.</string>
     <string name="backup_action_description">Ekspordi andmebaas välisele salvestusele</string>
     <string name="restore">Taasta</string>
-    <string name="restore_warning">Olemasolevad andmed kirjutatakse üle.\nK4 Music sulgub automaatselt pärast andmebaasi taastamist.</string>
+    <string name="restore_warning">Olemasolevad andmed kirjutatakse üle.\nK4 Audio sulgub automaatselt pärast andmebaasi taastamist.</string>
     <string name="restore_description">Impordi andmebaas väliselt salvestuselt</string>
     <string name="other">Muud</string>
     <string name="android_auto">Android Auto</string>

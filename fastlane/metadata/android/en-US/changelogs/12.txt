@@ -1,7 +1,7 @@
 * Enhanced routing animations/transitions
 * Added new translations
 * Adjusted background color for the logs screen
-* K4 Music now ignores upper/lowercase when sorting alphabetically
+* K4 Audio now ignores upper/lowercase when sorting alphabetically
 * Added music note icons at empty LRC lines
 * Added hold-to-edit to all navigation tabs
 * Improved predictive back

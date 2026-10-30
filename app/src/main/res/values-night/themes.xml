@@ -1,5 +1,5 @@
 <resources>
-    <style name="Theme.K4Music.NoActionBar" parent="Theme.K4Music">
+    <style name="Theme.K4Audio.NoActionBar" parent="Theme.K4Audio">
         <item name="android:windowActionBar">false</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowBackground">@drawable/splash_background</item>

@@ -1,5 +1,5 @@
 * Added new translations
-* Made K4 Music more recognizable as a music application to other apps
+* Made K4 Audio more recognizable as a music application to other apps
 * Subtle UI improvements
 * Minor bugfixes
 * Removed limit of 100 songs in online albums

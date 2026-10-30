@@ -112,7 +112,7 @@
     <string name="no_browser_installed">Не удалось найти приложение для просмотра интернета</string>
     <string name="no_equalizer_installed">Не удалось найти приложение для настройки эквалайзера</string>
     <string name="no_file_chooser_installed">Не удалось найти приложение для создания документов</string>
-    <string name="no_battery_optimization_settings_found">Не удалось найти настройки оптимизации батареи, добавьте K4 Music в белый список вручную</string>
+    <string name="no_battery_optimization_settings_found">Не удалось найти настройки оптимизации батареи, добавьте K4 Audio в белый список вручную</string>
     <string name="related_albums">Похожие альбомы</string>
     <string name="similar_artists">Похожие исполнители</string>
     <string name="recommended_playlists">Рекомендуемые плейлисты</string>
@@ -220,7 +220,7 @@
     <string name="backup_description">Персональные настройки (например, тема) и кэш исключаются.</string>
     <string name="backup_action_description">Экспортировать базу данных на внешнее хранилище</string>
     <string name="restore">Восстановить</string>
-    <string name="restore_warning">Существующие данные будут перезаписаны.\nK4 Music автоматически закроется после восстановления базы данных.</string>
+    <string name="restore_warning">Существующие данные будут перезаписаны.\nK4 Audio автоматически закроется после восстановления базы данных.</string>
     <string name="restore_description">Импортировать базу данных с внешнего хранилища</string>
     <string name="other">Прочее</string>
     <string name="android_auto">Android Auto</string>

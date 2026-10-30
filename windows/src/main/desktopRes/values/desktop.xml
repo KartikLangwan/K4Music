@@ -12,7 +12,7 @@
     <string name="desktop_nothing_playing">Nothing playing</string>
     <string name="desktop_playing_from_saavn">Playing from JioSaavn</string>
     <string name="desktop_retry_playback">Try again</string>
-    <string name="desktop_show_window">Show K4 Music</string>
+    <string name="desktop_show_window">Show K4 Audio</string>
     <string name="desktop_quit">Quit</string>
     <string name="desktop_minimize_to_tray">Keep playing in the tray when the window is closed</string>
     <string name="desktop_search_hint">Search songs, albums, artists and playlists</string>
@@ -67,7 +67,7 @@
         <item quantity="one">%1$d song downloaded</item>
         <item quantity="other">%1$d songs downloaded</item>
     </plurals>
-    <string name="desktop_restore_pending">Restart K4 Music to finish restoring your library</string>
+    <string name="desktop_restore_pending">Restart K4 Audio to finish restoring your library</string>
     <string name="desktop_done">Done</string>
     <string name="desktop_tray_title">System tray</string>
     <string name="desktop_username">Username</string>
@@ -87,7 +87,7 @@
     <string name="desktop_sidebar_playlists">Playlists in side panel</string>
     <string name="desktop_sidebar_playlists_description">List your playlists under the navigation buttons</string>
     <string name="desktop_visible_buttons">Visible buttons</string>
-    <string name="desktop_website">K4 Music website</string>
+    <string name="desktop_website">K4 Audio website</string>
     <string name="desktop_creator_site">Creator</string>
     <string name="desktop_up_to_date">You have the latest version (%1$s)</string>
     <string name="desktop_update_found">Version %1$s is available. Open the website to download it?</string>
@@ -127,7 +127,7 @@ Esc  Close player / go back</string>
     <string name="desktop_start_minimized">Start minimized in system tray</string>
     <string name="desktop_start_minimized_hint">When starting with Windows, keep the window hidden in the background tray</string>
     <string name="desktop_resume_on_start">Resume playback on launch</string>
-    <string name="desktop_resume_on_start_hint">Automatically resume the last played song when K4 Music opens</string>
+    <string name="desktop_resume_on_start_hint">Automatically resume the last played song when K4 Audio opens</string>
     <string name="desktop_dual_split">Dual View</string>
     <string name="desktop_panel_both">Up Next &amp; Lyrics</string>
     <string name="desktop_creator_title">Founder &amp; Lead Architect</string>
@@ -142,21 +142,21 @@ Esc  Close player / go back</string>
     <string name="desktop_output_lost">That audio device is not available. Playing through the Windows default.</string>
     <string name="desktop_output_hint">Speakers, headphones and Bluetooth devices. Connect a device, then reopen this list.</string>
     <string name="desktop_refresh_devices">Refresh devices</string>
-    <string name="desktop_update_title">K4 Music %1$s is available</string>
+    <string name="desktop_update_title">K4 Audio %1$s is available</string>
     <string name="desktop_update_body">You have %1$s. The update keeps your library, playlists, settings and downloads.</string>
     <string name="desktop_update_now">Update now</string>
     <string name="desktop_update_later">Later</string>
     <string name="desktop_update_downloading">Downloading the update…</string>
-    <string name="desktop_update_starting">Opening the installer. K4 Music will close and reopen by itself.</string>
+    <string name="desktop_update_starting">Opening the installer. K4 Audio will close and reopen by itself.</string>
     <string name="desktop_update_website">Open website</string>
     <string name="desktop_update_error">Could not update. Try again, or get it from the website.</string>
     <string name="desktop_discord">Show on Discord</string>
-    <string name="desktop_discord_hint">Shows K4 Music and the song you are playing on your Discord profile and in voice channels (needs the Discord desktop app)</string>
+    <string name="desktop_discord_hint">Shows K4 Audio and the song you are playing on your Discord profile and in voice channels (needs the Discord desktop app)</string>
     <string name="desktop_startup_title">Start with Windows</string>
-    <string name="desktop_startup_hint">Automatically start K4 Music silently in the system tray when Windows boots</string>
+    <string name="desktop_startup_hint">Automatically start K4 Audio silently in the system tray when Windows boots</string>
     <string name="desktop_now_playing">Now Playing: %1$s</string>
-    <string name="desktop_tray_ready">K4 Music - Ready</string>
-    <string name="desktop_restart_now">Restart K4 Music</string>
+    <string name="desktop_tray_ready">K4 Audio - Ready</string>
+    <string name="desktop_restart_now">Restart K4 Audio</string>
     <string name="desktop_restart_pending_hint">Library backup staged. Restart now to apply your library.</string>
     <string name="desktop_download_active">Active downloads</string>
     <string name="desktop_download_queued">Waiting</string>

@@ -39,7 +39,7 @@ import com.k4music.core.ui.LocalAppearance
 import kotlin.time.Duration
 
 // Retain the class for workers already persisted by older installations.
-// Cancel old update checks until a verified K4 Music release repository exists.
+// Cancel old update checks until a verified K4 Audio release repository exists.
 class VersionCheckWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     companion object {
         fun upsert(context: Context, period: Duration?) = runCatching {

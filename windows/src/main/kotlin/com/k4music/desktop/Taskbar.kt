@@ -16,7 +16,7 @@ import java.awt.geom.Path2D
 import java.awt.image.BufferedImage
 
 /**
- * Previous / Play-Pause / Next buttons under K4 Music's taskbar thumbnail (hover the taskbar
+ * Previous / Play-Pause / Next buttons under K4 Audio's taskbar thumbnail (hover the taskbar
  * icon), the Windows-native way music players do it. Uses ITaskbarList3 through JNA; anything
  * unavailable just leaves the thumbnail without buttons.
  */
@@ -167,9 +167,9 @@ object Taskbar {
     }
 
     /**
-     * Keyboard media keys and Bluetooth headphone buttons, also while K4 Music is in the background.
+     * Keyboard media keys and Bluetooth headphone buttons, also while K4 Audio is in the background.
      * A hotkey with no window posts WM_HOTKEY to the registering thread, so a small thread waits for them.
-     * The keys are held only while K4 Music is playing (and for [KEEP_KEYS_MINUTES] after a pause); otherwise
+     * The keys are held only while K4 Audio is playing (and for [KEEP_KEYS_MINUTES] after a pause); otherwise
      * they stay with whatever else is playing, such as a video in the browser.
      */
     private fun mediaKeys(onButton: (Int) -> Unit) {

@@ -32,7 +32,7 @@ import com.k4music.desktop.res.person
 import okio.Path.Companion.toOkioPath
 import org.jetbrains.compose.resources.painterResource
 
-/** One image loader for the app: memory cache plus a 256 MB disk cache in K4 Music's local folder. */
+/** One image loader for the app: memory cache plus a 256 MB disk cache in K4 Audio's local folder. */
 fun k4ImageLoader(context: PlatformContext) = ImageLoader.Builder(context)
     .components { add(KtorNetworkFetcherFactory()) }
     .memoryCache { MemoryCache.Builder().maxSizePercent(context, 0.15).build() }

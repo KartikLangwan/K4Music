@@ -10,7 +10,9 @@ import java.net.InetSocketAddress
 import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
-import java.net.SocketTimeoutException
+import java.util.concurrent.Semaphore
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 
@@ -37,7 +39,7 @@ interface LibraryStore {
     /** Liked songs: id to the time they were liked. */
     suspend fun likes(): Map<String, Long>
 
-    /** Plain local playlists (not ones saved from YouTube), songs in order. */
+    /** Every playlist (including ones imported from YouTube/Spotify), songs in order. */
     suspend fun playlists(): List<LocalPlaylist>
 
     suspend fun songMeta(ids: Collection<String>): Map<String, SongMeta>
@@ -63,15 +65,17 @@ fun transferable(songId: String) = !songId.startsWith("local:")
 object LibraryTransfer {
     private const val MAGIC = 0x4B345431 // "K4T1"
     private const val MAX_BYTES = 32 * 1024 * 1024
+    private const val MAX_CONNECTIONS = 8
+    private const val READ_TIMEOUT_MS = 10_000
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = false }
 
     /** What the QR code holds. */
     data class Invite(val hosts: List<String>, val port: Int, val code: String) {
-        fun text() = "k4music-transfer:1;${hosts.joinToString(",")};$port;$code"
+        fun text() = "k4audio-transfer:1;${hosts.joinToString(",")};$port;$code"
 
         companion object {
             fun parse(text: String): Invite? {
-                val parts = text.trim().removePrefix("k4music-transfer:1;").takeIf { it != text.trim() }?.split(';') ?: return null
+                val parts = text.trim().removePrefix("k4audio-transfer:1;").takeIf { it != text.trim() }?.split(';') ?: return null
                 if (parts.size != 3) return null
                 val hosts = parts[0].split(',').filter { it.isNotBlank() }
                 val port = parts[1].toIntOrNull()?.takeIf { it in 1..65535 } ?: return null
@@ -178,35 +182,53 @@ object LibraryTransfer {
 
         fun invite(hosts: List<String> = localAddresses()) = Invite(hosts, port, crypto.code)
 
-        /** Blocks; [onLibrary] imports and returns the reply shown on the phone. Null when nothing came in time. */
+        /**
+         * Blocks; [onLibrary] imports and returns the reply shown on the phone. Null when nothing came in time.
+         * Each connection is read on its own thread, so one that connects and sends nothing cannot hold up the real phone.
+         */
         fun receive(timeoutMs: Long, onLibrary: (TransferDoc) -> String): TransferDoc? {
             val deadline = System.currentTimeMillis() + timeoutMs
-            while (!server.isClosed) {
+            val result = AtomicReference<TransferDoc?>(null)
+            val slots = Semaphore(MAX_CONNECTIONS)
+            val lock = Any()
+            while (!server.isClosed && result.get() == null) {
                 val left = deadline - System.currentTimeMillis()
-                if (left <= 0) return null
+                if (left <= 0) break
                 server.soTimeout = left.toInt().coerceAtLeast(1)
-                val socket = try { server.accept() } catch (_: SocketTimeoutException) { return null } catch (_: Exception) { return null }
-                socket.use {
-                    it.soTimeout = 30_000
-                    val input = DataInputStream(it.getInputStream().buffered())
-                    val out = DataOutputStream(it.getOutputStream())
-                    val doc = runCatching {
-                        check(input.readInt() == MAGIC) { "Not K4 Music" }
-                        val size = input.readInt()
-                        check(size in 1..MAX_BYTES) { "Too large" }
-                        val bytes = ByteArray(size).also(input::readFully)
-                        unpack(bytes, crypto)
-                    }.getOrNull()
-                    if (doc == null) {
-                        runCatching { out.writeUTF("ERR This code is not valid any more. Show a new one on the PC.") }
-                    } else {
-                        val reply = runCatching { onLibrary(doc) }.getOrElse { e -> "ERR ${e.message ?: "Import failed"}" }
-                        runCatching { out.writeUTF(reply) }
-                        if (!reply.startsWith("ERR")) return doc
+                val socket = try { server.accept() } catch (_: Exception) { break }
+                if (!slots.tryAcquire()) { runCatching { socket.close() }; continue }
+                thread(isDaemon = true, name = "k4-transfer-conn") {
+                    try {
+                        socket.use { handle(it, lock, result, onLibrary) }
+                    } finally {
+                        slots.release()
+                        if (result.get() != null) runCatching { server.close() } // wakes the accept loop
                     }
                 }
             }
-            return null
+            return result.get()
+        }
+
+        private fun handle(socket: Socket, lock: Any, result: AtomicReference<TransferDoc?>, onLibrary: (TransferDoc) -> String) {
+            socket.soTimeout = READ_TIMEOUT_MS
+            val input = DataInputStream(socket.getInputStream().buffered())
+            val out = DataOutputStream(socket.getOutputStream())
+            val doc = runCatching {
+                check(input.readInt() == MAGIC) { "Not K4 Audio" }
+                val size = input.readInt()
+                check(size in 1..MAX_BYTES) { "Too large" }
+                unpack(ByteArray(size).also(input::readFully), crypto)
+            }.getOrNull()
+            if (doc == null) {
+                runCatching { out.writeUTF("ERR This code is not valid any more. Show a new one on the PC.") }
+                return
+            }
+            synchronized(lock) {
+                if (result.get() != null) { runCatching { out.writeUTF("ERR Already received") }; return }
+                val reply = runCatching { onLibrary(doc) }.getOrElse { e -> "ERR ${e.message ?: "Import failed"}" }
+                runCatching { out.writeUTF(reply) }
+                if (!reply.startsWith("ERR")) result.set(doc)
+            }
         }
 
         override fun close() = server.close()

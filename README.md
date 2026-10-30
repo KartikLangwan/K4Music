@@ -1,10 +1,10 @@
 <div align="center">
-    <img src="./app/src/main/ic_launcher-playstore.png" width="128" height="128" alt="K4 Music icon"/>
-    <h1>K4 Music</h1>
+    <img src="./app/src/main/ic_launcher-playstore.png" width="128" height="128" alt="K4 Audio icon"/>
+    <h1>K4 Audio</h1>
     <p><b>Your music. Every screen.</b><br/>A free, ad-free music player for Android and Windows by Kartik Langwan</p>
 
-<a href="https://k4music.vercel.app/download"><img src="https://img.shields.io/badge/Android-Download%20APK-7C4DFF?style=for-the-badge&logo=android&logoColor=white" alt="Download for Android"/></a>
-<a href="https://k4music.vercel.app/download/windows"><img src="https://img.shields.io/badge/Windows-Download%20installer-7C4DFF?style=for-the-badge&logo=windows&logoColor=white" alt="Download for Windows"/></a>
+<a href="https://k4music.vercel.app/download"><img src="https://img.shields.io/badge/Android-Download%20APK-555555?style=for-the-badge&logo=android&logoColor=white" alt="Download for Android"/></a>
+<a href="https://k4music.vercel.app/download/windows"><img src="https://img.shields.io/badge/Windows-Download%20installer-555555?style=for-the-badge&logo=windows&logoColor=white" alt="Download for Windows"/></a>
 <a href="https://github.com/KartikLangwan/K4Music/releases"><img src="https://img.shields.io/badge/All%20releases-555?style=for-the-badge&logo=github" alt="All releases"/></a>
 
 <p>
@@ -27,16 +27,21 @@ Downloads are in this repository's [**Releases**](https://github.com/KartikLangw
 | --- | --- | --- |
 | **File** | [K4Music-v2.14.26-RELEASE.apk](https://github.com/KartikLangwan/K4Music/releases/download/v2.14.26/K4Music-v2.14.26-RELEASE.apk) | [K4Music-Setup-2.14.26.exe](https://github.com/KartikLangwan/K4Music/releases/download/v2.14.26/K4Music-Setup-2.14.26.exe) |
 | **Requires** | Android 7.0+, 64-bit ARM (arm64-v8a) | Windows 10 / 11, 64-bit |
-| **Size** | 26.9 MB | 116.3 MB |
-| **SHA-256** | `B0B576B83001E2A16D51B2E21F227DAC01DDE09F6CC0799977117860451B3431` | `05EF52196C5719E50CEAD94D0035BE4FCDC7673D0B01B13B88F1FA655E1F41F4` |
+| **Size** | 26.8 MB | 116.2 MB |
+| **SHA-256** | `D7D33BDA1FABB393EF308C18821910D2827CDE4A44613DB3B6EDE7D3FD183361` | `A1929E1A4EEACD2C6678A81A40BE2E786BECEE86A807A7A77484A9C71BE15673` |
 
 2.14.26 installs over 2.12.14 and keeps your library, likes, downloads and history. Libraries backed up from 2.14.26 need 2.14.26 or newer to restore.
 
 **Android:** open the APK on your phone and allow *Install unknown apps* for your browser when Android asks. Updating from a build signed with a different key? Uninstall that build first.
 
-**Windows:** run the installer (no admin rights needed). It isn't code-signed yet, so on *Windows protected your PC* click **More info → Run anyway**. Later updates: Settings → Check for updates → **Update now**, or run a newer installer; it closes K4 Music, updates it and keeps your library.
+**Windows:** run the installer (no admin rights needed). It isn't code-signed yet, so on *Windows protected your PC* click **More info → Run anyway**. Later updates: Settings → Check for updates → **Update now**, or run a newer installer; it closes K4 Audio, updates it and keeps your library.
 
 ## What's new in 2.14.26
+
+- **K4 Audio:** the app was called K4 Music. New name, new logo and a black-and-white minimal theme on phone and PC. Installing over the old app keeps your library, likes, playlists and downloads; on PC your old `K4 Music` data folder is moved to `K4 Audio` on first start.
+- **A music folder you can see:** `Music\K4 Audio` on the PC is created automatically; on the phone it is `Music › K4 Audio`. Songs you drop in appear under *Library → Local*, and an **Open music folder** button is in the Local tab (and PC Settings).
+- **Phone → PC transfer sends every playlist** (YouTube and Spotify imports too), not only liked songs.
+- **Downloads:** fewer parallel downloads on the phone, and the PC retries YouTube with other clients when it asks if you are a bot (plus an optional browser sign-in in Settings → Player).
 
 - **Lighter:** the Android app is a quarter smaller (28 MB) and uses far less memory for artwork; the PC app hands unused memory back to Windows while it plays in the background, and redraws much less while a song plays.
 - **More reliable:** safer library backup and restore, downloads that can be cancelled and retried, saved lyrics and play counts that are never lost, and playback that resumes near where it stopped even after a crash.
@@ -50,6 +55,12 @@ Downloads are in this repository's [**Releases**](https://github.com/KartikLangw
 - **Phone → PC transfer:** the PC shows a QR code (Settings → Phone transfer), the phone scans it (Settings → Backup & restore → Send library to PC) and your likes and playlists go straight to the PC over your Wi-Fi, encrypted, with no server in between.
 
 Every fix and how it was verified: [AUDIT.md](docs/AUDIT.md) and [AUDIT-2026-10-24.md](docs/AUDIT-2026-10-24.md).
+
+## Bring your music across
+
+- **PC:** copy songs into `Music\K4 Audio` (or add any folder in Settings), then press *Scan*.
+- **Phone from PC:** plug the phone in with USB, choose *File transfer*, copy the audio files into `Music/K4 Audio` on the phone. They show up in *Library → Local* by themselves.
+- **Likes and playlists, phone → PC:** PC *Settings → Phone transfer* shows a QR code; scan it in the phone app (*Settings → Backup & restore → Send library to PC*).
 
 ## Features
 
@@ -69,7 +80,7 @@ Every fix and how it was verified: [AUDIT.md](docs/AUDIT.md) and [AUDIT-2026-10-
 
 - 🎧 Pick the audio output (Bluetooth, headphones, speakers), even mid-song
 - ⌨️ Media keys and Bluetooth headphone buttons work in the background; Previous / Play-Pause / Next under the taskbar thumbnail
-- 💬 Discord status: *Playing K4 Music* with the song and cover, and an icon next to your name in voice channels
+- 💬 Discord status: *Playing K4 Audio* with the song and cover, and an icon next to your name in voice channels
 - 🪟 Resizable, hideable panels, navigation left or bottom, full screen (F11), system tray
 - 🔄 In-app updates from this repository's releases
 
@@ -97,8 +108,8 @@ After compiling both platforms, run `python -B scripts/verify-library-parity.py`
 
 ## Origin
 
-K4 Music is a merge of two codebases: [ViTune](https://github.com/25huizengek1/ViTune)
-(base: player, providers, UI) and K4 Music (JioSaavn catalogue, taste engine,
+K4 Audio is a merge of two codebases: [ViTune](https://github.com/25huizengek1/ViTune)
+(base: player, providers, UI) and K4 Audio (JioSaavn catalogue, taste engine,
 crash-safe downloads, K4 theme). Upstream licenses and attributions are kept
 in `LICENSE` and Acknowledgments below.
 

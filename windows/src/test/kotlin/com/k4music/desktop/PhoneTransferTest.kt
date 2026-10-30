@@ -67,8 +67,8 @@ class PhoneTransferTest {
         val invite = LibraryTransfer.Invite(listOf("192.168.1.5", "10.0.0.2"), 50123, code)
         assertEquals(invite, LibraryTransfer.Invite.parse(invite.text()))
         assertNull(LibraryTransfer.Invite.parse("https://example.com"))
-        assertNull(LibraryTransfer.Invite.parse("k4music-transfer:1;192.168.1.5;0;$code"))
-        assertNull(LibraryTransfer.Invite.parse("k4music-transfer:1;192.168.1.5;5000;not-a-code"))
+        assertNull(LibraryTransfer.Invite.parse("k4audio-transfer:1;192.168.1.5;0;$code"))
+        assertNull(LibraryTransfer.Invite.parse("k4audio-transfer:1;192.168.1.5;5000;not-a-code"))
     }
 
     @Test
@@ -90,5 +90,29 @@ class PhoneTransferTest {
             assertNotNull(received)
             assertEquals(setOf("a"), pc.liked.keys)
         }
+    }
+
+    @Test
+    fun aStalledConnectionDoesNotBlockThePhone() {
+        val pc = FakeStore()
+        LibraryTransfer.Receiver().use { receiver ->
+            val invite = receiver.invite(listOf("127.0.0.1"))
+            var received: Any? = null
+            val listener = thread { received = receiver.receive(15_000) { doc -> runBlocking { LibraryTransfer.import(doc, pc) }.let { "OK ${it.likes} ${it.playlists} ${it.songs}" } } }
+            java.net.Socket("127.0.0.1", invite.port).use { _ -> // connects, sends nothing
+                val started = System.currentTimeMillis()
+                val reply = LibraryTransfer.send(invite, LibraryTransfer.pack(runBlocking { LibraryTransfer.export(phone()) }, SyncCrypto.fromCode(invite.code)!!))
+                assertEquals("OK 1 2 3", reply)
+                assertTrue(System.currentTimeMillis() - started < 5_000, "the real phone had to wait for the stalled one")
+            }
+            listener.join(10_000)
+            assertNotNull(received)
+        }
+    }
+
+    @Test
+    fun youTubeImportedPlaylistsTravelToo() = runBlocking {
+        val store = FakeStore().apply { songs["y"] = SongMeta("Y"); lists[7] = "From YouTube" to listOf("y") }
+        assertEquals(listOf("y"), LibraryTransfer.export(store).playlists.single().songs)
     }
 }

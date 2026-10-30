@@ -76,7 +76,7 @@ fun DatabaseSettings() = with(DataPreferences) {
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (error: Exception) {
-                android.util.Log.e("K4 Music", "Backup failed", error)
+                android.util.Log.e("K4 Audio", "Backup failed", error)
                 context.toast(R.string.backup_failed)
             } finally { transferInProgress = false }
         }
@@ -133,7 +133,7 @@ fun DatabaseSettings() = with(DataPreferences) {
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (error: Exception) {
-                android.util.Log.e("K4 Music", "Restore failed; original library preserved", error)
+                android.util.Log.e("K4 Audio", "Restore failed; original library preserved", error)
                 context.toast(R.string.restore_failed)
                 // A failed atomic rename preserves the original, but Room needs a fresh process.
                 if (databaseClosed) exitProcess(0)
@@ -193,6 +193,7 @@ fun DatabaseSettings() = with(DataPreferences) {
             title = stringResource(R.string.transfer_title),
             description = stringResource(R.string.transfer_description)
         ) {
+            val resources = androidx.compose.ui.platform.LocalResources.current
             var sending by remember { mutableStateOf(false) }
             val scanLauncher = rememberLauncherForActivityResult(com.journeyapps.barcodescanner.ScanContract()) { result ->
                 val scanned = result.contents ?: return@rememberLauncherForActivityResult
@@ -200,10 +201,10 @@ fun DatabaseSettings() = with(DataPreferences) {
                 scope.launch {
                     val message = when (val sent = com.k4music.android.k4.PhoneTransfer.send(scanned)) {
                         is com.k4music.android.k4.PhoneTransfer.Result.Sent ->
-                            if (sent.likes == 0 && sent.playlists == 0) context.getString(R.string.transfer_nothing_new)
-                            else context.getString(R.string.transfer_done, sent.likes, sent.playlists)
-                        com.k4music.android.k4.PhoneTransfer.Result.NotAPcCode -> context.getString(R.string.transfer_not_pc_code)
-                        is com.k4music.android.k4.PhoneTransfer.Result.Failed -> context.getString(R.string.transfer_failed, sent.message)
+                            if (sent.likes == 0 && sent.playlists == 0) resources.getString(R.string.transfer_nothing_new)
+                            else resources.getString(R.string.transfer_done, sent.likes, sent.playlists)
+                        com.k4music.android.k4.PhoneTransfer.Result.NotAPcCode -> resources.getString(R.string.transfer_not_pc_code)
+                        is com.k4music.android.k4.PhoneTransfer.Result.Failed -> resources.getString(R.string.transfer_failed, sent.message)
                     }
                     sending = false
                     context.toast(message)
@@ -217,7 +218,7 @@ fun DatabaseSettings() = with(DataPreferences) {
                     scanLauncher.launch(
                         com.journeyapps.barcodescanner.ScanOptions()
                             .setDesiredBarcodeFormats(com.journeyapps.barcodescanner.ScanOptions.QR_CODE)
-                            .setPrompt(context.getString(R.string.transfer_scan_prompt))
+                            .setPrompt(resources.getString(R.string.transfer_scan_prompt))
                             .setBeepEnabled(false)
                     )
                 }

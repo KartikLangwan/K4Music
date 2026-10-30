@@ -112,7 +112,7 @@
     <string name="no_browser_installed">Não foi possível encontrar um aplicativo para navegar na internet.</string>
     <string name="no_equalizer_installed">Não foi possível encontrar um aplicativo para equalização.</string>
     <string name="no_file_chooser_installed">Não foi possível encontrar um aplicativo para criar documentos.</string>
-    <string name="no_battery_optimization_settings_found">Não foi possível encontrar a configuração de otimização de bateria, por favor, adicione o K4 Music manualmente.</string>
+    <string name="no_battery_optimization_settings_found">Não foi possível encontrar a configuração de otimização de bateria, por favor, adicione o K4 Audio manualmente.</string>
     <string name="related_albums">Álbuns relacionados</string>
     <string name="similar_artists">Artistas parecidos</string>
     <string name="recommended_playlists">Playlists que você talvez goste</string>
@@ -221,7 +221,7 @@
     <string name="backup_description">Configurações (ex: tema) e downloads serão removidos.</string>
     <string name="backup_action_description">Exportar o banco de dados para armazenamento externo</string>
     <string name="restore">Restaurar</string>
-    <string name="restore_warning">Dados existentes serão sobrescritos.\nO K4 Music fechará automaticamente assim que finalizar a restauração do banco de dados.</string>
+    <string name="restore_warning">Dados existentes serão sobrescritos.\nO K4 Audio fechará automaticamente assim que finalizar a restauração do banco de dados.</string>
     <string name="restore_description">Importar um banco de dados do armazenamento externo</string>
     <string name="other">Outras</string>
     <string name="android_auto">Android Auto</string>

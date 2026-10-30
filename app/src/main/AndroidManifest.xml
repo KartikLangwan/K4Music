@@ -54,7 +54,7 @@
         android:label="${appName}"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="false"
-        android:theme="@style/Theme.K4Music"
+        android:theme="@style/Theme.K4Audio"
         android:appCategory="audio"
         tools:ignore="UnusedAttribute">
 
@@ -62,7 +62,7 @@
             android:name="com.k4music.android.MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
-            android:theme="@style/Theme.K4Music"
+            android:theme="@style/Theme.K4Audio"
             android:windowSoftInputMode="adjustResize"
             android:supportsPictureInPicture="true"
             android:configChanges="colorMode|density|fontScale|keyboard|keyboardHidden|layoutDirection|locale|mcc|mnc|navigation|orientation|screenLayout|screenSize|smallestScreenSize|touchscreen|uiMode">
@@ -227,7 +227,7 @@
 
         <meta-data
             android:name="com.google.android.gms.car.notification.SmallIcon"
-            android:resource="@drawable/ic_stat_k4music" />
+            android:resource="@drawable/ic_stat_k4audio" />
 
         <meta-data
             android:name="NothingKey"

@@ -42,5 +42,5 @@ object AppearancePreferences : GlobalPreferencesHolder() {
     var hideExplicit by boolean(false)
     var autoPip by boolean(false)
     var openPlayer by boolean(true)
-    var accentColorHex by string("#7B5CFF")
+    var accentColorHex by string("#F5F5F5")
 }

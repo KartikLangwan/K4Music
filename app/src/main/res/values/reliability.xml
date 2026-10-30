@@ -34,7 +34,7 @@
     <string name="website">Website</string>
     <string name="instagram">Instagram</string>
     <string name="open_source_credits">Open-source credits</string>
-    <string name="upstream_credits">K4 Music is built on ViTune and merges it with the K4 Music additions (JioSaavn music, audio effects, redesigned player and library) for a single optimised release. Original licences and attribution are retained.</string>
+    <string name="upstream_credits">K4 Audio is built on ViTune and merges it with the K4 Audio additions (JioSaavn music, audio effects, redesigned player and library) for a single optimised release. Original licences and attribution are retained.</string>
     <string name="link_unavailable">No app could open this link.</string>
     <string name="previous_track">Previous track</string>
     <string name="next_track">Next track</string>

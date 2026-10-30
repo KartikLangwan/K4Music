@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Launch window: black screen with the K4Music mark centered (API 26-30).
+<!-- Launch window: black screen with the K4Audio mark centered (API 26-30).
      Item-level drawable (not <bitmap>) so the adaptive-icon XML resolves. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@android:color/black" />

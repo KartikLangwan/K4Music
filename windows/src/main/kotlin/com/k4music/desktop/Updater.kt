@@ -16,8 +16,8 @@ import java.security.MessageDigest
 import kotlinx.coroutines.ensureActive
 
 /**
- * In-app updates: finds the newest K4 Music release, downloads its Windows installer and starts
- * it. The installer then shows "Updating K4 Music", closes this app properly and starts it again.
+ * In-app updates: finds the newest K4 Audio release, downloads its Windows installer and starts
+ * it. The installer then shows "Updating K4 Audio", closes this app properly and starts it again.
  * A release without a Windows installer leads to the website instead.
  */
 object Updater {
@@ -37,11 +37,11 @@ object Updater {
     private val client = OkHttpClient.Builder().connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS).callTimeout(10, TimeUnit.MINUTES).build()
     private val verified = java.util.concurrent.ConcurrentHashMap<String, String>()
-    private val installerName = Regex("K4Music-Setup-.*\\.exe", RegexOption.IGNORE_CASE)
+    private val installerName = Regex("K4(Music|Audio)-Setup-.*\\.exe", RegexOption.IGNORE_CASE)
 
     /** The newest release if it is newer than this app; null when up to date. Throws when offline. */
     suspend fun check(): Update? = withContext(Dispatchers.IO) {
-        // Releases of the public K4Music repo.
+        // Releases of the public K4Audio repo.
         val releases = GitHub.releases(owner = "KartikLangwan", repo = "K4Music")?.getOrThrow().orEmpty()
         val latest = releases.filter { !it.draft && !it.preRelease }
             .maxWithOrNull { a, b -> compareVersions(a.tag.trimStart('v', 'V'), b.tag.trimStart('v', 'V')) }
@@ -63,7 +63,7 @@ object Updater {
         val expected = requireNotNull(update.digest).removePrefix("sha256:")
         require(expected.matches(Regex("[0-9a-fA-F]{64}"))) { "Missing update checksum" }
         val dir = AppPaths.local.resolve("updates").apply { mkdirs() }
-        val target = dir.resolve("K4Music-Setup-${update.version}.exe")
+        val target = dir.resolve("K4Audio-Setup-${update.version}.exe")
         val part = File.createTempFile("installer-", ".part", dir)
         try {
             client.newCall(Request.Builder().url(url.toString()).build()).useCancellable { response ->
@@ -102,7 +102,7 @@ object Updater {
     fun cleanup() {
         val dir = AppPaths.local.resolve("updates")
         dir.listFiles()?.forEach { file ->
-            val version = file.name.removePrefix("K4Music-Setup-").removeSuffix(".exe")
+            val version = file.name.removePrefix("K4Audio-Setup-").removePrefix("K4Music-Setup-").removeSuffix(".exe")
             val stale = file.name.endsWith(".part") ||
                 (installerName.matches(file.name) && compareVersions(version, currentVersion) <= 0)
             if (stale) runCatching { file.delete() }

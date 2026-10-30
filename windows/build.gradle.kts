@@ -165,9 +165,9 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Msi)
-            packageName = "K4 Music"
+            packageName = "K4 Audio"
             packageVersion = appVersion
-            description = "K4 Music"
+            description = "K4 Audio"
             vendor = "Kartik Langwan"
             copyright = "© 2026 Kartik Langwan. GPL-3.0."
             licenseFile.set(layout.projectDirectory.file("../LICENSE"))
@@ -177,8 +177,8 @@ compose.desktop {
                 "java.sql", "jdk.crypto.ec", "jdk.unsupported", "jdk.zipfs"
             )
             windows {
-                iconFile.set(layout.projectDirectory.file("icons/k4music.ico"))
-                menuGroup = "K4 Music"
+                iconFile.set(layout.projectDirectory.file("icons/k4audio.ico"))
+                menuGroup = "K4 Audio"
                 upgradeUuid = "6F1D2B7A-4E3C-4A8B-9C21-5D7E3A9B1C04"
             }
         }
@@ -197,7 +197,7 @@ tasks.withType<JavaExec>().configureEach {
     doFirst { dev.resolve("tmp").mkdirs() }
 }
 
-// ---- Installer: app image (createDistributable) + Inno Setup -> one K4Music-Setup-x.y.z.exe ----
+// ---- Installer: app image (createDistributable) + Inno Setup -> one K4Audio-Setup-x.y.z.exe ----
 
 // jlink takes the runtime's DLLs from the jmods, which are unsigned; Smart App Control then blocks
 // awt.dll / freetype.dll at random ("An Application Control policy has blocked this file") and the
@@ -207,7 +207,7 @@ val signRuntimeDlls by tasks.registering {
     dependsOn("createDistributable")
     val jdk = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(libs.versions.jvm.get().toInt())) }
         .map { it.metadata.installationPath.asFile.resolve("bin") }
-    val runtimeBin = layout.buildDirectory.dir("compose/binaries/main/app/K4 Music/runtime/bin").get().asFile
+    val runtimeBin = layout.buildDirectory.dir("compose/binaries/main/app/K4 Audio/runtime/bin").get().asFile
     doLast {
         val signedBin = jdk.get()
         var replaced = 0
@@ -224,58 +224,58 @@ val signRuntimeDlls by tasks.registering {
 val bakeCdsArchive by tasks.registering(Exec::class) {
     description = "Creates the runtime's default CDS archive (classes.jsa) in the app image"
     dependsOn("createDistributable", signRuntimeDlls)
-    val appImage = layout.buildDirectory.dir("compose/binaries/main/app/K4 Music").get().asFile
+    val appImage = layout.buildDirectory.dir("compose/binaries/main/app/K4 Audio").get().asFile
     outputs.file(appImage.resolve("runtime/bin/server/classes.jsa"))
     // The launcher starts the bundled JVM, which dumps the archive and exits before main().
-    commandLine(appImage.resolve("K4 Music.exe").absolutePath)
+    commandLine(appImage.resolve("K4 Audio.exe").absolutePath)
     environment("JAVA_TOOL_OPTIONS", "-Xshare:dump")
 }
 
 // Smart App Control blocks a Setup.exe that is not code-signed, while the app itself is allowed:
-// this updates the K4 Music installed on this PC by copying the build over it (settings, library
+// this updates the K4 Audio installed on this PC by copying the build over it (settings, library
 // and the uninstaller stay). ponytail: per-user install folder only; signed installers make it unnecessary.
 val installLocal by tasks.registering {
-    description = "Installs or updates K4 Music on this PC straight from the build, without Setup.exe"
+    description = "Installs or updates K4 Audio on this PC straight from the build, without Setup.exe"
     group = "distribution"
     dependsOn(bakeCdsArchive)
-    val appImage = layout.buildDirectory.dir("compose/binaries/main/app/K4 Music").get().asFile
+    val appImage = layout.buildDirectory.dir("compose/binaries/main/app/K4 Audio").get().asFile
     doLast {
-        val target = File(System.getenv("LOCALAPPDATA"), "Programs/K4 Music")
-        val exe = target.resolve("K4 Music.exe")
+        val target = File(System.getenv("LOCALAPPDATA"), "Programs/K4 Audio")
+        val exe = target.resolve("K4 Audio.exe")
         target.mkdirs()
-        fun running() = ProcessBuilder("tasklist", "/FI", "IMAGENAME eq K4 Music.exe", "/NH").start()
-            .inputStream.bufferedReader().readText().contains("K4 Music.exe")
+        fun running() = ProcessBuilder("tasklist", "/FI", "IMAGENAME eq K4 Audio.exe", "/NH").start()
+            .inputStream.bufferedReader().readText().contains("K4 Audio.exe")
         if (running()) {
             if (exe.isFile) {
                 // Close it properly (it saves the queue); older builds without --quit get ended after 10 s.
                 ProcessBuilder(exe.absolutePath, "--quit").start()
                 repeat(40) { if (running()) Thread.sleep(250) }
             }
-            if (running()) ProcessBuilder("taskkill", "/F", "/T", "/IM", "K4 Music.exe").start().waitFor()
+            if (running()) ProcessBuilder("taskkill", "/F", "/T", "/IM", "K4 Audio.exe").start().waitFor()
             Thread.sleep(1000)
         }
         appImage.copyRecursively(target, overwrite = true)
-        val startMenu = File(System.getenv("APPDATA"), "Microsoft/Windows/Start Menu/Programs/K4 Music")
+        val startMenu = File(System.getenv("APPDATA"), "Microsoft/Windows/Start Menu/Programs/K4 Audio")
         startMenu.mkdirs()
         val shortcutScript = """
             ${'$'}ws = New-Object -ComObject WScript.Shell
-            ${'$'}s = ${'$'}ws.CreateShortcut('${startMenu.resolve("K4 Music.lnk").absolutePath.replace("'", "''")}')
+            ${'$'}s = ${'$'}ws.CreateShortcut('${startMenu.resolve("K4 Audio.lnk").absolutePath.replace("'", "''")}')
             ${'$'}s.TargetPath = '${exe.absolutePath.replace("'", "''")}'
             ${'$'}s.WorkingDirectory = '${target.absolutePath.replace("'", "''")}'
             ${'$'}s.Save()
         """.trimIndent()
         ProcessBuilder("powershell", "-NoProfile", "-Command", shortcutScript).start().waitFor()
-        logger.lifecycle("Installed/Updated K4 Music in $target")
+        logger.lifecycle("Installed/Updated K4 Audio in $target")
     }
 }
 
 val packageInstaller by tasks.registering(Exec::class) {
-    description = "Builds K4Music-Setup-$appVersion.exe (installer + uninstaller) with portable Inno Setup"
+    description = "Builds K4Audio-Setup-$appVersion.exe (installer + uninstaller) with portable Inno Setup"
     group = "distribution"
     dependsOn("createDistributable", bakeCdsArchive)
     val iscc = toolsDir.file("innosetup/ISCC.exe").asFile
-    val script = layout.projectDirectory.file("installer/K4Music.iss").asFile
-    val appImage = layout.buildDirectory.dir("compose/binaries/main/app/K4 Music").get().asFile
+    val script = layout.projectDirectory.file("installer/K4Audio.iss").asFile
+    val appImage = layout.buildDirectory.dir("compose/binaries/main/app/K4 Audio").get().asFile
     val out = layout.buildDirectory.dir("installer").get().asFile
     inputs.dir(appImage)
     inputs.file(script)

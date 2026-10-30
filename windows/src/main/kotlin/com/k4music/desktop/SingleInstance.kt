@@ -10,12 +10,12 @@ import java.net.Socket
 import kotlin.concurrent.thread
 
 /**
- * One running K4 Music. The named mutex also lets the installer/uninstaller see that the app is
+ * One running K4 Audio. The named mutex also lets the installer/uninstaller see that the app is
  * open (Inno Setup `AppMutex`). A second launch hands its arguments (e.g. a YouTube link) to the
  * first over a loopback socket, then exits.
  */
 object SingleInstance {
-    private const val MUTEX = "K4MusicAppMutex"
+    private const val MUTEX = "K4AudioAppMutex"
     /** A copy run on its own data folder (-Dk4.dataDir, used for testing) does not collide with the installed app. */
     private val mutexName get() = System.getProperty("k4.dataDir")?.let { "$MUTEX-${it.lowercase().hashCode().toUInt()}" } ?: MUTEX
     private const val ERROR_ALREADY_EXISTS = 183

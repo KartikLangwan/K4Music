@@ -494,7 +494,7 @@ private fun SideItem(
     onClick: () -> Unit
 ) {
     val colors = MaterialTheme.colorScheme
-    // Main navigation: the selected page is a violet-to-pink pill with white text.
+    // Main navigation: the selected page is a graphite pill (the accent gradient for coloured accents) with white text.
     val pill = selected && strong
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()

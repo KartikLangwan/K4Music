@@ -26,7 +26,7 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
-rootProject.name = "K4Music"
+rootProject.name = "K4Audio"
 
 include(":app")
 include(":core:data")

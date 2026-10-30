@@ -3,9 +3,9 @@ package com.k4music.android.k4
 import com.k4music.android.models.Song as DbSong
 
 /**
- * K4-side song row, ported from the K4Music media row.
+ * K4-side song row, ported from the K4Audio media row.
  *
- * Kept separate from K4Music's Room [DbSong] on purpose: the merged app must
+ * Kept separate from K4Audio's Room [DbSong] on purpose: the merged app must
  * not change any existing Room schema (that would need a migration), so K4
  * logic works on this plain row and maps in/out at the boundary.
  */
@@ -141,7 +141,7 @@ fun parseClockToMs(value: String): Long {
     return total * 1000L
 }
 
-/** K4Music Room row -> K4 row (lossy: artist/album collapse to text, duration parsed). */
+/** K4Audio Room row -> K4 row (lossy: artist/album collapse to text, duration parsed). */
 fun DbSong.toK4(favorite: Boolean = likedAt != null): K4Song = K4Song(
     id = id,
     title = title,

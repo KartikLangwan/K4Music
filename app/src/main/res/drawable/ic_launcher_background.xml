@@ -1,56 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Near-black plate with the faint cool rim the source artwork has. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-
-    <path android:pathData="M0,0h108v108h-108z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:startX="0"
-                android:startY="0"
-                android:endX="108"
-                android:endY="108"
-                android:type="linear">
-                <item android:offset="0.0" android:color="#FF04050A" />
-                <item android:offset="0.55" android:color="#FF06070E" />
-                <item android:offset="1.0" android:color="#FF0A0C16" />
-            </gradient>
-        </aapt:attr>
-    </path>
-
-    <!-- Cool bloom, top right -->
-    <path android:pathData="M108,0 m-52,0 a52,52 0 1,0 104,0 a52,52 0 1,0 -104,0">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:startX="108"
-                android:startY="-52"
-                android:endX="56"
-                android:endY="0"
-                android:type="radial"
-                android:gradientRadius="52">
-                <item android:offset="0.0" android:color="#2A1B4A" />
-                <item android:offset="1.0" android:color="#001B4A" />
-            </gradient>
-        </aapt:attr>
-    </path>
-
-    <!-- Violet bloom, bottom left -->
-    <path android:pathData="M0,108 m-52,0 a52,52 0 1,0 104,0 a52,52 0 1,0 -104,0">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:startX="-52"
-                android:startY="108"
-                android:endX="0"
-                android:endY="56"
-                android:type="radial"
-                android:gradientRadius="52">
-                <item android:offset="0.0" android:color="#2A1640" />
-                <item android:offset="1.0" android:color="#001640" />
-            </gradient>
-        </aapt:attr>
-    </path>
+    <path android:fillColor="#FF000000" android:pathData="M0,0h108v108h-108z" />
 </vector>

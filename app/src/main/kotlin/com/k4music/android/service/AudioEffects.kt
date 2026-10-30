@@ -212,7 +212,7 @@ private val VirtualizerMode.platformMode
     else Virtualizer.VIRTUALIZATION_MODE_BINAURAL
 
 /**
- * "ATD" wide stage: mid/side stereo widening done in K4 Music's own audio pipeline, so it works
+ * "ATD" wide stage: mid/side stereo widening done in K4 Audio's own audio pipeline, so it works
  * on every device and output. The side (difference) signal is raised while the mid is trimmed
  * to hold loudness, and a soft knee keeps boosted peaks from hard clipping. Mono input bypasses.
  */

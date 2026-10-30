@@ -39,6 +39,19 @@ object LocalMusic {
 
     fun folders(): List<File> = configuredFolders().filter { it.isDirectory }
 
+    /** K4 Audio's own folder inside the user's Music folder: drop songs here and they show up in Local. */
+    val appFolder: File get() = File(System.getProperty("user.home"), "Music/K4 Audio")
+
+    /** Creates [appFolder] (inside the scanned Music folder) so it is always there to open. */
+    fun ensureAppFolder() { runCatching { appFolder.mkdirs() } }
+
+    /** Opens [appFolder] in Explorer. */
+    fun openAppFolder() {
+        ensureAppFolder()
+        runCatching { java.awt.Desktop.getDesktop().open(appFolder) }
+            .onFailure { AppLog.w("LocalMusic", "Could not open the music folder", it) }
+    }
+
     internal data class Scan(val files: List<File>, val completeRoots: List<String>)
 
     internal fun collectFiles(roots: List<File>): Scan {
@@ -92,7 +105,7 @@ object LocalMusic {
     private fun loadSignatures() = Properties().also { p -> runCatching { signatureFile.inputStream().use(p::load) } }
 
     private fun saveSignatures(signatures: Properties) {
-        runCatching { signatureFile.outputStream().use { signatures.store(it, "K4 Music local scan") } }
+        runCatching { signatureFile.outputStream().use { signatures.store(it, "K4 Audio local scan") } }
     }
 
     private fun read(file: File): Track {

@@ -69,7 +69,7 @@ fun PromoMarquee(modifier: Modifier = Modifier) {
             modifier = Modifier
                 .weight(1f)
                 .clip(CircleShape)
-                .background(Color(0xCC15101F))
+                .background(Color(0xCC141414))
                 .clickable { runCatching { uriHandler.openUri(Brand.INSTAGRAM_URL) } }
                 .padding(horizontal = 14.dp, vertical = 7.dp)
                 .basicMarquee(

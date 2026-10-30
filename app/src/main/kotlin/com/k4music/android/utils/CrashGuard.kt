@@ -17,7 +17,7 @@ import java.util.Locale
  */
 object CrashGuard {
 
-    private const val TAG = "K4MusicCrash"
+    private const val TAG = "K4AudioCrash"
     private const val FILE_NAME = "crashes.log"
     private const val MAX_BYTES = 256 * 1024
 

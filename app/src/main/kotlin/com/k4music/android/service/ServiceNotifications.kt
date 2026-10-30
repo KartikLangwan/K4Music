@@ -28,7 +28,7 @@ abstract class NotificationChannels {
 
     private fun dispatch(onFailure: (Throwable) -> Unit = {}, action: () -> Unit): Result<Boolean> {
         fun execute() = runCatching(action).onFailure {
-            android.util.Log.e("K4 Music", "Notification operation failed", it)
+            android.util.Log.e("K4 Audio", "Notification operation failed", it)
             onFailure(it)
         }
         return if (Looper.myLooper() == Looper.getMainLooper()) execute().map { true }

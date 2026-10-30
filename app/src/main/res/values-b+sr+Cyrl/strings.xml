@@ -112,7 +112,7 @@
     <string name="no_browser_installed">Није пронађена апликација за прегледање интернета</string>
     <string name="no_equalizer_installed">Није пронађена апликација за подешавање еквилајзера</string>
     <string name="no_file_chooser_installed">Није пронађена апликација за креирање докумената</string>
-    <string name="no_battery_optimization_settings_found">Није пронађено подешавање за оптимизацију батерије, молимо да ручно додате K4 Music на белу листу</string>
+    <string name="no_battery_optimization_settings_found">Није пронађено подешавање за оптимизацију батерије, молимо да ручно додате K4 Audio на белу листу</string>
     <string name="related_albums">Повезани албуми</string>
     <string name="similar_artists">Слични уметници</string>
     <string name="recommended_playlists">Плејлисте које би вам се могле свидети</string>
@@ -218,7 +218,7 @@
     <string name="backup_description">Лични преференције (нпр. мод теме) и кеш су искључени.</string>
     <string name="backup_action_description">Извези базу података на екстерну меморију</string>
     <string name="restore">Врати</string>
-    <string name="restore_warning">Постојећи подаци ће бити преписани.\nK4 Music ће се аутоматски затворити након враћања базе података.</string>
+    <string name="restore_warning">Постојећи подаци ће бити преписани.\nK4 Audio ће се аутоматски затворити након враћања базе података.</string>
     <string name="restore_description">Увези базу података са екстерне меморије</string>
     <string name="other">Остало</string>
     <string name="android_auto">Android Auto</string>

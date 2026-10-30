@@ -1,6 +1,6 @@
 @file:Suppress("UnstableApiUsage")
 
-// K4 Music for Windows: a separate Gradle build that reuses the Android app's
+// K4 Audio for Windows: a separate Gradle build that reuses the Android app's
 // pure-JVM music-source modules in place (../providers, ../ktor-client-brotli).
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
@@ -23,7 +23,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "K4Music"
+rootProject.name = "K4Audio"
 
 // Same project paths as the Android build, so the modules' `projects.*` accessors resolve unchanged.
 listOf(

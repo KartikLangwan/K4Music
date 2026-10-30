@@ -162,7 +162,7 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.SupervisorJob
 
 private const val TAG = "MainActivity"
-private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob() + CoroutineExceptionHandler { _, error -> Log.e("K4Music", "Unhandled background error", error) })
+private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob() + CoroutineExceptionHandler { _, error -> Log.e("K4Audio", "Unhandled background error", error) })
 
 // Viewmodel in order to avoid recreating the entire Player state (WORKAROUND)
 class MainViewModel : ViewModel() {

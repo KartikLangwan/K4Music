@@ -135,9 +135,17 @@ class StreamResolver {
 
     /** Runs the bundled yt-dlp.exe with QuickJS for YouTube's JS challenge. Null on failure/timeout. */
     private suspend fun ytDlp(videoId: String): Stream? =
-        runInterruptible(Dispatchers.IO) { com.k4music.desktop.data.Maintenance.usingYtDlp { ytDlpNow(videoId) } }
+        runInterruptible(Dispatchers.IO) {
+            com.k4music.desktop.data.Maintenance.usingYtDlp {
+                // "Sign in to confirm you're not a bot" is often specific to yt-dlp's default web client:
+                // try the clients that need no sign-in once before treating the network as blocked.
+                val blocked = java.util.concurrent.atomic.AtomicBoolean(false)
+                ytDlpNow(videoId, null, blocked)
+                    ?: if (blocked.get()) ytDlpNow(videoId, "youtube:player_client=tv,android_vr,web_safari", blocked, markBlocked = true) else null
+            }
+        }
 
-    private fun ytDlpNow(videoId: String): Stream? {
+    private fun ytDlpNow(videoId: String, extractorArgs: String?, blocked: java.util.concurrent.atomic.AtomicBoolean, markBlocked: Boolean = false): Stream? {
         val exe = AppPaths.tools.resolve("yt-dlp/yt-dlp.exe")
         val qjs = AppPaths.tools.resolve("qjs.exe")
         if (!exe.isFile) return null
@@ -149,9 +157,11 @@ class StreamResolver {
             // Streaming quality (Settings) picks the format; any audio if those are missing.
             "-f", (Settings.audioQuality.youtubeItags.map { it.toString() } + "bestaudio" + "best").joinToString("/"), "--socket-timeout", "12", "--retries", "2",
             "--js-runtimes", "quickjs:${qjs.absolutePath}",
+            *(Settings.ytCookies.browser?.let { arrayOf("--cookies-from-browser", it) } ?: emptyArray()),
+            *(if (extractorArgs != null) arrayOf("--extractor-args", extractorArgs) else emptyArray()),
             "https://www.youtube.com/watch?v=$videoId"
         ).apply {
-            // yt-dlp unpacks itself into TEMP; keep that inside K4 Music's own folder.
+            // yt-dlp unpacks itself into TEMP; keep that inside K4 Audio's own folder.
             environment()["TEMP"] = temp.absolutePath
             environment()["TMP"] = temp.absolutePath
         }.start()
@@ -176,7 +186,7 @@ class StreamResolver {
                 .onFailure {
                     val error = errors.lines().lastOrNull { it.startsWith("ERROR") }.orEmpty().take(200)
                     AppLog.w(TAG, "yt-dlp gave no usable answer for $videoId (exit ${process.exitValue()}): $error")
-                    if (BLOCKED_SIGNS.any { it in error }) onYoutubeBlocked()
+                    if (BLOCKED_SIGNS.any { it in error }) { blocked.set(true); if (markBlocked) onYoutubeBlocked() }
                 }
                 .getOrNull() ?: return null
             if (info.id != videoId) return null

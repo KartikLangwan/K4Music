@@ -185,7 +185,7 @@ fun Vinyl(url: String?, playing: Boolean, modifier: Modifier = Modifier) {
         if (!moving) return@LaunchedEffect
         while (true) angle.animateTo(angle.value + 360f, tween(16_000, easing = LinearEasing))
     }
-    val vinyl = Color(0xFF141118)
+    val vinyl = Color(0xFF141414)
     Box(
         modifier
             .shadow(28.dp, CircleShape)

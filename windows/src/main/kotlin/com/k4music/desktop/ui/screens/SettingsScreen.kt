@@ -88,7 +88,7 @@ import java.net.URI
 import java.text.DateFormat
 import java.util.Date
 
-private val accents = listOf("#7B5CFF", "#00D2FF", "#FF5E62", "#00E676", "#BD00FF", "#FFB300", "#FF6584", "#4472CF")
+private val accents = listOf("#F5F5F5", "#9A9A9A", "#00D2FF", "#FF5E62", "#00E676", "#FFB300", "#FF6584", "#4472CF")
 
 private enum class SettingsPage(val title: StringResource, val subtitle: String, val icon: DrawableResource) {
     Appearance(Res.string.appearance, "Themes & Scenery", Res.drawable.color_palette),
@@ -481,6 +481,15 @@ private fun PlaybackSection() = Section(Res.string.player) {
     val player = LocalPlayer.current
     val state by player.state.collectAsState()
     SwitchRow(stringResource(Res.string.smart_fallback), stringResource(Res.string.smart_fallback_description), Settings.smartFallback) { Settings.smartFallback = it }
+    Label("YouTube sign-in (fixes \"confirm you're not a bot\" downloads)")
+    Text(
+        "Uses your browser's YouTube sign-in only on this PC, through the built-in downloader. Nothing is sent anywhere else. Close that browser first if it fails.",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    Choices(
+        com.k4music.desktop.prefs.YtCookies.entries.map { it to if (it.browser == null) "Off" else it.name },
+        Settings.ytCookies
+    ) { Settings.ytCookies = it }
     com.k4music.desktop.ui.AudioOutputSettings(player)
     Label(stringResource(Res.string.audio_quality))
     Choices(
@@ -570,7 +579,7 @@ private fun LibrarySection() = Section(Res.string.settings_section_library) {
     Text(stringResource(Res.string.settings_backup_summary), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         FilledTonalButton(onClick = {
-            saveFile("k4music-${System.currentTimeMillis() / 1000}.db") { target ->
+            saveFile("k4audio-${System.currentTimeMillis() / 1000}.db") { target ->
                 scope.launch {
                     runCatching { Maintenance.backup(target) }
                         .onSuccess { AppDialogs.show(getString(Res.string.backup_saved)) }
@@ -614,7 +623,12 @@ private fun LibrarySection() = Section(Res.string.settings_section_library) {
 
     Label(stringResource(Res.string.desktop_music_folders))
     LocalMusic.folders().forEach { Text(it.absolutePath, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+    Text(
+        "Copy songs into ${LocalMusic.appFolder.absolutePath} (or any folder you add) and press Scan: they appear under Library → Local. To bring music from your phone, copy it from the phone's Music folder over USB.",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(onClick = { LocalMusic.openAppFolder() }) { Text("Open music folder") }
         OutlinedButton(onClick = { AppDialogs.pickFolder { LocalMusic.addFolder(it); scope.launch { AppDialogs.scanLocalMusic() } } }) { Text(stringResource(Res.string.desktop_add_folder)) }
         OutlinedButton(onClick = { scope.launch { AppDialogs.scanLocalMusic() } }) { Text(stringResource(Res.string.desktop_scan)) }
     }
@@ -721,7 +735,7 @@ private fun AboutSection() = Section(Res.string.about) {
             Box(Modifier.fillMaxWidth().height(160.dp)) {
                 androidx.compose.foundation.Image(
                     painter = painterResource(Res.drawable.scenery_mountain),
-                    contentDescription = "K4 Music Alpine Landscape",
+                    contentDescription = "K4 Audio Alpine Landscape",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
                 )
@@ -890,7 +904,7 @@ private const val CREATOR_SITE = "https://kartiklangwan.vercel.app"
 private val APP_VERSION get() = System.getProperty("jpackage.app-version") ?: "2.14.26"
 
 /**
- * Compares this version with the newest K4 Music release; downloads always go through the
+ * Compares this version with the newest K4 Audio release; downloads always go through the
  * website. Offline or rate-limited: the website opens so the user can look there.
  */
 private suspend fun checkForUpdate() {

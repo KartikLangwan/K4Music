@@ -440,7 +440,7 @@ private fun ManualMatchDialog(track: com.k4music.android.playlistimport.FailedTr
 }
 
 /**
- * "K4 Music X is available": downloads the installer with a progress bar and starts it (the
+ * "K4 Audio X is available": downloads the installer with a progress bar and starts it (the
  * installer closes the app, updates it and opens it again). Without a Windows installer in the
  * release, it offers the website instead.
  */

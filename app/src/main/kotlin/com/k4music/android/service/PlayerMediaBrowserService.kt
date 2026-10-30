@@ -43,7 +43,7 @@ import kotlinx.coroutines.SupervisorJob
 import android.util.Log
 
 class PlayerMediaBrowserService : MediaBrowserService(), ServiceConnection {
-    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob() + CoroutineExceptionHandler { _, error -> Log.e("K4Music", "Unhandled background error", error) })
+    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob() + CoroutineExceptionHandler { _, error -> Log.e("K4Audio", "Unhandled background error", error) })
     private var lastSongs = emptyList<Song>()
 
     private var bound = false

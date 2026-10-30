@@ -141,9 +141,13 @@ enum class NavPosition { Side, Bottom }
 
 enum class Reverb { None, SmallRoom, LargeHall }
 
+/** Browser whose YouTube sign-in yt-dlp borrows when YouTube asks it to prove it is not a bot. */
+enum class YtCookies(val browser: String?) { None(null), Chrome("chrome"), Edge("edge"), Firefox("firefox") }
+
 object Settings : SettingsStore({ AppPaths.settings }) {
     // Player (names mirror Android's PlayerPreferences)
     var smartFallback by boolean(true)
+    var ytCookies by enum(YtCookies.None)
     var persistentQueue by boolean(true)
     var repeatMode by enum(RepeatMode.Off)
     var shuffleEnabled by boolean(false)
@@ -152,7 +156,7 @@ object Settings : SettingsStore({ AppPaths.settings }) {
     var muted by boolean(false)
     /** Sound output: "auto" follows the Windows default, else mpv's device id (speakers, Bluetooth…). */
     var audioDevice by string("auto")
-    /** "Playing K4 Music" on Discord (see DiscordPresence). Off by default: it shares what you listen to. */
+    /** "Playing K4 Audio" on Discord (see DiscordPresence). Off by default: it shares what you listen to. */
     var discordPresence by boolean(false)
     /** Daily update check: when it last ran, and the version already offered (asked once). */
     var updateCheckedAt by long(0L)
@@ -189,9 +193,20 @@ object Settings : SettingsStore({ AppPaths.settings }) {
 
     // Appearance
     var themeMode by enum(ThemeMode.Dark)
-    var accentColorHex by string("#7B5CFF")
+    var accentColorHex by string("#F5F5F5")
+    /** Which look the saved appearance was made for; 1 = the black-and-white theme. */
+    var themeGeneration by int(0)
+
+    /** Once: moves an install that still has the old violet look (accent, artwork tint, blurred backdrop) to the new default. */
+    fun migrateTheme() {
+        if (themeGeneration >= 1) return
+        themeGeneration = 1
+        accentColorHex = "#F5F5F5"
+        syncAccentWithArtwork = false
+        backgroundStyle = BackgroundStyle.PureBlack
+    }
     /** Dynamic theme accent extracted directly from currently playing album art. */
-    var syncAccentWithArtwork by boolean(true)
+    var syncAccentWithArtwork by boolean(false)
     var minimizeToTray by boolean(false)
     var navPosition by enum(NavPosition.Side)
     /** Side panel shrunk to icons only (Ctrl+B). */
@@ -200,7 +215,7 @@ object Settings : SettingsStore({ AppPaths.settings }) {
     var hiddenNav by string("")
     /** Shows your playlists under the navigation buttons, like a music library. */
     var sidebarPlaylists by boolean(true)
-    var backgroundStyle by enumPref(BackgroundStyle.BlurredArtwork) { BackgroundStyle.fromName(it) }
+    var backgroundStyle by enumPref(BackgroundStyle.PureBlack) { BackgroundStyle.fromName(it) }
     /** Backdrop blur radius (dp) for BlurredArtwork: 20, 45, 70, 95. */
     var backdropBlur by int(45)
     /** Backdrop darkness scrim percentage (35%, 50%, 65%, 80%) for contrast. */

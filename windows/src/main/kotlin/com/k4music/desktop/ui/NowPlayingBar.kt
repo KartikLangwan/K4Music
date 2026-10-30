@@ -104,6 +104,9 @@ fun NowPlayingBar(
     val state by player.state.collectAsState()
     val track = state.current
     val colors = MaterialTheme.colorScheme
+    // The monochrome theme keeps the bar neutral: the artwork colour only glows in when "sync accent" is on.
+    val glow = if (Settings.syncAccentWithArtwork) ambient else colors.primary
+    val glowStrength = if (isMonochrome(glow)) 0.3f else 1f
 
     Box(modifier.fillMaxWidth().height(96.dp).padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 10.dp)) {
     // The capsule: the song's colour glows in from the left.
@@ -113,7 +116,7 @@ fun NowPlayingBar(
             .background(panelColor())
             .background(
                 androidx.compose.ui.graphics.Brush.horizontalGradient(
-                    listOf(ambient.copy(alpha = if (track != null) 0.32f else 0f), ambient.copy(alpha = 0.08f), androidx.compose.ui.graphics.Color.Transparent)
+                    listOf(glow.copy(alpha = if (track != null) 0.32f * glowStrength else 0f), glow.copy(alpha = 0.08f * glowStrength), androidx.compose.ui.graphics.Color.Transparent)
                 )
             )
             .border(1.dp, colors.outlineVariant, RoundedCornerShape(39.dp))

@@ -21,7 +21,7 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.SupervisorJob
 import android.util.Log
 
-private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob() + CoroutineExceptionHandler { _, error -> Log.e("K4Music", "Unhandled background error", error) } + CoroutineName("PreferencesHolders"))
+private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob() + CoroutineExceptionHandler { _, error -> Log.e("K4Audio", "Unhandled background error", error) } + CoroutineName("PreferencesHolders"))
 
 private val canWriteState get() = !Snapshot.current.readOnly && !Snapshot.current.root.readOnly
 
