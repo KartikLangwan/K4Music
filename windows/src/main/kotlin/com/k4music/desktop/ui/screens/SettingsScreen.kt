@@ -898,7 +898,7 @@ private fun AboutSection() = Section(Res.string.about) {
     }
 }
 
-const val WEBSITE = "https://k4music.vercel.app"
+const val WEBSITE = "https://k4audio.vercel.app"
 private const val GITHUB = "https://github.com/KartikLangwan/K4Audio"
 private const val CREATOR_SITE = "https://kartiklangwan.vercel.app"
 private val APP_VERSION get() = System.getProperty("jpackage.app-version") ?: "2.14.26"

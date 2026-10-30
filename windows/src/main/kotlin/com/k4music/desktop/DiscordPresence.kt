@@ -37,7 +37,7 @@ object DiscordPresence {
 
     val available get() = APP_ID.isNotBlank()
 
-    private const val LOGO = "https://k4music.vercel.app/icon-192.png"
+    private const val LOGO = "https://k4audio.vercel.app/icon-192.png"
     private const val OP_HANDSHAKE = 0
     private const val OP_FRAME = 1
 
@@ -139,7 +139,7 @@ object DiscordPresence {
         putJsonArray("buttons") {
             addJsonObject {
                 put("label", "Get K4 Audio")
-                put("url", "https://k4music.vercel.app")
+                put("url", "https://k4audio.vercel.app")
             }
             addJsonObject {
                 put("label", "Meet the Developer")

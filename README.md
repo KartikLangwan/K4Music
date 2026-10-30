@@ -3,8 +3,8 @@
     <h1>K4 Audio</h1>
     <p><b>Your music. Every screen.</b><br/>A free, ad-free music player for Android and Windows by Kartik Langwan</p>
 
-<a href="https://k4music.vercel.app/download"><img src="https://img.shields.io/badge/Android-Download%20APK-555555?style=for-the-badge&logo=android&logoColor=white" alt="Download for Android"/></a>
-<a href="https://k4music.vercel.app/download/windows"><img src="https://img.shields.io/badge/Windows-Download%20installer-555555?style=for-the-badge&logo=windows&logoColor=white" alt="Download for Windows"/></a>
+<a href="https://k4audio.vercel.app/download"><img src="https://img.shields.io/badge/Android-Download%20APK-555555?style=for-the-badge&logo=android&logoColor=white" alt="Download for Android"/></a>
+<a href="https://k4audio.vercel.app/download/windows"><img src="https://img.shields.io/badge/Windows-Download%20installer-555555?style=for-the-badge&logo=windows&logoColor=white" alt="Download for Windows"/></a>
 <a href="https://github.com/KartikLangwan/K4Audio/releases"><img src="https://img.shields.io/badge/All%20releases-555?style=for-the-badge&logo=github" alt="All releases"/></a>
 
 <p>
@@ -14,21 +14,21 @@
 <img src="https://img.shields.io/badge/ads-none-success" alt="No ads"/>
 </p>
 
-<p><a href="https://k4music.vercel.app">k4music.vercel.app</a> · <a href="https://www.instagram.com/K4RTIK.nvm/">Instagram: K4RTIK.nvm</a> · <a href="https://kartiklangwan.vercel.app">kartiklangwan.vercel.app</a></p>
+<p><a href="https://k4audio.vercel.app">k4audio.vercel.app</a> · <a href="https://www.instagram.com/K4RTIK.nvm/">Instagram: K4RTIK.nvm</a> · <a href="https://kartiklangwan.vercel.app">kartiklangwan.vercel.app</a></p>
 </div>
 
 ---
 
 ## Download
 
-Downloads are in this repository's [**Releases**](https://github.com/KartikLangwan/K4Audio/releases) and on [k4music.vercel.app](https://k4music.vercel.app).
+Downloads are in this repository's [**Releases**](https://github.com/KartikLangwan/K4Audio/releases) and on [k4audio.vercel.app](https://k4audio.vercel.app).
 
 | | Android | Windows |
 | --- | --- | --- |
 | **File** | [K4Audio-v2.14.26-RELEASE.apk](https://github.com/KartikLangwan/K4Audio/releases/download/v2.14.26/K4Audio-v2.14.26-RELEASE.apk) | [K4Audio-Setup-2.14.26.exe](https://github.com/KartikLangwan/K4Audio/releases/download/v2.14.26/K4Audio-Setup-2.14.26.exe) |
 | **Requires** | Android 7.0+, 64-bit ARM (arm64-v8a) | Windows 10 / 11, 64-bit |
 | **Size** | 26.8 MB | 116.2 MB |
-| **SHA-256** | `52EC648D3A8F788F7F96221DDF3F28E042CF6C06D932C1E824BD7B264A797557` | `79AAA0E615505EE380FC35BA25CAB4AEB721175ACF12980E09C59CC4B332AE89` |
+| **SHA-256** | `52EC648D3A8F788F7F96221DDF3F28E042CF6C06D932C1E824BD7B264A797557` | `F8A74627FF4FC5CDC85AA077B3FF7AAB83B118B852AF42EFDA296F6ECED26AB8` |
 
 2.14.26 installs over 2.12.14 and keeps your library, likes, downloads and history. Libraries backed up from 2.14.26 need 2.14.26 or newer to restore.
 

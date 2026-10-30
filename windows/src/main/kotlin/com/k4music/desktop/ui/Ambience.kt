@@ -87,7 +87,7 @@ fun rememberAmbientColor(): Color {
     val url = state.current?.thumbnailUrl
     var target by remember { mutableStateOf(accent) }
     LaunchedEffect(url, accent, Settings.backgroundStyle) {
-        target = if (Settings.backgroundStyle == BackgroundStyle.Accent || url == null) accent
+        target = if (Settings.backgroundStyle == BackgroundStyle.Accent || Settings.backgroundStyle == BackgroundStyle.PureBlack || url == null) accent
         else runCatching { artworkColor(url) }.getOrNull() ?: accent
     }
     return animateColorAsState(target, tween(900), label = "ambient").value
@@ -333,12 +333,14 @@ fun BoxScope.BlurredArtwork(url: String?, ambient: Color) {
             model = request,
             contentDescription = null,
             contentScale = ContentScale.Crop,
+            // The minimal theme keeps the full player black and white: the cover glows in grey, not in its own colours.
+            colorFilter = if (isMonochrome(ambient)) androidx.compose.ui.graphics.ColorFilter.colorMatrix(androidx.compose.ui.graphics.ColorMatrix().apply { setToSaturation(0f) }) else null,
             modifier = Modifier.fillMaxSize().blur(Settings.backdropBlur.dp).alpha(0.65f)
         )
     }
     Box(
         Modifier.matchParentSize().background(
-            Brush.verticalGradient(listOf(ambient.copy(alpha = 0.25f), background.copy(alpha = 0.55f), background.copy(alpha = 0.92f)))
+            Brush.verticalGradient(listOf(ambient.copy(alpha = if (isMonochrome(ambient)) 0.08f else 0.25f), background.copy(alpha = 0.55f), background.copy(alpha = 0.92f)))
         )
     )
 }
